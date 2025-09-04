@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validatePaymentNotification } from '@/lib/payfast';
+import { validatePayment } from '@/lib/payfast';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
@@ -16,23 +16,16 @@ export async function POST(request: NextRequest) {
     // Log the ITN data
     console.log('PayFast ITN received:', pfData);
     
-    // Get parameter string for validation
-    const pfParamString = request.url.split('?')[1] || '';
-    
     // Validate the payment notification
-    const isValid = validatePaymentNotification(
-      pfData,
-      pfParamString,
-      process.env.PAYFAST_PASS_PHRASE
-    );
+    const validation = await validatePayment(pfData);
     
-    if (!isValid) {
-      console.error('PayFast validation failed: Invalid signature');
+    if (!validation.valid) {
+      console.error(`PayFast validation failed: ${validation.message}`);
       return new Response('Invalid payment notification', { status: 400 });
     }
     
-    // Extract payment ID from the merchant reference
-    const paymentId = pfData.m_payment_id;
+    // Extract payment ID from the merchant reference or custom string
+    const paymentId = pfData.m_payment_id || pfData.custom_str1;
     
     if (!paymentId) {
       console.error('Missing payment ID in ITN');

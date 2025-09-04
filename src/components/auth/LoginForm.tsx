@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';

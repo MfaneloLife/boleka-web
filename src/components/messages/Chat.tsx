@@ -73,11 +73,10 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
             isCurrentUser: false
           }
         ];
-        ];
-        
+
         setMessages(mockMessages);
         setIsLoading(false);
-        
+
         // Scroll to the bottom after messages are loaded
         setTimeout(scrollToBottom, 100);
       } catch (error) {
@@ -87,9 +86,8 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
     };
 
     fetchMessages();
-    
-    // In a real app, set up a polling mechanism or WebSocket connection
-    // to get real-time messages
+
+    // In a real app, set up a polling mechanism or WebSocket connection to get real-time messages
     const interval = setInterval(fetchMessages, 10000);
     
     return () => clearInterval(interval);
@@ -102,7 +100,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!newMessage.trim() || !session?.user) return;
     
     try {
@@ -150,7 +148,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
         <h3 className="text-lg font-medium">{recipientName}</h3>
         <p className="text-sm text-indigo-100">Regarding: {itemTitle}</p>
       </div>
-      
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {isLoading ? (
@@ -163,19 +161,19 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
           </div>
         ) : (
           messages.map((message) => (
-            <div 
+            <div
               key={message.id}
               className={`flex ${message.senderId === session?.user?.id ? 'justify-end' : 'justify-start'}`}
             >
-              <div 
+              <div
                 className={`max-w-[70%] px-4 py-2 rounded-lg ${
-                  message.senderId === session?.user?.id 
-                    ? 'bg-indigo-600 text-white rounded-br-none' 
+                  message.senderId === session?.user?.id
+                    ? 'bg-indigo-600 text-white rounded-br-none'
                     : 'bg-gray-200 text-gray-900 rounded-bl-none'
                 }`}
               >
                 <div className="text-sm">{message.content}</div>
-                <div 
+                <div
                   className={`text-xs mt-1 ${
                     message.senderId === session?.user?.id ? 'text-indigo-200' : 'text-gray-500'
                   }`}
@@ -188,7 +186,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
         )}
         <div ref={messagesEndRef} />
       </div>
-      
+
       {/* Message input */}
       <div className="border-t border-gray-200 p-4">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
