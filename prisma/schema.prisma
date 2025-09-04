@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String           @id @default(cuid())
+  name              String?
+  email             String           @unique
+  password          String
+  image             String?
+  hasBusinessProfile Boolean         @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  businessProfile   BusinessProfile?
+  clientProfile     ClientProfile?
+  itemsListed       Item[]
+  messages          Message[]
+  sentRequests      Request[]        @relation("SentRequests")
+  receivedRequests  Request[]        @relation("ReceivedRequests")
+  payments          Payment[]        @relation("UserPayments")
+  notifications     Notification[]   @relation("UserNotifications")
+  givenReviews      Review[]         @relation("UserReviews")
+  receivedReviews   Review[]         @relation("ReceivedReviews")
+}
+
+// Add the Notification model
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // REQUEST_CREATED, REQUEST_ACCEPTED, REQUEST_REJECTED, PAYMENT_RECEIVED, MESSAGE_RECEIVED, etc.
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  relatedId   String?  // ID of the related entity (request, payment, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BusinessProfile {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  businessName String
+  description  String?
+  location     String
+  contactPhone String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ClientProfile {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  address      String?
+  contactPhone String?
+  preferences  String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Item {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  price       Float
+  imageUrls   String    // JSON string containing image URLs
+  location    String
+  category    String
+  availability Boolean   @default(true)
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  requests    Request[]
+  reviews     Review[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Request {
+  id             String    @id @default(cuid())
+  itemId         String
+  item           Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  requesterId    String
+  requester      User      @relation("SentRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  ownerId        String
+  owner          User      @relation("ReceivedRequests", fields: [ownerId], references: [id], onDelete: Cascade)
+  status         String    @default("pending") // pending, accepted, rejected, completed, paid
+  paymentType    String?   // online, cash
+  paymentStatus  String?   // paid, unpaid, refunded
+  messages       Message[]
+  payments       Payment[]
+  review         Review?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id             String    @id @default(cuid())
+  requestId      String
+  request        Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  amount         Float
+  status         String    // PENDING, COMPLETED, FAILED, CANCELLED
+  transactionId  String?
+  paymentMethod  String?   // PAYFAST, CASH, etc.
+  paymentDetails String?   // JSON string with payment details
+  payerId        String
+  payer          User      @relation("UserPayments", fields: [payerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  rating      Int      // Rating from 1-5
+  comment     String?  // Optional review text
+  itemId      String
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  reviewerId  String
+  reviewer    User     @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  ownerId     String
+  owner       User     @relation("ReceivedReviews", fields: [ownerId], references: [id])
+  requestId   String?  @unique
+  request     Request? @relation(fields: [requestId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

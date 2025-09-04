@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Boleka - Peer-to-Peer Sharing Platform
+
+Boleka is a modern web application that allows users to share items within their community. Users can create both client and business profiles, making it easy to either list items for sharing or request items from others.
+
+## Key Features
+
+- **Dual Profiles**: Users can switch between client and business profiles
+- **Item Listings**: Add items with details, photos, pricing, and location
+- **Search & Discovery**: Find items available for sharing in your area
+- **Request Management**: Send and manage requests for items
+- **Secure Payments**: Choose between online payments or cash
+- **Messaging**: Built-in chat between item owners and requesters
+
+## Tech Stack
+
+- **Frontend**: Next.js with App Router, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: NextAuth.js
+- **Storage**: Firebase Storage (for images)
+- **Messaging**: Firebase Firestore for real-time messaging
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18.0 or higher
+- PostgreSQL database
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Set up environment variables by copying `.env.example` to `.env` and filling in the values
+4. Initialize the database:
+   ```
+   npx prisma migrate dev
+   ```
+5. Start the development server:
+   ```
+   npm run dev
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+- `/app`: Next.js App Router pages and API routes
+- `/src/components`: Reusable components
+- `/prisma`: Database schema and migrations
+- `/public`: Static assets
+- `/lib`: Utility functions, including Firebase configuration
 
-To learn more about Next.js, take a look at the following resources:
+## Firebase Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Setting up Firebase for Real-time Messaging and Image Storage
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Add a Web App to your project
+3. Enable services:
+   - Firebase Authentication
+   - Firestore Database
+   - Storage
 
-## Deploy on Vercel
+4. Set up Firestore Database rules:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /messages/{document=**} {
+         allow read: if request.auth != null;
+         allow write: if request.auth != null;
+       }
+       match /conversations/{document=**} {
+         allow read: if request.auth != null;
+         allow write: if request.auth != null;
+       }
+     }
+   }
+   ```
+   
+5. Set up Storage rules:
+   ```
+   rules_version = '2';
+   service firebase.storage {
+     match /b/{bucket}/o {
+       match /message-images/{imageId} {
+         allow read: if request.auth != null;
+         allow write: if request.auth != null;
+       }
+       match /item-images/{imageId} {
+         allow read;
+         allow write: if request.auth != null;
+       }
+     }
+   }
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+6. Add Firebase configuration directly to `lib/firebase.ts`:
+   ```javascript
+   // Your web app's Firebase configuration
+   const firebaseConfig = {
+     apiKey: "your-api-key",
+     authDomain: "your-project-id.firebaseapp.com",
+     projectId: "your-project-id",
+     storageBucket: "your-project-id.appspot.com",
+     messagingSenderId: "your-messaging-sender-id",
+     appId: "your-app-id",
+     measurementId: "your-measurement-id"
+   };
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Development Workflow
+
+1. Create a new branch for your feature
+2. Make your changes
+3. Run tests: `npm test`
+4. Submit a pull request
+
+## License
+
+[MIT](LICENSE)
