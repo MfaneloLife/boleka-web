@@ -12,6 +12,12 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // This helps with Prisma and bcrypt in server components
+    serverComponentsExternalPackages: ['@prisma/client', 'bcrypt', 'bcryptjs'],
+  },
+  // We need to allow storing SQLite files
+  outputFileTracing: true,
 }
 
 module.exports = nextConfig

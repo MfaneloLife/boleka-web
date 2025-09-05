@@ -4,11 +4,20 @@ import { prisma, testDatabaseConnection } from '@/lib/prisma';
 export async function GET() {
   try {
     // Test database connection
-    const isConnected = await testDatabaseConnection();
+    const dbResult = await testDatabaseConnection();
     
-    if (!isConnected) {
+    if (!dbResult.success) {
       return NextResponse.json(
-        { error: 'Database connection failed' },
+        { 
+          status: 'error',
+          message: 'Database connection failed', 
+          error: dbResult.error,
+          provider: process.env.DATABASE_PROVIDER || 'unknown',
+          databaseUrl: process.env.DATABASE_URL?.startsWith('file:') 
+            ? 'SQLite file database' 
+            : (process.env.DATABASE_URL?.replace(/postgresql:\/\/([^:]+):([^@]+)@/, 'postgresql://$1:****@') || 'Not provided'),
+          stack: dbResult.stack
+        },
         { status: 500 }
       );
     }
@@ -20,7 +29,10 @@ export async function GET() {
       { 
         status: 'ok',
         message: 'Database connection successful',
-        database: process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'Unknown',
+        provider: process.env.DATABASE_PROVIDER || 'unknown',
+        database: process.env.DATABASE_URL?.startsWith('file:') 
+          ? 'SQLite file database' 
+          : (process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'Unknown'),
         userCount,
         environment: process.env.NODE_ENV,
         prismaVersion: require('@prisma/client/package.json').version
@@ -31,13 +43,14 @@ export async function GET() {
     console.error('DATABASE_TEST_ERROR', error);
     return NextResponse.json(
       { 
+        status: 'error',
         error: 'Database test failed',
         details: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
-        databaseUrl: process.env.DATABASE_URL?.replace(
-          /postgresql:\/\/([^:]+):([^@]+)@/,
-          'postgresql://$1:****@'
-        ) || 'Not provided'
+        provider: process.env.DATABASE_PROVIDER || 'unknown',
+        databaseUrl: process.env.DATABASE_URL?.startsWith('file:') 
+          ? 'SQLite file database' 
+          : (process.env.DATABASE_URL?.replace(/postgresql:\/\/([^:]+):([^@]+)@/, 'postgresql://$1:****@') || 'Not provided')
       },
       { status: 500 }
     );

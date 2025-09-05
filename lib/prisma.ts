@@ -20,13 +20,23 @@ prisma.$on('error', (e) => {
 // Test database connection
 export async function testDatabaseConnection() {
   try {
-    await prisma.$connect();
+    // Try a simple query rather than just connect/disconnect
+    await prisma.$queryRaw`SELECT 1 as result`;
     console.log('Database connection successful');
-    return true;
-  } catch (error) {
+    return { 
+      success: true, 
+      message: "Database connection successful",
+      provider: process.env.DATABASE_PROVIDER || "unknown",
+      url: process.env.DATABASE_URL ? (process.env.DATABASE_URL.startsWith('file:') ? 'SQLite file database' : 'Remote database') : "No database URL set"
+    };
+  } catch (error: any) {
     console.error('Database connection failed:', error);
-    return false;
-  } finally {
-    await prisma.$disconnect();
+    return { 
+      success: false, 
+      message: "Database connection failed", 
+      error: error.message || String(error),
+      provider: process.env.DATABASE_PROVIDER || "unknown",
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    };
   }
 }
