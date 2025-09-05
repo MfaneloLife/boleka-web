@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import PaymentForm from '@/components/PaymentForm';
+import TermsAndConditions from '@/components/TermsAndConditions';
 import Loading from '@/components/Loading';
 
 export default function PaymentPage({ params }: { params: { requestId: string } }) {
@@ -13,6 +14,7 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
   const [request, setRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -70,14 +72,25 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
 
   return (
     <div className="container mx-auto max-w-md py-12">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Complete Your Payment</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+        {showPaymentForm ? 'Complete Your Payment' : 'Review Terms and Conditions'}
+      </h1>
       
-      <PaymentForm
-        requestId={requestId}
-        amount={request.item.price}
-        itemName={request.item.title}
-        onCancel={handleCancel}
-      />
+      {showPaymentForm ? (
+        <PaymentForm
+          requestId={requestId}
+          amount={request.item.price}
+          itemName={request.item.title}
+          onCancel={handleCancel}
+        />
+      ) : (
+        <TermsAndConditions
+          itemName={request.item.title}
+          returnDate={request.endDate ? new Date(request.endDate).toLocaleDateString() : undefined}
+          onAccept={() => setShowPaymentForm(true)}
+          onCancel={handleCancel}
+        />
+      )}
     </div>
   );
 }
