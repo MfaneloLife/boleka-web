@@ -12,9 +12,16 @@ try {
   console.log('Generating Prisma client...');
   execSync('npx prisma generate', { stdio: 'inherit' });
 
-  // For SQLite, ensure the database file exists
-  const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
-  const dbPath = dbUrl.replace('file:./', '');
+  // Check if DATABASE_URL is properly formatted for SQLite
+  const dbUrl = process.env.DATABASE_URL || 'file:./prisma/dev.db';
+  
+  // If DATABASE_URL doesn't start with file:, force it to use a local SQLite file
+  if (!dbUrl.startsWith('file:')) {
+    console.log('DATABASE_URL is not configured for SQLite. Setting to file:./prisma/prod.db');
+    process.env.DATABASE_URL = 'file:./prisma/prod.db';
+  }
+
+  const dbPath = process.env.DATABASE_URL.replace('file:./', '');
   const fullDbPath = path.join(process.cwd(), dbPath);
 
   // Create SQLite database directory if it doesn't exist
