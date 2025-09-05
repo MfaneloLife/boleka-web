@@ -5,6 +5,8 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "env": {
-    "DATABASE_URL": "file:./prisma/prod.db"
+    "DATABASE_URL": "file:./prisma/prod.db",
+    "NEXTAUTH_URL": "https://boleka-web-6nx-72j4lyk7o-mfanelolifes-projects.vercel.app",
+    "NEXT_PUBLIC_APP_URL": "https://boleka-web-6nx-72j4lyk7o-mfanelolifes-projects.vercel.app"
   }
 }
