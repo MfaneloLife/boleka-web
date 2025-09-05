@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signIn } from 'next-auth/react';
+import { useAuth } from '@/src/context/AuthContext';
 
 interface RegisterFormProps {
   callbackUrl?: string;
@@ -20,9 +20,8 @@ interface RegisterFormData {
 
 export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: RegisterFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { signUp, signInWithGoogle, signInWithFacebook, error: authError } = useAuth();
   
   const {
     register,
@@ -31,59 +30,16 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
     watch,
   } = useForm<RegisterFormData>();
 
-  useEffect(() => {
-    // Check for error parameter in URL
-    const error = searchParams.get('error');
-    if (error) {
-      let errorMessage = 'Authentication failed';
-      
-      switch (error) {
-        case 'OAuthSignin':
-        case 'OAuthCallback':
-        case 'OAuthCreateAccount':
-          errorMessage = 'There was a problem with the social login provider';
-          break;
-        case 'EmailCreateAccount':
-          errorMessage = 'There was a problem creating your account';
-          break;
-        default:
-          errorMessage = 'An error occurred during authentication';
-          break;
-      }
-      
-      setAuthError(errorMessage);
-    }
-  }, [searchParams]);
-
   const password = watch('password');
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      setServerError(null);
+      setError(null);
       
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setServerError(result.error || 'Registration failed');
-        return;
-      }
-
+      await signUp(data.email, data.password, data.name);
       router.push(callbackUrl);
-    } catch (error) {
-      console.error('Registration error:', error);
-      setServerError('Something went wrong. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     }
   };
 
@@ -98,9 +54,13 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
 
       <div className="flex flex-col space-y-4">
         <button
-          onClick={() => signIn('google', { callbackUrl })}
-          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          onClick={() => {
+            signInWithGoogle()
+              .then(() => router.push(callbackUrl))
+              .catch(err => setError(err instanceof Error ? err.message : 'Failed to sign up with Google'));
+          }}
           type="button"
+          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -124,9 +84,13 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
         </button>
 
         <button
-          onClick={() => signIn('facebook', { callbackUrl })}
-          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"
+          onClick={() => {
+            signInWithFacebook()
+              .then(() => router.push(callbackUrl))
+              .catch(err => setError(err instanceof Error ? err.message : 'Failed to sign up with Facebook'));
+          }}
           type="button"
+          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path
@@ -149,15 +113,9 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-        {serverError && (
+        {(error || authError) && (
           <div className="p-3 text-sm text-white bg-red-500 rounded">
-            {serverError}
-          </div>
-        )}
-        
-        {authError && (
-          <div className="p-3 text-sm text-white bg-red-500 rounded">
-            {authError}
+            {error || authError}
           </div>
         )}
 

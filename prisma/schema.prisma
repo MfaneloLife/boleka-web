@@ -18,6 +18,7 @@ model User {
   name              String?
   email             String           @unique
   password          String
+  firebaseUid       String?          @unique
   image             String?
   hasBusinessProfile Boolean         @default(false)
   createdAt         DateTime         @default(now())
