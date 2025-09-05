@@ -3,10 +3,13 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Creating user profile...');
     const body = await request.json();
     const { uid, email, name, photoURL, provider } = body;
+    console.log('Received data:', { uid, email, name, provider });
 
     if (!uid || !email) {
+      console.error('Missing required fields:', { uid, email });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -52,30 +55,43 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        firebaseUid: uid,
-        image: photoURL,
-        password: '', // No password needed for Firebase auth
-        clientProfile: {
-          create: {} // Create an empty client profile by default
-        }
-      },
-    });
-
-    return NextResponse.json(
-      {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
+    try {
+      console.log('Creating new user in database...');
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name: name || email.split('@')[0], // Use part of email as name if not provided
+          firebaseUid: uid,
+          image: photoURL,
+          password: 'FIREBASE_AUTH_USER', // Dummy password as the schema requires it
+          clientProfile: {
+            create: {} // Create an empty client profile by default
+          }
         },
-        message: 'User profile created'
-      },
-      { status: 201 }
-    );
+      });
+      
+      console.log('User created successfully:', user.id);
+      return NextResponse.json(
+        {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          },
+          message: 'User profile created'
+        },
+        { status: 201 }
+      );
+    } catch (dbError) {
+      console.error('Database error creating user:', dbError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to create user in database', 
+          details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('CREATE_USER_PROFILE_ERROR', error);
     return NextResponse.json(

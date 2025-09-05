@@ -68,24 +68,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signUp(email: string, password: string, name: string) {
     try {
       setError(null);
+      console.log('Attempting to create Firebase user:', { email, name });
+      
       const result = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('Firebase user created:', result.user.uid);
       
       // Update user profile with name
       if (result.user) {
-        await updateProfile(result.user, { displayName: name });
-        
-        // Create user profile in your database
-        await fetch('/api/auth/create-user-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            uid: result.user.uid,
-            email: result.user.email,
-            name: name,
-          }),
-        });
+        try {
+          await updateProfile(result.user, { displayName: name });
+          console.log('User profile updated with name');
+          
+          // Create user profile in your database
+          try {
+            console.log('Creating user profile in database');
+            const response = await fetch('/api/auth/create-user-profile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                uid: result.user.uid,
+                email: result.user.email,
+                name: name,
+              }),
+            });
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.error('API error creating user profile:', errorData);
+              throw new Error(`Failed to create user profile: ${errorData.error || response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('User profile created successfully:', data);
+          } catch (apiError) {
+            console.error('Error creating user profile in database:', apiError);
+            // Continue - the user is created in Firebase, we can try to create the profile later
+          }
+        } catch (profileError) {
+          console.error('Error updating Firebase profile:', profileError);
+          // Continue - we have the Firebase user
+        }
       }
       
       return result.user;
@@ -94,6 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let errorMessage = "Failed to create account";
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "Email already in use";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "Password is too weak";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email address";
       }
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -118,19 +146,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Create or update user profile in your database
       if (result.user) {
-        await fetch('/api/auth/create-user-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            uid: result.user.uid,
-            email: result.user.email,
-            name: result.user.displayName,
-            photoURL: result.user.photoURL,
-            provider: 'google',
-          }),
-        });
+        try {
+          const response = await fetch('/api/auth/create-user-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              uid: result.user.uid,
+              email: result.user.email,
+              name: result.user.displayName,
+              photoURL: result.user.photoURL,
+              provider: 'google',
+            }),
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to create profile for Google user:', await response.text());
+          }
+        } catch (apiError) {
+          console.error('Error creating profile for Google user:', apiError);
+        }
       }
       
       return result.user;
@@ -148,19 +184,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Create or update user profile in your database
       if (result.user) {
-        await fetch('/api/auth/create-user-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            uid: result.user.uid,
-            email: result.user.email,
-            name: result.user.displayName,
-            photoURL: result.user.photoURL,
-            provider: 'facebook',
-          }),
-        });
+        try {
+          const response = await fetch('/api/auth/create-user-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              uid: result.user.uid,
+              email: result.user.email,
+              name: result.user.displayName,
+              photoURL: result.user.photoURL,
+              provider: 'facebook',
+            }),
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to create profile for Facebook user:', await response.text());
+          }
+        } catch (apiError) {
+          console.error('Error creating profile for Facebook user:', apiError);
+        }
       }
       
       return result.user;
