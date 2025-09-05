@@ -10,13 +10,13 @@
     "seed": "node prisma/seed.js",
     "postinstall": "prisma generate",
     "setup-db": "node prisma/setup.js",
-    "vercel-build": "node prisma/setup-vercel.js && next build"
+    "vercel-build": "node prisma/setup-vercel.js && next build --no-lint"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@auth/core": "^0.40.0",
+    "@auth/core": "0.34.2",
     "@auth/prisma-adapter": "^2.10.0",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",

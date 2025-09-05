@@ -9,6 +9,7 @@ process.env.DATABASE_URL = 'file:./prisma/prod.db';
 
 console.log(`Setting up database for Vercel deployment with SQLite`);
 console.log(`DATABASE_URL: ${process.env.DATABASE_URL}`);
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
 
 try {
   // Generate Prisma client
@@ -36,5 +37,7 @@ try {
   console.log('Database setup completed successfully');
 } catch (error) {
   console.error('Error setting up database:', error);
+  console.error('Error stack:', error.stack);
+  console.error('Error details:', JSON.stringify(error, null, 2));
   process.exit(1);
 }
