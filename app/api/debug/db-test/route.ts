@@ -12,7 +12,7 @@ export async function GET() {
           status: 'error',
           message: 'Database connection failed', 
           error: dbResult.error,
-          provider: process.env.DATABASE_PROVIDER || 'unknown',
+          provider: "sqlite",
           databaseUrl: process.env.DATABASE_URL?.startsWith('file:') 
             ? 'SQLite file database' 
             : (process.env.DATABASE_URL?.replace(/postgresql:\/\/([^:]+):([^@]+)@/, 'postgresql://$1:****@') || 'Not provided'),
@@ -29,7 +29,7 @@ export async function GET() {
       { 
         status: 'ok',
         message: 'Database connection successful',
-        provider: process.env.DATABASE_PROVIDER || 'unknown',
+        provider: "sqlite",
         database: process.env.DATABASE_URL?.startsWith('file:') 
           ? 'SQLite file database' 
           : (process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'Unknown'),
@@ -47,7 +47,7 @@ export async function GET() {
         error: 'Database test failed',
         details: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
-        provider: process.env.DATABASE_PROVIDER || 'unknown',
+        provider: "sqlite",
         databaseUrl: process.env.DATABASE_URL?.startsWith('file:') 
           ? 'SQLite file database' 
           : (process.env.DATABASE_URL?.replace(/postgresql:\/\/([^:]+):([^@]+)@/, 'postgresql://$1:****@') || 'Not provided')

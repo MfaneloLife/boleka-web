@@ -5,7 +5,6 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "env": {
-    "DATABASE_PROVIDER": "sqlite",
     "DATABASE_URL": "file:./prisma/prod.db"
   }
 }

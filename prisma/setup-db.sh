@@ -7,17 +7,12 @@ set -e
 
 echo "Running database setup script..."
 
-# Check if DATABASE_PROVIDER is set, default to sqlite
-if [ -z "$DATABASE_PROVIDER" ]; then
-  export DATABASE_PROVIDER="sqlite"
-  echo "DATABASE_PROVIDER not set, defaulting to 'sqlite'"
-else
-  echo "Using DATABASE_PROVIDER: $DATABASE_PROVIDER"
-fi
+# Using SQLite as the fixed provider
+echo "Using provider: sqlite"
 
-# Check if DATABASE_URL is set appropriately for the provider
-if [ "$DATABASE_PROVIDER" = "sqlite" ] && [[ "$DATABASE_URL" != file:* ]]; then
-  export DATABASE_URL="file:./prisma/dev.db"
+# Check if DATABASE_URL is set appropriately for SQLite
+if [[ "$DATABASE_URL" != file:* ]]; then
+  export DATABASE_URL="file:./prisma/prod.db"
   echo "Setting DATABASE_URL to $DATABASE_URL for SQLite"
 fi
 
@@ -29,10 +24,8 @@ npx prisma generate
 echo "Deploying database migrations..."
 npx prisma migrate deploy
 
-# For SQLite, ensure the database file exists
-if [ "$DATABASE_PROVIDER" = "sqlite" ]; then
-  echo "Ensuring SQLite database file exists..."
-  npx prisma db push --skip-generate
-fi
+# Ensure the database file exists
+echo "Ensuring SQLite database file exists..."
+npx prisma db push --skip-generate
 
 echo "Database setup completed successfully"

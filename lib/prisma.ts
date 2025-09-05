@@ -26,7 +26,7 @@ export async function testDatabaseConnection() {
     return { 
       success: true, 
       message: "Database connection successful",
-      provider: process.env.DATABASE_PROVIDER || "unknown",
+      provider: "sqlite",
       url: process.env.DATABASE_URL ? (process.env.DATABASE_URL.startsWith('file:') ? 'SQLite file database' : 'Remote database') : "No database URL set"
     };
   } catch (error: any) {
@@ -35,7 +35,7 @@ export async function testDatabaseConnection() {
       success: false, 
       message: "Database connection failed", 
       error: error.message || String(error),
-      provider: process.env.DATABASE_PROVIDER || "unknown",
+      provider: "sqlite",
       stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     };
   }

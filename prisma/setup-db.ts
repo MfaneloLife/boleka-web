@@ -6,8 +6,8 @@ import path from 'path';
 async function main() {
   console.log('Starting database setup...');
   
-  const databaseProvider = process.env.DATABASE_PROVIDER || 'sqlite';
-  console.log(`Using database provider: ${databaseProvider}`);
+  // Using SQLite as the fixed provider
+  console.log(`Using database provider: sqlite`);
   
   const prisma = new PrismaClient();
   
@@ -17,25 +17,23 @@ async function main() {
     await prisma.$connect();
     console.log('Database connection successful!');
     
-    // If using SQLite, check if database file exists
-    if (databaseProvider === 'sqlite') {
-      const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
-      const dbPath = dbUrl.replace('file:./', '');
-      const fullDbPath = path.join(process.cwd(), dbPath);
-      
-      console.log(`SQLite database path: ${fullDbPath}`);
-      
-      // Create directory if it doesn't exist
-      const dbDir = path.dirname(fullDbPath);
-      if (!fs.existsSync(dbDir)) {
-        console.log(`Creating database directory: ${dbDir}`);
-        fs.mkdirSync(dbDir, { recursive: true });
-      }
-      
-      if (!fs.existsSync(fullDbPath)) {
-        console.log('Creating database file...');
-        // The file will be created when we run queries
-      }
+    // For SQLite, check if database file exists
+    const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
+    const dbPath = dbUrl.replace('file:./', '');
+    const fullDbPath = path.join(process.cwd(), dbPath);
+    
+    console.log(`SQLite database path: ${fullDbPath}`);
+    
+    // Create directory if it doesn't exist
+    const dbDir = path.dirname(fullDbPath);
+    if (!fs.existsSync(dbDir)) {
+      console.log(`Creating database directory: ${dbDir}`);
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(fullDbPath)) {
+      console.log('Creating database file...');
+      // The file will be created when we run queries
     }
     
     // Check if users table exists by trying to count users
@@ -54,5 +52,7 @@ async function main() {
     await prisma.$disconnect();
   }
 }
+
+main();
 
 main();

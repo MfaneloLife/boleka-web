@@ -3,8 +3,8 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Determine the database provider
-const databaseProvider = process.env.DATABASE_PROVIDER || 'sqlite';
+// Using SQLite as the fixed provider
+const databaseProvider = 'sqlite';
 console.log(`Setting up database with provider: ${databaseProvider}`);
 
 try {
@@ -12,32 +12,26 @@ try {
   console.log('Generating Prisma client...');
   execSync('npx prisma generate', { stdio: 'inherit' });
 
-  // Check if using SQLite and the database file doesn't exist
-  if (databaseProvider === 'sqlite') {
-    const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
-    const dbPath = dbUrl.replace('file:./', '');
-    const fullDbPath = path.join(process.cwd(), dbPath);
+  // For SQLite, ensure the database file exists
+  const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
+  const dbPath = dbUrl.replace('file:./', '');
+  const fullDbPath = path.join(process.cwd(), dbPath);
 
-    // Create SQLite database directory if it doesn't exist
-    const dbDir = path.dirname(fullDbPath);
-    if (!fs.existsSync(dbDir)) {
-      console.log(`Creating database directory: ${dbDir}`);
-      fs.mkdirSync(dbDir, { recursive: true });
-    }
+  // Create SQLite database directory if it doesn't exist
+  const dbDir = path.dirname(fullDbPath);
+  if (!fs.existsSync(dbDir)) {
+    console.log(`Creating database directory: ${dbDir}`);
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
 
-    // Deploy the schema (run migrations or create schema)
-    console.log('Deploying Prisma schema...');
-    execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-    
-    // If db file still doesn't exist, create a blank database file
-    if (!fs.existsSync(fullDbPath)) {
-      console.log(`Creating empty database file: ${fullDbPath}`);
-      execSync(`npx prisma db push --skip-generate`, { stdio: 'inherit' });
-    }
-  } else {
-    // For PostgreSQL and other providers, just run migrations
-    console.log('Running migrations...');
-    execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  // Deploy the schema (run migrations or create schema)
+  console.log('Deploying Prisma schema...');
+  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  
+  // If db file still doesn't exist, create a blank database file
+  if (!fs.existsSync(fullDbPath)) {
+    console.log(`Creating empty database file: ${fullDbPath}`);
+    execSync(`npx prisma db push --skip-generate`, { stdio: 'inherit' });
   }
 
   console.log('Database setup completed successfully');
