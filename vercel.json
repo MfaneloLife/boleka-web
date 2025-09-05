@@ -3,16 +3,5 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": "nextjs",
-  "env": {
-    "NEXTAUTH_URL": {
-      "type": "string"
-    },
-    "NEXTAUTH_SECRET": {
-      "type": "string"
-    },
-    "DATABASE_URL": {
-      "type": "string"
-    }
-  }
+  "framework": "nextjs"
 }
