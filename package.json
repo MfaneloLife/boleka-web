@@ -16,6 +16,7 @@
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
+    "@auth/core": "^0.40.0",
     "@auth/prisma-adapter": "^2.10.0",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
