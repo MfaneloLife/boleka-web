@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 
@@ -20,7 +20,9 @@ interface RegisterFormData {
 
 export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: RegisterFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   const {
     register,
@@ -28,6 +30,30 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
     formState: { errors, isSubmitting },
     watch,
   } = useForm<RegisterFormData>();
+
+  useEffect(() => {
+    // Check for error parameter in URL
+    const error = searchParams.get('error');
+    if (error) {
+      let errorMessage = 'Authentication failed';
+      
+      switch (error) {
+        case 'OAuthSignin':
+        case 'OAuthCallback':
+        case 'OAuthCreateAccount':
+          errorMessage = 'There was a problem with the social login provider';
+          break;
+        case 'EmailCreateAccount':
+          errorMessage = 'There was a problem creating your account';
+          break;
+        default:
+          errorMessage = 'An error occurred during authentication';
+          break;
+      }
+      
+      setAuthError(errorMessage);
+    }
+  }, [searchParams]);
 
   const password = watch('password');
 
@@ -126,6 +152,12 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
         {serverError && (
           <div className="p-3 text-sm text-white bg-red-500 rounded">
             {serverError}
+          </div>
+        )}
+        
+        {authError && (
+          <div className="p-3 text-sm text-white bg-red-500 rounded">
+            {authError}
           </div>
         )}
 

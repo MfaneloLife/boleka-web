@@ -1,20 +1,49 @@
-import Link from 'next/link';
-import { Metadata } from 'next';
-import AuthError from '@/src/components/auth/AuthError';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Authentication Error | Boleka',
-  description: 'Authentication error occurred',
-};
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function AuthErrorPage() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get('error');
+  const [errorMessage, setErrorMessage] = useState('There was a problem with your authentication attempt.');
+  
+  useEffect(() => {
+    if (error) {
+      let message = 'An error occurred during authentication';
+      
+      switch (error) {
+        case 'OAuthSignin':
+        case 'OAuthCallback':
+        case 'OAuthCreateAccount':
+          message = 'There was a problem with the OAuth provider';
+          break;
+        case 'EmailCreateAccount':
+          message = 'There was a problem creating an account with this email';
+          break;
+        case 'Callback':
+          message = 'There was a problem during the authentication callback';
+          break;
+        case 'AccessDenied':
+          message = 'Access was denied to your account';
+          break;
+        case 'Default':
+        default:
+          message = 'An unknown error occurred during authentication';
+          break;
+      }
+      
+      setErrorMessage(message);
+    }
+  }, [error]);
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <AuthError />
       <div className="p-8 bg-white rounded-lg shadow-md">
         <h1 className="text-2xl font-bold text-red-600">Authentication Error</h1>
         <p className="mt-2 text-gray-700">
-          There was a problem with your authentication attempt.
+          {errorMessage}
         </p>
         <div className="mt-6 space-y-4">
           <Link 

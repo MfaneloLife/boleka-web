@@ -1,10 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface LoginFormProps {
@@ -13,12 +13,38 @@ interface LoginFormProps {
 
 export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [authError, setAuthError] = useState<string | null>(null);
+  
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<{ email: string; password: string }>();
+
+  useEffect(() => {
+    // Check for error parameter in URL
+    const error = searchParams.get('error');
+    if (error) {
+      let errorMessage = 'Authentication failed';
+      
+      switch (error) {
+        case 'OAuthSignin':
+        case 'OAuthCallback':
+          errorMessage = 'There was a problem with the social login provider';
+          break;
+        case 'AccessDenied':
+          errorMessage = 'Access was denied to your account';
+          break;
+        default:
+          errorMessage = 'An error occurred during authentication';
+          break;
+      }
+      
+      setAuthError(errorMessage);
+    }
+  }, [searchParams]);
 
   const onSubmit = async (data: { email: string; password: string }) => {
     try {
@@ -104,6 +130,12 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
         {errors.root && (
           <div className="p-3 text-sm text-white bg-red-500 rounded">
             {errors.root.message}
+          </div>
+        )}
+        
+        {authError && (
+          <div className="p-3 text-sm text-white bg-red-500 rounded">
+            {authError}
           </div>
         )}
 

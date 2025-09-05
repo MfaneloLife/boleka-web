@@ -1,5 +1,4 @@
 import RegisterForm from '@/src/components/auth/RegisterForm';
-import AuthError from '@/src/components/auth/AuthError';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -10,7 +9,6 @@ export const metadata: Metadata = {
 export default function RegisterPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <AuthError />
       <RegisterForm />
     </div>
   );
