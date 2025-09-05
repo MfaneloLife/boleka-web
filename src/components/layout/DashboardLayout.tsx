@@ -26,8 +26,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Link href="/" className="text-white text-xl font-bold">
-                  Boleka
+                <Link href="/" className="flex items-center">
+                  <Image 
+                    src="/logo.png" 
+                    alt="Boleka" 
+                    width={40} 
+                    height={40} 
+                    className="mr-2"
+                  />
+                  <span className="text-white text-xl font-bold">Boleka</span>
                 </Link>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

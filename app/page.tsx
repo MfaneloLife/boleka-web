@@ -58,8 +58,8 @@ export default function Home() {
             <div className="mt-12 lg:mt-0 lg:flex-1">
               <div className="relative w-full h-64 sm:h-72 md:h-80 lg:h-96">
                 <Image
-                  src="/sharing-concept.png"
-                  alt="Sharing platform concept"
+                  src="/logo.png"
+                  alt="Boleka Platform"
                   fill
                   style={{ objectFit: "contain" }}
                   className="rounded-lg shadow-xl"
@@ -176,43 +176,23 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-gray-800">
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-8 md:grid-cols-2">
             <div>
-              <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">About</h3>
+              <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Company</h3>
               <ul className="mt-4 space-y-4">
                 <li>
                   <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Our Story
+                    Our Team
                   </a>
                 </li>
                 <li>
                   <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Team
+                    Contact
                   </a>
                 </li>
                 <li>
                   <a href="#" className="text-base text-gray-300 hover:text-white">
                     Careers
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Resources</h3>
-              <ul className="mt-4 space-y-4">
-                <li>
-                  <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Help Center
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Guidelines
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Safety Tips
                   </a>
                 </li>
               </ul>
@@ -233,26 +213,6 @@ export default function Home() {
                 <li>
                   <a href="#" className="text-base text-gray-300 hover:text-white">
                     Cookie Policy
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Connect</h3>
-              <ul className="mt-4 space-y-4">
-                <li>
-                  <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Twitter
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Facebook
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-base text-gray-300 hover:text-white">
-                    Instagram
                   </a>
                 </li>
               </ul>
