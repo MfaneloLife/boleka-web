@@ -1,7 +1,12 @@
 import Image from "next/image";
-import Link from "next/link";
-
-export default function Home() {
+import Link from "next/li              <div className="mt-12 lg:mt-0 lg:flex-1">
+              <div className="relative w-full h-64 sm:h-72 md:h-80 lg:h-96">
+                <Image
+                  src="/images/logo.png"
+                  alt="Boleka Platform"
+                  fill
+                  style={{ objectFit: "contain" }}
+                  className="rounded-lg shadow-xl"port default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -58,7 +63,7 @@ export default function Home() {
             <div className="mt-12 lg:mt-0 lg:flex-1">
               <div className="relative w-full h-64 sm:h-72 md:h-80 lg:h-96">
                 <Image
-                  src="/logo.png"
+                  src="/images/logo.png"
                   alt="Boleka Platform"
                   fill
                   style={{ objectFit: "contain" }}

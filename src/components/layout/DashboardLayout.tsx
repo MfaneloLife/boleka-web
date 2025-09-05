@@ -28,7 +28,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="flex-shrink-0 flex items-center">
                 <Link href="/" className="flex items-center">
                   <Image 
-                    src="/logo.png" 
+                    src="/images/logo.png" 
                     alt="Boleka" 
                     width={40} 
                     height={40} 
