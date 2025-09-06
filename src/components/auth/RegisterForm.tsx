@@ -5,7 +5,7 @@ import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/src/context/AuthContext';
+import { signIn as nextAuthSignIn } from 'next-auth/react';
 
 interface RegisterFormProps {
   callbackUrl?: string;
@@ -21,7 +21,7 @@ interface RegisterFormData {
 export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: RegisterFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const { signUp, signInWithGoogle, signInWithFacebook, error: authError } = useAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
   
   const {
     register,
@@ -36,8 +36,29 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
     try {
       setError(null);
       
-      await signUp(data.email, data.password, data.name);
-      router.push(callbackUrl);
+      // Create user via API (stores hashed password)
+      const resp = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: data.name, email: data.email, password: data.password }),
+      });
+      if (!resp.ok) {
+        const r = await resp.json().catch(() => ({}));
+        throw new Error(r.error || 'Registration failed');
+      }
+      // Sign in immediately via credentials
+      const res = await nextAuthSignIn('credentials', {
+        redirect: false,
+        email: data.email,
+        password: data.password,
+        callbackUrl,
+      });
+      if (!res) throw new Error('No response from auth');
+      if (res.error) {
+        setAuthError(res.error);
+        throw new Error(res.error);
+      }
+      router.push(res.url || callbackUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }
@@ -55,9 +76,9 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
       <div className="flex flex-col space-y-4">
         <button
           onClick={() => {
-            signInWithGoogle()
-              .then(() => router.push(callbackUrl))
-              .catch(err => setError(err instanceof Error ? err.message : 'Failed to sign up with Google'));
+            nextAuthSignIn('google', { callbackUrl }).catch(err =>
+              setError(err instanceof Error ? err.message : 'Failed to sign up with Google')
+            );
           }}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -85,9 +106,9 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
 
         <button
           onClick={() => {
-            signInWithFacebook()
-              .then(() => router.push(callbackUrl))
-              .catch(err => setError(err instanceof Error ? err.message : 'Failed to sign up with Facebook'));
+            nextAuthSignIn('facebook', { callbackUrl }).catch(err =>
+              setError(err instanceof Error ? err.message : 'Failed to sign up with Facebook')
+            );
           }}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"

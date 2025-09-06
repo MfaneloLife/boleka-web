@@ -5,7 +5,7 @@ import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/src/context/AuthContext';
+import { signIn as nextAuthSignIn } from 'next-auth/react';
 
 interface LoginFormProps {
   callbackUrl?: string;
@@ -13,7 +13,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps) {
   const router = useRouter();
-  const { signIn, signInWithGoogle, signInWithFacebook, error: authError } = useAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   const {
@@ -25,8 +25,18 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
   const onSubmit = async (data: { email: string; password: string }) => {
     try {
       setError(null);
-      await signIn(data.email, data.password);
-      router.push(callbackUrl);
+      const res = await nextAuthSignIn('credentials', {
+        redirect: false,
+        email: data.email,
+        password: data.password,
+        callbackUrl,
+      });
+      if (!res) throw new Error('No response from auth');
+      if (res.error) {
+        setAuthError(res.error);
+        throw new Error(res.error);
+      }
+      router.push(res.url || callbackUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login');
     }
@@ -44,9 +54,9 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
       <div className="flex flex-col space-y-4">
         <button
           onClick={() => {
-            signInWithGoogle()
-              .then(() => router.push(callbackUrl))
-              .catch(err => setError(err instanceof Error ? err.message : 'Failed to sign in with Google'));
+            nextAuthSignIn('google', { callbackUrl }).catch(err =>
+              setError(err instanceof Error ? err.message : 'Failed to sign in with Google')
+            );
           }}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -74,9 +84,9 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
 
         <button
           onClick={() => {
-            signInWithFacebook()
-              .then(() => router.push(callbackUrl))
-              .catch(err => setError(err instanceof Error ? err.message : 'Failed to sign in with Facebook'));
+            nextAuthSignIn('facebook', { callbackUrl }).catch(err =>
+              setError(err instanceof Error ? err.message : 'Failed to sign in with Facebook')
+            );
           }}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"

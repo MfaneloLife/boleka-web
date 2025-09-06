@@ -1,31 +1,19 @@
-import bcrypt from 'bcrypt';
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcrypt';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, password } = body;
+    const { email, name, password } = body as { email?: string; name?: string; password?: string };
 
-    if (!email || !name || !password) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    // Check if user with email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
-
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email already in use' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -33,32 +21,20 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: {
         email,
-        name,
+        name: name ?? null,
         password: hashedPassword,
-        clientProfile: {
-          create: {} // Create an empty client profile by default
-        }
+        clientProfile: { create: {} },
       },
+      select: { id: true, email: true, name: true },
     });
 
-    return NextResponse.json(
-      {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        },
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
     console.error('REGISTRATION_ERROR', error);
-    // Return more specific error information for debugging
     return NextResponse.json(
-      { 
-        error: 'Internal server error', 
+      {
+        error: 'Internal server error',
         details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );

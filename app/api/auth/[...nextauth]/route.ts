@@ -38,10 +38,22 @@ export const authOptions: AuthOptions = {
           throw new Error('Invalid credentials');
         }
 
-        const isCorrectPassword = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
+        // Ensure stored password is a bcrypt hash
+        const isBcryptHash = typeof user.password === 'string' && user.password.startsWith('$2');
+        if (!isBcryptHash) {
+          // Likely a social/Firebase user without a local password
+          throw new Error('Invalid credentials');
+        }
+
+        let isCorrectPassword = false;
+        try {
+          isCorrectPassword = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+        } catch {
+          isCorrectPassword = false;
+        }
 
         if (!isCorrectPassword) {
           throw new Error('Invalid credentials');
@@ -53,7 +65,6 @@ export const authOptions: AuthOptions = {
   ],
   pages: {
     signIn: '/auth/login',
-    error: '/auth/error',
   },
   debug: process.env.NODE_ENV === 'development',
   session: {
