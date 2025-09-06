@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function ClientDashboardPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [items, setItems] = useState([]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {

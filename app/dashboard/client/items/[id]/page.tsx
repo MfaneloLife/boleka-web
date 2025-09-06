@@ -227,7 +227,7 @@ export default function ItemPage() {
       ) : (
         <div className="text-center py-12">
           <h2 className="text-2xl font-semibold text-gray-900">Item not found</h2>
-          <p className="mt-2 text-gray-600">This item may have been removed or doesn't exist.</p>
+          <p className="mt-2 text-gray-600">This item may have been removed or doesn&apos;t exist.</p>
           <div className="mt-6">
             <Link href="/dashboard/client/search" className="text-indigo-600 hover:text-indigo-500">
               Go back to search

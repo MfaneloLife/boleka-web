@@ -24,7 +24,7 @@ export interface FirebaseMessage {
   senderName: string;
   senderImage?: string | null;
   requestId: string;
-  createdAt: any;
+  createdAt: Date | { toDate?: () => Date } | null;
   imageUrl?: string | null;
 }
 
@@ -101,7 +101,7 @@ export async function sendMessage(
 
     // Return the created message
     const messageSnapshot = await getDoc(docRef);
-    const messageData = messageSnapshot.data() as Omit<FirebaseMessage, 'id'>;
+  const messageData = messageSnapshot.data() as Omit<FirebaseMessage, 'id'>;
     
     return {
       id: messageSnapshot.id,
@@ -115,7 +115,14 @@ export async function sendMessage(
 }
 
 // Update conversation's last message
-async function updateConversationLastMessage(requestId: string, update: any) {
+type ConversationLastMessageUpdate = {
+  lastMessageContent: string;
+  lastMessageSenderId: string;
+  lastMessageSenderName: string;
+  updatedAt: ReturnType<typeof serverTimestamp>;
+};
+
+async function updateConversationLastMessage(requestId: string, update: ConversationLastMessageUpdate) {
   try {
     const conversationRef = doc(db, CONVERSATIONS_COLLECTION, requestId);
     const conversationSnapshot = await getDoc(conversationRef);

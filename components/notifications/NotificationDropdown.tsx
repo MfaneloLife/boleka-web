@@ -120,7 +120,7 @@ export default function NotificationDropdown() {
       const intervalId = setInterval(fetchUnreadCount, 60000);
       return () => clearInterval(intervalId);
     }
-  }, [session]);
+  }, [session, fetchUnreadCount]);
 
   // Get link for notification type
   const getNotificationLink = (notification: Notification) => {

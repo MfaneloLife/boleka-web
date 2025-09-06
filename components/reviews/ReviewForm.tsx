@@ -55,8 +55,8 @@ export default function ReviewForm({ itemId, requestId, onSuccess }: ReviewFormP
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to submit review');
     } finally {
       setIsSubmitting(false);
     }

@@ -9,9 +9,22 @@ import Loading from '@/components/Loading';
 
 export default function PaymentPage({ params }: { params: { requestId: string } }) {
   const { requestId } = params;
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
-  const [request, setRequest] = useState<any>(null);
+  const [request, setRequest] = useState<{
+    id: string;
+    status: string;
+    endDate?: string;
+    item: {
+      id: string;
+      title: string;
+      price: number;
+    };
+    owner: {
+      id: string;
+      name: string;
+    };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);

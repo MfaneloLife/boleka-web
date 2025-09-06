@@ -54,12 +54,13 @@ export default function ItemReviewsPage() {
           
           // Calculate average rating
           if (reviews.length > 0) {
-            const total = reviews.reduce((sum: number, review: any) => sum + review.rating, 0);
+            type Review = { rating: number };
+            const total = (reviews as Review[]).reduce((sum: number, review: Review) => sum + review.rating, 0);
             setAverageRating(total / reviews.length);
           }
         }
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load item details');
       } finally {
         setIsLoading(false);
       }

@@ -83,10 +83,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(review, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating review:', error);
     return NextResponse.json(
-      { error: error.message || 'An error occurred while creating the review' },
+      { error: error instanceof Error ? error.message : 'An error occurred while creating the review' },
       { status: 500 }
     );
   }
@@ -131,10 +131,10 @@ export async function GET(req: NextRequest) {
       const reviews = await getUserGivenReviews(user.id);
       return NextResponse.json(reviews);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching reviews:', error);
     return NextResponse.json(
-      { error: error.message || 'An error occurred while fetching reviews' },
+      { error: error instanceof Error ? error.message : 'An error occurred while fetching reviews' },
       { status: 500 }
     );
   }

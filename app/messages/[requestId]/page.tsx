@@ -58,7 +58,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
     } else if (status === 'authenticated') {
       fetchConversation();
     }
-  }, [status, router, params.requestId]);
+  }, [status, router, params.requestId, fetchConversation]);
 
   const fetchConversation = async () => {
     try {

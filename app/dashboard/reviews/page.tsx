@@ -10,7 +10,7 @@ function classNames(...classes: string[]) {
 }
 
 export default function ReviewsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [selectedTab, setSelectedTab] = useState(0);
 
   if (status === 'loading') {

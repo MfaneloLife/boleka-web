@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/src/components/ui/Button';
 
 export default function NewItemPage() {
@@ -224,10 +225,12 @@ export default function NewItemPage() {
                   <div className="mt-4 grid grid-cols-3 gap-4">
                     {imagePreviewUrls.map((url, index) => (
                       <div key={index} className="relative">
-                        <img
+                        <Image
                           src={url}
                           alt={`Preview ${index + 1}`}
                           className="h-24 w-full object-cover rounded-md"
+                          width={96}
+                          height={96}
                         />
                         <button
                           type="button"

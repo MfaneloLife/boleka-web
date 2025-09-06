@@ -7,16 +7,15 @@ import Button from '@/components/Button';
 
 interface SendMessageModalProps {
   itemId: string;
-  ownerId: string;
   onClose: () => void;
 }
 
-export default function SendMessageModal({ itemId, ownerId, onClose }: SendMessageModalProps) {
+export default function SendMessageModal({ itemId, onClose }: SendMessageModalProps) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

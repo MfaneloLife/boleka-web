@@ -113,7 +113,7 @@ export default function BusinessItemsPage() {
       ) : (
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:p-6 text-center">
-            <p className="text-gray-500">You haven't listed any items yet.</p>
+            <p className="text-gray-500">You haven&apos;t listed any items yet.</p>
             <div className="mt-5">
               <Link
                 href="/dashboard/business/items/new"

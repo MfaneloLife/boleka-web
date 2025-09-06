@@ -58,6 +58,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     >
                       Requests
                     </Link>
+                    <Link
+                      href="/dashboard/business/earnings"
+                      className="border-transparent text-white hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      Earnings
+                    </Link>
+                    <Link
+                      href="/dashboard/business/banking-details"
+                      className="border-transparent text-white hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      Banking
+                    </Link>
+                    <Link
+                      href="/dashboard/business/onboarding"
+                      className="border-transparent text-white hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      How It Works
+                    </Link>
                   </>
                 ) : (
                   <>
@@ -179,6 +197,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="text-white hover:bg-indigo-700 block pl-3 pr-4 py-2 text-base font-medium"
                   >
                     Requests
+                  </Link>
+                  <Link
+                    href="/dashboard/business/earnings"
+                    className="text-white hover:bg-indigo-700 block pl-3 pr-4 py-2 text-base font-medium"
+                  >
+                    Earnings
+                  </Link>
+                  <Link
+                    href="/dashboard/business/banking-details"
+                    className="text-white hover:bg-indigo-700 block pl-3 pr-4 py-2 text-base font-medium"
+                  >
+                    Banking
+                  </Link>
+                  <Link
+                    href="/dashboard/business/onboarding"
+                    className="text-white hover:bg-indigo-700 block pl-3 pr-4 py-2 text-base font-medium"
+                  >
+                    How It Works
                   </Link>
                 </>
               ) : (

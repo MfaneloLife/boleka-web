@@ -18,7 +18,19 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "prisma/generated/**",
     ],
+  },
+  {
+    files: ["prisma/**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    rules: {
+      "react/no-unescaped-entities": "off",
+    },
   },
 ];
 

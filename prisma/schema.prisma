@@ -50,15 +50,20 @@ model Notification {
 }
 
 model BusinessProfile {
-  id           String    @id @default(cuid())
-  userId       String    @unique
-  businessName String
-  description  String?
-  location     String
-  contactPhone String?
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  businessName     String
+  description      String?
+  location         String
+  contactPhone     String?
+  bankName         String?
+  accountNumber    String?
+  accountType      String?
+  branchCode       String?
+  accountHolderName String?
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model ClientProfile {
@@ -118,18 +123,22 @@ model Message {
 }
 
 model Payment {
-  id             String    @id @default(cuid())
-  requestId      String
-  request        Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  amount         Float
-  status         String    // PENDING, COMPLETED, FAILED, CANCELLED
-  transactionId  String?
-  paymentMethod  String?   // PAYFAST, CASH, etc.
-  paymentDetails String?   // JSON string with payment details
-  payerId        String
-  payer          User      @relation("UserPayments", fields: [payerId], references: [id], onDelete: Cascade)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  requestId         String
+  request           Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  amount            Float
+  commissionAmount  Float     @default(0)  // 5% commission amount
+  merchantAmount    Float     @default(0)  // Amount after commission
+  merchantPaid      Boolean   @default(false)
+  merchantPayoutDate DateTime?
+  status            String    // PENDING, COMPLETED, FAILED, CANCELLED
+  transactionId     String?
+  paymentMethod     String?   // PAYFAST, CASH, etc.
+  paymentDetails    String?   // JSON string with payment details
+  payerId           String
+  payer             User      @relation("UserPayments", fields: [payerId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model Review {

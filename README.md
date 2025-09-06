@@ -118,6 +118,29 @@ Boleka is a modern web application that allows users to share items within their
 3. Run tests: `npm test`
 4. Submit a pull request
 
+## Deployment
+
+### Deploying to Vercel
+
+1. Push your code to a GitHub repository
+2. Connect your repository to Vercel
+3. Configure the following environment variables in Vercel:
+   - `DATABASE_PROVIDER`: Set to `sqlite` for Vercel deployment
+   - `DATABASE_URL`: Set to `file:./prisma/prod.db`
+   - `NEXTAUTH_URL`: Your production URL (e.g., `https://your-app.vercel.app`)
+   - `NEXT_PUBLIC_APP_URL`: Same as `NEXTAUTH_URL`
+   - Set any other required environment variables (authentication providers, etc.)
+4. Deploy the project
+
+### Platform Fee System
+
+The application includes a 5% platform fee on all payments processed through the system:
+
+- Businesses are charged a 5% fee on each transaction
+- The fee is automatically calculated during payment processing
+- Businesses can view their earnings, fees paid, and net amounts in their dashboard
+- Platform fees are clearly explained in the business onboarding process
+
 ## License
 
 [MIT](LICENSE)

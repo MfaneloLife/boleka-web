@@ -14,7 +14,7 @@ interface BusinessProfile {
 }
 
 export default function BusinessDashboardPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [hasBusinessProfile, setHasBusinessProfile] = useState(false);

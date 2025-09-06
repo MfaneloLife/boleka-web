@@ -181,7 +181,7 @@ export default function MessagesPage() {
           </ul>
         ) : (
           <div className="px-4 py-6 text-center">
-            <p className="text-gray-500">You don't have any conversations yet.</p>
+            <p className="text-gray-500">You don&apos;t have any conversations yet.</p>
             <p className="mt-1 text-sm text-gray-500">
               Start by browsing items and sending requests.
             </p>

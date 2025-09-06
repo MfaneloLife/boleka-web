@@ -8,10 +8,9 @@ import {
   signOut, 
   onAuthStateChanged,
   signInWithPopup,
-  GoogleAuthProvider,
-  FacebookAuthProvider,
   updateProfile
 } from 'firebase/auth';
+import { FirebaseError } from 'firebase/app';
 import { auth, googleProvider, facebookProvider } from '@/src/lib/firebase';
 
 interface AuthContextType {
@@ -54,10 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
       let errorMessage = "Failed to sign in";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      if (error instanceof FirebaseError && (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password')) {
         errorMessage = "Invalid email or password";
       }
       setError(errorMessage);
@@ -113,14 +112,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       return result.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Signup error:", error);
       let errorMessage = "Failed to create account";
-      if (error.code === 'auth/email-already-in-use') {
+      if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
         errorMessage = "Email already in use";
-      } else if (error.code === 'auth/weak-password') {
+      } else if (error instanceof FirebaseError && error.code === 'auth/weak-password') {
         errorMessage = "Password is too weak";
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (error instanceof FirebaseError && error.code === 'auth/invalid-email') {
         errorMessage = "Invalid email address";
       }
       setError(errorMessage);
@@ -132,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       return await signOut(auth);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Logout error:", error);
       setError("Failed to log out");
       throw new Error("Failed to log out");
@@ -170,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       return result.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google sign-in error:", error);
       setError("Failed to sign in with Google");
       throw new Error("Failed to sign in with Google");
@@ -208,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       return result.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Facebook sign-in error:", error);
       setError("Failed to sign in with Facebook");
       throw new Error("Failed to sign in with Facebook");

@@ -37,7 +37,12 @@ export default function ItemCard({
           setReviewCount(reviews.length);
           
           if (reviews.length > 0) {
-            const total = reviews.reduce((sum: number, review: any) => sum + review.rating, 0);
+            interface Review {
+              id: string;
+              rating: number;
+              comment: string;
+            }
+            const total = reviews.reduce((sum: number, review: Review) => sum + review.rating, 0);
             setAverageRating(total / reviews.length);
           }
         }

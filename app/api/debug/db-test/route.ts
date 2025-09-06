@@ -25,6 +25,16 @@ export async function GET() {
     // Try a simple query
     const userCount = await prisma.user.count();
     
+    // Read prisma package version safely
+    let prismaVersion: string | undefined;
+    try {
+      // dynamic import to avoid require in TS
+      const pkg = (await import('@prisma/client/package.json')) as { version?: string };
+      prismaVersion = pkg?.version;
+    } catch {
+      prismaVersion = undefined;
+    }
+
     return NextResponse.json(
       { 
         status: 'ok',
@@ -35,7 +45,7 @@ export async function GET() {
           : (process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'Unknown'),
         userCount,
         environment: process.env.NODE_ENV,
-        prismaVersion: require('@prisma/client/package.json').version
+        prismaVersion
       },
       { status: 200 }
     );

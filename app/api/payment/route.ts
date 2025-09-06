@@ -57,10 +57,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a payment record
+    // Calculate commission (5% of the amount)
+    const commissionRate = 0.05;
+    const commissionAmount = parseFloat(amount) * commissionRate;
+    const merchantAmount = parseFloat(amount) - commissionAmount;
+    
+    // Create a payment record with commission details
     const payment = await prisma.payment.create({
       data: {
         amount: parseFloat(amount),
+        commissionAmount,
+        merchantAmount,
         status: 'PENDING',
         requestId,
         payerId: user.id,

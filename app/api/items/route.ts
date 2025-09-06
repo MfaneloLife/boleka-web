@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,8 +21,8 @@ export async function GET(req: NextRequest) {
     const searchTerm = url.searchParams.get('search');
     const minRating = url.searchParams.get('minRating');
     
-    // Build filter conditions
-    const where: any = {
+  // Build filter conditions
+  const where: Prisma.ItemWhereInput = {
       availability: true,
     };
     
@@ -89,10 +90,10 @@ export async function GET(req: NextRequest) {
     }
     
     return NextResponse.json(filteredItems);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching items:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch items' },
+      { error: error instanceof Error ? error.message : 'Failed to fetch items' },
       { status: 500 }
     );
   }
@@ -152,10 +153,10 @@ export async function POST(req: NextRequest) {
     });
     
     return NextResponse.json(item, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating item:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create item' },
+      { error: error instanceof Error ? error.message : 'Failed to create item' },
       { status: 500 }
     );
   }

@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     
     // If payment is complete, update the request status
     if (pfData.payment_status === 'COMPLETE') {
+      // Update the request status
       await prisma.request.update({
         where: {
           id: payment.requestId,
@@ -70,6 +71,29 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(),
         },
       });
+      
+      // Create notification for the business owner
+      const request = await prisma.request.findUnique({
+        where: { id: payment.requestId },
+        include: { owner: true, item: true },
+      });
+      
+      if (request) {
+        // Calculate commission amount (should be stored in the payment record)
+        const commissionAmount = payment.commissionAmount || (payment.amount * 0.05);
+        const merchantAmount = payment.merchantAmount || (payment.amount - commissionAmount);
+        
+        // Create notification for the business owner
+        await prisma.notification.create({
+          data: {
+            userId: request.ownerId,
+            type: 'PAYMENT_RECEIVED',
+            title: 'Payment Received',
+            message: `You've received a payment of R${merchantAmount.toFixed(2)} (after 5% platform fee) for "${request.item.title}"`,
+            relatedId: payment.id,
+          },
+        });
+      }
     }
     
     // Return success response

@@ -8,7 +8,6 @@ interface PaymentFormProps {
   requestId: string;
   amount: number;
   itemName: string;
-  onPaymentComplete?: () => void;
   onCancel?: () => void;
 }
 
@@ -16,7 +15,6 @@ export default function PaymentForm({
   requestId, 
   amount, 
   itemName, 
-  onPaymentComplete, 
   onCancel 
 }: PaymentFormProps) {
   const { data: session } = useSession();
