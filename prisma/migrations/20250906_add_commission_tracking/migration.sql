@@ -1,5 +1,2 @@
--- AlterTable
-ALTER TABLE "Payment" ADD COLUMN "commissionAmount" REAL DEFAULT 0;
-ALTER TABLE "Payment" ADD COLUMN "merchantAmount" REAL DEFAULT 0;
-ALTER TABLE "Payment" ADD COLUMN "merchantPaid" BOOLEAN DEFAULT false;
-ALTER TABLE "Payment" ADD COLUMN "merchantPayoutDate" TIMESTAMP;
+-- No-op: Commission columns were already added in migration 20250905104010_add_banking_and_commission.
+-- This migration intentionally does nothing to avoid duplicate column errors on deploy.
