@@ -1,9 +1,7 @@
 import { getServerSession } from 'next-auth/next';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { authOptions } from '../../auth/[...nextauth]/route';
-
-const prisma = new PrismaClient();
+import { userService, clientProfileService } from '@/src/lib/firebase-db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,11 +17,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { address, contactPhone, preferences } = body;
 
-    const user = await prisma.user.findUnique({
-      where: {
-        email: session.user.email,
-      },
-    });
+    const user = await userService.getUserByEmail(session.user.email);
 
     if (!user) {
       return NextResponse.json(
@@ -33,35 +27,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if client profile already exists
-    const existingProfile = await prisma.clientProfile.findUnique({
-      where: {
-        userId: user.id,
-      },
-    });
+    const existingProfile = await clientProfileService.getClientProfileByUserId(user.id);
 
     if (existingProfile) {
       // Update existing profile
-      const updatedProfile = await prisma.clientProfile.update({
-        where: {
-          userId: user.id,
-        },
-        data: {
-          address,
-          contactPhone,
-          preferences,
-        },
+      const updatedProfile = await clientProfileService.updateClientProfile(user.id, {
+        address,
+        contactPhone,
+        preferences,
       });
 
       return NextResponse.json(updatedProfile, { status: 200 });
     } else {
       // Create new client profile
-      const newProfile = await prisma.clientProfile.create({
-        data: {
-          userId: user.id,
-          address,
-          contactPhone,
-          preferences,
-        },
+      const newProfile = await clientProfileService.createClientProfile({
+        userId: user.id,
+        address,
+        contactPhone,
+        preferences,
       });
 
       return NextResponse.json(newProfile, { status: 201 });

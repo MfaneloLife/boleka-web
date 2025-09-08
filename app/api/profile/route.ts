@@ -1,9 +1,7 @@
 import { getServerSession } from 'next-auth/next';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { authOptions } from '../auth/[...nextauth]/route';
-
-const prisma = new PrismaClient();
+import { userService } from '@/src/lib/firebase-db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,15 +14,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: {
-        email: session.user.email,
-      },
-      include: {
-        businessProfile: true,
-        clientProfile: true,
-      },
-    });
+    const user = await userService.getUserByEmail(session.user.email);
 
     if (!user) {
       return NextResponse.json(

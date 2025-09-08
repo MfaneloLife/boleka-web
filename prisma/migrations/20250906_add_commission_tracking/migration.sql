@@ -1,2 +1,0 @@
--- No-op: Commission columns were already added in migration 20250905104010_add_banking_and_commission.
--- This migration intentionally does nothing to avoid duplicate column errors on deploy.

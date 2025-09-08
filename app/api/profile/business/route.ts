@@ -1,9 +1,7 @@
 import { getServerSession } from 'next-auth/next';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { authOptions } from '../../auth/[...nextauth]/route';
-
-const prisma = new PrismaClient();
+import { userService, businessProfileService } from '@/src/lib/firebase-db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,11 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: {
-        email: session.user.email,
-      },
-    });
+    const user = await userService.getUserByEmail(session.user.email);
 
     if (!user) {
       return NextResponse.json(
@@ -40,47 +34,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if business profile already exists
-    const existingProfile = await prisma.businessProfile.findUnique({
-      where: {
-        userId: user.id,
-      },
-    });
+    const existingProfile = await businessProfileService.getBusinessProfileByUserId(user.id);
 
     if (existingProfile) {
       // Update existing profile
-      const updatedProfile = await prisma.businessProfile.update({
-        where: {
-          userId: user.id,
-        },
-        data: {
-          businessName,
-          description: businessDescription,
-          location: businessLocation,
-          contactPhone: businessPhone,
-        },
+      const updatedProfile = await businessProfileService.updateBusinessProfile(user.id, {
+        businessName,
+        description: businessDescription,
+        location: businessLocation,
+        contactPhone: businessPhone,
       });
 
       return NextResponse.json(updatedProfile, { status: 200 });
     } else {
       // Create new business profile
-      const newProfile = await prisma.businessProfile.create({
-        data: {
-          userId: user.id,
-          businessName,
-          description: businessDescription,
-          location: businessLocation,
-          contactPhone: businessPhone,
-        },
+      const newProfile = await businessProfileService.createBusinessProfile({
+        userId: user.id,
+        businessName,
+        description: businessDescription,
+        location: businessLocation,
+        contactPhone: businessPhone,
       });
 
       // Update user to indicate they have a business profile
-      await prisma.user.update({
-        where: {
-          id: user.id,
-        },
-        data: {
-          hasBusinessProfile: true,
-        },
+      await userService.updateUser(user.id, {
+        hasBusinessProfile: true,
       });
 
       return NextResponse.json(newProfile, { status: 201 });

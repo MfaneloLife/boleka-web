@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
+import { authOptions } from '../../auth/[...nextauth]/route';
+import { itemService } from '@/src/lib/firebase-db';
 
 export async function GET(
   request: NextRequest,
@@ -16,18 +16,7 @@ export async function GET(
     
     const { id } = params;
     
-    const item = await prisma.item.findUnique({
-      where: { id },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
-    });
+    const item = await itemService.getItemById(id);
     
     if (!item) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
