@@ -14,8 +14,7 @@ const nextConfig = {
   },
   // Updated from experimental.serverComponentsExternalPackages
   serverExternalPackages: ['@prisma/client', 'bcrypt', 'bcryptjs'],
-  // We need to allow tracing for dependencies
-  outputFileTracing: true,
+  // ...existing code...
 }
 
 module.exports = nextConfig
