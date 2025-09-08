@@ -287,3 +287,35 @@ export class FirebaseDbService {
     });
   }
 }
+
+// Export service instances for easy use
+export const userService = {
+  getUserByEmail: FirebaseDbService.getUserByEmail.bind(FirebaseDbService),
+  getUserById: FirebaseDbService.getUserById.bind(FirebaseDbService),
+  createUser: FirebaseDbService.createUser.bind(FirebaseDbService),
+  updateUser: FirebaseDbService.updateUser.bind(FirebaseDbService),
+  deleteUser: FirebaseDbService.deleteUser.bind(FirebaseDbService),
+};
+
+export const businessProfileService = {
+  getBusinessProfileByUserId: FirebaseDbService.getBusinessProfileByUserId.bind(FirebaseDbService),
+  createBusinessProfile: FirebaseDbService.createBusinessProfile.bind(FirebaseDbService),
+  updateBusinessProfile: FirebaseDbService.updateBusinessProfile.bind(FirebaseDbService),
+  deleteBusinessProfile: FirebaseDbService.deleteBusinessProfile.bind(FirebaseDbService),
+};
+
+export const clientProfileService = {
+  getClientProfileByUserId: FirebaseDbService.getClientProfileByUserId.bind(FirebaseDbService),
+  createClientProfile: FirebaseDbService.createClientProfile.bind(FirebaseDbService),
+  updateClientProfile: FirebaseDbService.updateClientProfile.bind(FirebaseDbService),
+  deleteClientProfile: FirebaseDbService.deleteClientProfile.bind(FirebaseDbService),
+};
+
+export const itemService = {
+  getItemById: FirebaseDbService.getItemById.bind(FirebaseDbService),
+  createItem: FirebaseDbService.createItem.bind(FirebaseDbService),
+  getItems: FirebaseDbService.getItems.bind(FirebaseDbService),
+  updateItem: FirebaseDbService.updateItem.bind(FirebaseDbService),
+  deleteItem: FirebaseDbService.deleteItem.bind(FirebaseDbService),
+  getItemsByOwnerId: FirebaseDbService.getItemsByOwnerId.bind(FirebaseDbService),
+};
