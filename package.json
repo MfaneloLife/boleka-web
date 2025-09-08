@@ -4,23 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build --turbopack",
+    "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "seed": "node prisma/seed.js",
-    "postinstall": "prisma generate",
-    "setup-db": "node prisma/setup.js",
-    "vercel-build": "node prisma/setup-vercel.js && next build --no-lint"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
+    "seed": "node scripts/firebase-seed.js"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
-    "@auth/prisma-adapter": "^2.10.0",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
-    "@prisma/client": "^6.15.0",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-toast": "^1.2.15",
     "@types/bcryptjs": "^2.4.6",
@@ -30,10 +22,10 @@
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.2.1",
+    "firebase-admin": "^13.5.0",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
     "next-auth": "^4.24.11",
-    "prisma": "^6.15.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",

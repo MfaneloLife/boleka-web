@@ -1,15 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "env": {
-    "DATABASE_PROVIDER": "sqlite",
-    "DATABASE_URL": "file:./prisma/prod.db",
     "NEXTAUTH_URL": "https://boleka-web-git-main-mfanelolifes-projects.vercel.app",
     "NEXTAUTH_SECRET": "your-super-secret-nextauth-key-2025-boleka-secure",
     "NEXT_PUBLIC_APP_URL": "https://boleka-web-git-main-mfanelolifes-projects.vercel.app",
+    "FIREBASE_PROJECT_ID": "bolekaweb",
     "GOOGLE_CLIENT_ID": "",
     "GOOGLE_CLIENT_SECRET": "",
     "FACEBOOK_CLIENT_ID": "",

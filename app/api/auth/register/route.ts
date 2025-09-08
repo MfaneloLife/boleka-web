@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
-import { prisma } from '@/lib/prisma';
+import { FirebaseDbService } from '@/src/lib/firebase-db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,24 +11,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
+    // Check if user already exists
+    const existingUserResult = await FirebaseDbService.getUserByEmail(email);
+    if (existingUserResult.success) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name: name ?? null,
-        password: hashedPassword,
-        clientProfile: { create: {} },
-      },
-      select: { id: true, email: true, name: true },
+    // Create user
+    const userResult = await FirebaseDbService.createUser({
+      email,
+      name: name ?? undefined,
+      password: hashedPassword,
+      hasBusinessProfile: false
     });
 
-    return NextResponse.json({ user }, { status: 201 });
+    if (!userResult.success || !userResult.id) {
+      return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+    }
+
+    // Create client profile
+    const clientProfileResult = await FirebaseDbService.createClientProfile({
+      userId: userResult.id,
+      firstName: name?.split(' ')[0] || '',
+      lastName: name?.split(' ').slice(1).join(' ') || ''
+    });
+
+    if (!clientProfileResult.success) {
+      console.warn('Failed to create client profile for user:', userResult.id);
+    }
+
+    return NextResponse.json({ 
+      user: { 
+        id: userResult.id, 
+        email, 
+        name 
+      } 
+    }, { status: 201 });
   } catch (error) {
     console.error('REGISTRATION_ERROR', error);
     return NextResponse.json(

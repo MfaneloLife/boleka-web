@@ -1,10 +1,9 @@
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import bcrypt from 'bcrypt';
 import NextAuth, { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
-import { prisma } from '@/lib/prisma';
+import { FirebaseDbService } from '@/src/lib/firebase-db';
 
 const providers: AuthOptions['providers'] = [];
 
@@ -38,18 +37,14 @@ providers.push(
           throw new Error('Invalid credentials');
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
-          }
-        });
+        const result = await FirebaseDbService.getUserByEmail(credentials.email);
 
-        if (!user || !user?.password) {
+        if (!result.success || !result.user || !result.user.password) {
           throw new Error('Invalid credentials');
         }
 
         // Ensure stored password is a bcrypt hash
-        const isBcryptHash = typeof user.password === 'string' && user.password.startsWith('$2');
+        const isBcryptHash = typeof result.user.password === 'string' && result.user.password.startsWith('$2');
         if (!isBcryptHash) {
           // Likely a social/Firebase user without a local password
           throw new Error('Invalid credentials');
@@ -59,7 +54,7 @@ providers.push(
         try {
           isCorrectPassword = await bcrypt.compare(
             credentials.password,
-            user.password
+            result.user.password
           );
         } catch {
           isCorrectPassword = false;
@@ -69,13 +64,17 @@ providers.push(
           throw new Error('Invalid credentials');
         }
 
-        return user;
+        return {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          image: result.user.image,
+        };
       }
     })
 );
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers,
   pages: {
     signIn: '/auth/login',
@@ -105,33 +104,34 @@ export const authOptions: AuthOptions = {
       if (account && account.provider !== 'credentials' && user.email) {
         try {
           // Check if user exists
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
-            include: { clientProfile: true }
-          });
+          const existingUserResult = await FirebaseDbService.getUserByEmail(user.email);
 
           // If user exists but doesn't have a client profile, create one
-          if (existingUser && !existingUser.clientProfile) {
-            await prisma.clientProfile.create({
-              data: {
-                user: { connect: { id: existingUser.id } }
-              }
-            });
+          if (existingUserResult.success && existingUserResult.user) {
+            const clientProfileResult = await FirebaseDbService.getClientProfileByUserId(existingUserResult.user.id);
+            if (!clientProfileResult.success) {
+              await FirebaseDbService.createClientProfile({
+                userId: existingUserResult.user.id,
+                firstName: user.name?.split(' ')[0] || '',
+                lastName: user.name?.split(' ').slice(1).join(' ') || ''
+              });
+            }
           }
           
-          // If new user from social login, ensure they have a client profile
-          if (!existingUser && user.id) {
-            // The adapter should create the user, but we ensure the client profile exists
-            const dbUser = await prisma.user.findUnique({
-              where: { id: user.id },
-              include: { clientProfile: true }
+          // If new user from social login, create user and client profile
+          if (!existingUserResult.success && user.email && user.name) {
+            const newUserResult = await FirebaseDbService.createUser({
+              email: user.email,
+              name: user.name,
+              image: user.image || undefined,
+              hasBusinessProfile: false
             });
             
-            if (dbUser && !dbUser.clientProfile) {
-              await prisma.clientProfile.create({
-                data: {
-                  user: { connect: { id: dbUser.id } }
-                }
+            if (newUserResult.success && newUserResult.id) {
+              await FirebaseDbService.createClientProfile({
+                userId: newUserResult.id,
+                firstName: user.name.split(' ')[0] || '',
+                lastName: user.name.split(' ').slice(1).join(' ') || ''
               });
             }
           }

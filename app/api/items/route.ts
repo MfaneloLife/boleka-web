@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { FirebaseDbService } from '@/src/lib/firebase-db';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,87 +14,38 @@ export async function GET(req: NextRequest) {
     // Parse query parameters
     const url = new URL(req.url);
     const category = url.searchParams.get('category');
-    const location = url.searchParams.get('location');
-    const minPrice = url.searchParams.get('minPrice');
-    const maxPrice = url.searchParams.get('maxPrice');
     const searchTerm = url.searchParams.get('search');
-    const minRating = url.searchParams.get('minRating');
     
-  // Build filter conditions
-  const where: Prisma.ItemWhereInput = {
-      availability: true,
-    };
+    // Build filter conditions for Firebase
+    let conditions: any = {};
     
     if (category) {
-      where.category = category;
+      conditions.where = { field: 'category', operator: '==', value: category };
     }
     
-    if (location) {
-      where.location = location;
+    conditions.orderBy = { field: 'createdAt', direction: 'desc' };
+    
+    // Get items from Firebase
+    const result = await FirebaseDbService.getItems(conditions);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: 'Failed to fetch items' }, { status: 500 });
     }
     
-    if (minPrice) {
-      where.price = {
-        ...where.price,
-        gte: parseFloat(minPrice),
-      };
-    }
+    let items = result.items || [];
     
-    if (maxPrice) {
-      where.price = {
-        ...where.price,
-        lte: parseFloat(maxPrice),
-      };
-    }
-    
+    // Client-side filtering for search term (Firestore doesn't support full-text search easily)
     if (searchTerm) {
-      where.OR = [
-        { title: { contains: searchTerm, mode: 'insensitive' } },
-        { description: { contains: searchTerm, mode: 'insensitive' } },
-      ];
+      items = items.filter(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
     
-    // Fetch items with filters
-    const items = await prisma.item.findMany({
-      where,
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-        reviews: {
-          select: {
-            rating: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-    
-    // Filter by min rating if specified
-    let filteredItems = items;
-    if (minRating) {
-      const minRatingValue = parseFloat(minRating);
-      filteredItems = items.filter(item => {
-        if (item.reviews.length === 0) return false;
-        
-        const avgRating = item.reviews.reduce((sum, review) => sum + review.rating, 0) / item.reviews.length;
-        return avgRating >= minRatingValue;
-      });
-    }
-    
-    return NextResponse.json(filteredItems);
-  } catch (error: unknown) {
+    return NextResponse.json({ items });
+  } catch (error) {
     console.error('Error fetching items:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch items' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -108,16 +58,14 @@ export async function POST(req: NextRequest) {
     }
     
     // Get user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const userResult = await FirebaseDbService.getUserByEmail(session.user.email);
     
-    if (!user) {
+    if (!userResult.success || !userResult.user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
     // Verify user has a business profile
-    if (!user.hasBusinessProfile) {
+    if (!userResult.user.hasBusinessProfile) {
       return NextResponse.json(
         { error: 'You need a business profile to list items' },
         { status: 403 }
@@ -126,38 +74,35 @@ export async function POST(req: NextRequest) {
     
     // Parse request body
     const body = await req.json();
-    const { title, description, price, imageUrls, location, category } = body;
+    const { name, description, dailyPrice, images, category, condition } = body;
     
     // Validate required fields
-    if (!title || !description || !price || !location || !category) {
+    if (!name || !description || !dailyPrice || !category || !condition) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
     
-    // For SQLite compatibility, convert imageUrls array to JSON string
-    const imageUrlsString = JSON.stringify(imageUrls || []);
-    
     // Create item
-    const item = await prisma.item.create({
-      data: {
-        title,
-        description,
-        price: parseFloat(price.toString()),
-        imageUrls: imageUrlsString,
-        location,
-        category,
-        ownerId: user.id,
-      },
+    const itemResult = await FirebaseDbService.createItem({
+      name,
+      description,
+      category,
+      condition,
+      dailyPrice: parseFloat(dailyPrice.toString()),
+      isAvailable: true,
+      images: images || [],
+      ownerId: userResult.user.id,
     });
     
-    return NextResponse.json(item, { status: 201 });
-  } catch (error: unknown) {
+    if (!itemResult.success) {
+      return NextResponse.json({ error: 'Failed to create item' }, { status: 500 });
+    }
+    
+    return NextResponse.json({ id: itemResult.id, message: 'Item created successfully' }, { status: 201 });
+  } catch (error) {
     console.error('Error creating item:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create item' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
