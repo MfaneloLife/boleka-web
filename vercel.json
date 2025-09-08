@@ -7,8 +7,8 @@
   "env": {
     "DATABASE_PROVIDER": "sqlite",
     "DATABASE_URL": "file:./prisma/prod.db",
-    "NEXTAUTH_URL": "https://boleka-web-6nx-72j4lyk7o-mfanelolifes-projects.vercel.app",
-    "NEXT_PUBLIC_APP_URL": "https://boleka-web-6nx-72j4lyk7o-mfanelolifes-projects.vercel.app",
+    "NEXTAUTH_URL": "https://boleka-web-git-main-mfanelolifes-projects.vercel.app",
+    "NEXT_PUBLIC_APP_URL": "https://boleka-web-git-main-mfanelolifes-projects.vercel.app",
     "GOOGLE_CLIENT_ID": "",
     "GOOGLE_CLIENT_SECRET": "",
     "FACEBOOK_CLIENT_ID": "",
