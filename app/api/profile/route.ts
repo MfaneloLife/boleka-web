@@ -14,14 +14,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await userService.getUserByEmail(session.user.email);
+    const userResult = await userService.getUserByEmail(session.user.email);
 
-    if (!user) {
+    if (!userResult.success || !userResult.user) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
+
+    const user = userResult.user;
 
     // Return user profile data, excluding sensitive information
     return NextResponse.json({
@@ -30,19 +32,6 @@ export async function GET(request: NextRequest) {
       email: user.email,
       image: user.image,
       hasBusinessProfile: user.hasBusinessProfile,
-      businessProfile: user.businessProfile ? {
-        id: user.businessProfile.id,
-        businessName: user.businessProfile.businessName,
-        description: user.businessProfile.description,
-        location: user.businessProfile.location,
-        contactPhone: user.businessProfile.contactPhone,
-      } : null,
-      clientProfile: user.clientProfile ? {
-        id: user.clientProfile.id,
-        address: user.clientProfile.address,
-        contactPhone: user.clientProfile.contactPhone,
-        preferences: user.clientProfile.preferences,
-      } : null,
     });
   } catch (error) {
     console.error('PROFILE_ERROR', error);

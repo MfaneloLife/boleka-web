@@ -164,6 +164,29 @@ export class FirebaseDbService {
     }
   }
 
+  static async updateBusinessProfile(userId: string, profileData: Partial<BusinessProfile>): Promise<{ success: boolean; profile?: BusinessProfile; error?: string }> {
+    try {
+      const q = query(collection(db, 'businessProfiles'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return { success: false, error: 'Business profile not found' };
+      }
+      
+      const profileDoc = querySnapshot.docs[0];
+      await updateDoc(profileDoc.ref, {
+        ...profileData,
+        updatedAt: Timestamp.now()
+      });
+      
+      const updatedProfile = { id: profileDoc.id, ...profileDoc.data(), ...profileData } as BusinessProfile;
+      return { success: true, profile: updatedProfile };
+    } catch (error: any) {
+      console.error("Error updating business profile:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Client Profile operations
   static async createClientProfile(profileData: Omit<ClientProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
@@ -193,6 +216,29 @@ export class FirebaseDbService {
       return { success: true, profile: profileData };
     } catch (error: any) {
       console.error("Error getting client profile:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async updateClientProfile(userId: string, profileData: Partial<ClientProfile>): Promise<{ success: boolean; profile?: ClientProfile; error?: string }> {
+    try {
+      const q = query(collection(db, 'clientProfiles'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return { success: false, error: 'Client profile not found' };
+      }
+      
+      const profileDoc = querySnapshot.docs[0];
+      await updateDoc(profileDoc.ref, {
+        ...profileData,
+        updatedAt: Timestamp.now()
+      });
+      
+      const updatedProfile = { id: profileDoc.id, ...profileDoc.data(), ...profileData } as ClientProfile;
+      return { success: true, profile: updatedProfile };
+    } catch (error: any) {
+      console.error("Error updating client profile:", error);
       return { success: false, error: error.message };
     }
   }
@@ -290,32 +336,29 @@ export class FirebaseDbService {
 
 // Export service instances for easy use
 export const userService = {
-  getUserByEmail: FirebaseDbService.getUserByEmail.bind(FirebaseDbService),
-  getUserById: FirebaseDbService.getUserById.bind(FirebaseDbService),
-  createUser: FirebaseDbService.createUser.bind(FirebaseDbService),
-  updateUser: FirebaseDbService.updateUser.bind(FirebaseDbService),
-  deleteUser: FirebaseDbService.deleteUser.bind(FirebaseDbService),
+  getUserByEmail: FirebaseDbService.getUserByEmail,
+  getUserById: FirebaseDbService.getUserById,
+  createUser: FirebaseDbService.createUser,
+  updateUser: FirebaseDbService.updateUser,
 };
 
 export const businessProfileService = {
-  getBusinessProfileByUserId: FirebaseDbService.getBusinessProfileByUserId.bind(FirebaseDbService),
-  createBusinessProfile: FirebaseDbService.createBusinessProfile.bind(FirebaseDbService),
-  updateBusinessProfile: FirebaseDbService.updateBusinessProfile.bind(FirebaseDbService),
-  deleteBusinessProfile: FirebaseDbService.deleteBusinessProfile.bind(FirebaseDbService),
+  getBusinessProfileByUserId: FirebaseDbService.getBusinessProfileByUserId,
+  createBusinessProfile: FirebaseDbService.createBusinessProfile,
+  updateBusinessProfile: FirebaseDbService.updateBusinessProfile,
 };
 
 export const clientProfileService = {
-  getClientProfileByUserId: FirebaseDbService.getClientProfileByUserId.bind(FirebaseDbService),
-  createClientProfile: FirebaseDbService.createClientProfile.bind(FirebaseDbService),
-  updateClientProfile: FirebaseDbService.updateClientProfile.bind(FirebaseDbService),
-  deleteClientProfile: FirebaseDbService.deleteClientProfile.bind(FirebaseDbService),
+  getClientProfileByUserId: FirebaseDbService.getClientProfileByUserId,
+  createClientProfile: FirebaseDbService.createClientProfile,
+  updateClientProfile: FirebaseDbService.updateClientProfile,
 };
 
 export const itemService = {
-  getItemById: FirebaseDbService.getItemById.bind(FirebaseDbService),
-  createItem: FirebaseDbService.createItem.bind(FirebaseDbService),
-  getItems: FirebaseDbService.getItems.bind(FirebaseDbService),
-  updateItem: FirebaseDbService.updateItem.bind(FirebaseDbService),
-  deleteItem: FirebaseDbService.deleteItem.bind(FirebaseDbService),
-  getItemsByOwnerId: FirebaseDbService.getItemsByOwnerId.bind(FirebaseDbService),
+  getItemById: FirebaseDbService.getItemById,
+  createItem: FirebaseDbService.createItem,
+  getItems: FirebaseDbService.getItems,
+  updateItem: FirebaseDbService.updateItem,
+  deleteItem: FirebaseDbService.deleteItem,
+  getItemsByOwnerId: FirebaseDbService.getItemsByOwnerId,
 };

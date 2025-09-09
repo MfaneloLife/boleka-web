@@ -17,37 +17,47 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { address, contactPhone, preferences } = body;
 
-    const user = await userService.getUserByEmail(session.user.email);
+    const userResult = await userService.getUserByEmail(session.user.email);
 
-    if (!user) {
+    if (!userResult.success || !userResult.user) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    // Check if client profile already exists
-    const existingProfile = await clientProfileService.getClientProfileByUserId(user.id);
+    const user = userResult.user;
 
-    if (existingProfile) {
+    // Check if client profile already exists
+    const existingProfileResult = await clientProfileService.getClientProfileByUserId(user.id);
+
+    if (existingProfileResult.success && existingProfileResult.profile) {
       // Update existing profile
-      const updatedProfile = await clientProfileService.updateClientProfile(user.id, {
+      const updateResult = await clientProfileService.updateClientProfile(user.id, {
         address,
-        contactPhone,
+        phone: contactPhone,
         preferences,
       });
 
-      return NextResponse.json(updatedProfile, { status: 200 });
+      if (updateResult.success) {
+        return NextResponse.json(updateResult.profile, { status: 200 });
+      } else {
+        return NextResponse.json({ error: updateResult.error }, { status: 500 });
+      }
     } else {
       // Create new client profile
-      const newProfile = await clientProfileService.createClientProfile({
+      const createResult = await clientProfileService.createClientProfile({
         userId: user.id,
         address,
-        contactPhone,
+        phone: contactPhone,
         preferences,
       });
 
-      return NextResponse.json(newProfile, { status: 201 });
+      if (createResult.success) {
+        return NextResponse.json({ id: createResult.id }, { status: 201 });
+      } else {
+        return NextResponse.json({ error: createResult.error }, { status: 500 });
+      }
     }
   } catch (error) {
     console.error('CLIENT_PROFILE_ERROR', error);
