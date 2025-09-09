@@ -1,19 +1,5 @@
 import { adminDb } from './firebase-admin';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  Timestamp
-} from "firebase/firestore";
-import { db } from "./firebase";
+import { Timestamp } from "firebase-admin/firestore";
 
 // Types matching your Prisma schema
 export interface User {
@@ -72,7 +58,7 @@ export class FirebaseDbService {
   // User operations
   static async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const docRef = await addDoc(collection(db, 'users'), {
+      const docRef = await adminDb.collection('users').add({
         ...userData,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -86,8 +72,7 @@ export class FirebaseDbService {
 
   static async getUserByEmail(email: string): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
-      const q = query(collection(db, 'users'), where('email', '==', email));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await adminDb.collection('users').where('email', '==', email).get();
       
       if (querySnapshot.empty) {
         return { success: false, error: 'User not found' };
@@ -104,9 +89,9 @@ export class FirebaseDbService {
 
   static async getUserById(userId: string): Promise<{ success: boolean; user?: User; error?: string }> {
     try {
-      const userDoc = await getDoc(doc(db, 'users', userId));
+      const userDoc = await adminDb.collection('users').doc(userId).get();
       
-      if (!userDoc.exists()) {
+      if (!userDoc.exists) {
         return { success: false, error: 'User not found' };
       }
       
@@ -120,7 +105,7 @@ export class FirebaseDbService {
 
   static async updateUser(userId: string, userData: Partial<User>): Promise<{ success: boolean; error?: string }> {
     try {
-      await updateDoc(doc(db, 'users', userId), {
+      await adminDb.collection('users').doc(userId).update({
         ...userData,
         updatedAt: Timestamp.now()
       });
@@ -134,7 +119,7 @@ export class FirebaseDbService {
   // Business Profile operations
   static async createBusinessProfile(profileData: Omit<BusinessProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const docRef = await addDoc(collection(db, 'businessProfiles'), {
+      const docRef = await adminDb.collection('businessProfiles').add({
         ...profileData,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -148,8 +133,7 @@ export class FirebaseDbService {
 
   static async getBusinessProfileByUserId(userId: string): Promise<{ success: boolean; profile?: BusinessProfile; error?: string }> {
     try {
-      const q = query(collection(db, 'businessProfiles'), where('userId', '==', userId));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await adminDb.collection('businessProfiles').where('userId', '==', userId).get();
       
       if (querySnapshot.empty) {
         return { success: false, error: 'Business profile not found' };
@@ -166,20 +150,20 @@ export class FirebaseDbService {
 
   static async updateBusinessProfile(userId: string, profileData: Partial<BusinessProfile>): Promise<{ success: boolean; profile?: BusinessProfile; error?: string }> {
     try {
-      const q = query(collection(db, 'businessProfiles'), where('userId', '==', userId));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await adminDb.collection('businessProfiles').where('userId', '==', userId).get();
       
       if (querySnapshot.empty) {
         return { success: false, error: 'Business profile not found' };
       }
       
       const profileDoc = querySnapshot.docs[0];
-      await updateDoc(profileDoc.ref, {
+      await profileDoc.ref.update({
         ...profileData,
         updatedAt: Timestamp.now()
       });
       
-      const updatedProfile = { id: profileDoc.id, ...profileDoc.data(), ...profileData } as BusinessProfile;
+      const updatedDoc = await profileDoc.ref.get();
+      const updatedProfile = { id: updatedDoc.id, ...updatedDoc.data() } as BusinessProfile;
       return { success: true, profile: updatedProfile };
     } catch (error: any) {
       console.error("Error updating business profile:", error);
@@ -190,7 +174,7 @@ export class FirebaseDbService {
   // Client Profile operations
   static async createClientProfile(profileData: Omit<ClientProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const docRef = await addDoc(collection(db, 'clientProfiles'), {
+      const docRef = await adminDb.collection('clientProfiles').add({
         ...profileData,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -204,8 +188,7 @@ export class FirebaseDbService {
 
   static async getClientProfileByUserId(userId: string): Promise<{ success: boolean; profile?: ClientProfile; error?: string }> {
     try {
-      const q = query(collection(db, 'clientProfiles'), where('userId', '==', userId));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await adminDb.collection('clientProfiles').where('userId', '==', userId).get();
       
       if (querySnapshot.empty) {
         return { success: false, error: 'Client profile not found' };
@@ -222,20 +205,20 @@ export class FirebaseDbService {
 
   static async updateClientProfile(userId: string, profileData: Partial<ClientProfile>): Promise<{ success: boolean; profile?: ClientProfile; error?: string }> {
     try {
-      const q = query(collection(db, 'clientProfiles'), where('userId', '==', userId));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await adminDb.collection('clientProfiles').where('userId', '==', userId).get();
       
       if (querySnapshot.empty) {
         return { success: false, error: 'Client profile not found' };
       }
       
       const profileDoc = querySnapshot.docs[0];
-      await updateDoc(profileDoc.ref, {
+      await profileDoc.ref.update({
         ...profileData,
         updatedAt: Timestamp.now()
       });
       
-      const updatedProfile = { id: profileDoc.id, ...profileDoc.data(), ...profileData } as ClientProfile;
+      const updatedDoc = await profileDoc.ref.get();
+      const updatedProfile = { id: updatedDoc.id, ...updatedDoc.data() } as ClientProfile;
       return { success: true, profile: updatedProfile };
     } catch (error: any) {
       console.error("Error updating client profile:", error);
@@ -246,7 +229,7 @@ export class FirebaseDbService {
   // Item operations
   static async createItem(itemData: Omit<Item, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const docRef = await addDoc(collection(db, 'items'), {
+      const docRef = await adminDb.collection('items').add({
         ...itemData,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -258,24 +241,23 @@ export class FirebaseDbService {
     }
   }
 
-  static async getItems(conditions?: any): Promise<{ success: boolean; items?: Item[]; error?: string }> {
+  static async getItems(filters?: { category?: string; ownerId?: string; isAvailable?: boolean }): Promise<{ success: boolean; items?: Item[]; error?: string }> {
     try {
-      let q = collection(db, 'items');
+      let query = adminDb.collection('items');
       
-      if (conditions?.where) {
-        q = query(q, where(conditions.where.field, conditions.where.operator, conditions.where.value));
+      if (filters?.category) {
+        query = query.where('category', '==', filters.category);
+      }
+      if (filters?.ownerId) {
+        query = query.where('ownerId', '==', filters.ownerId);
+      }
+      if (filters?.isAvailable !== undefined) {
+        query = query.where('isAvailable', '==', filters.isAvailable);
       }
       
-      if (conditions?.orderBy) {
-        q = query(q, orderBy(conditions.orderBy.field, conditions.orderBy.direction || 'desc'));
-      }
-      
-      if (conditions?.limit) {
-        q = query(q, limit(conditions.limit));
-      }
-
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await query.orderBy('createdAt', 'desc').get();
       const items: Item[] = [];
+      
       querySnapshot.forEach((doc) => {
         items.push({ id: doc.id, ...doc.data() } as Item);
       });
@@ -289,23 +271,23 @@ export class FirebaseDbService {
 
   static async getItemById(itemId: string): Promise<{ success: boolean; item?: Item; error?: string }> {
     try {
-      const itemDoc = await getDoc(doc(db, 'items', itemId));
+      const itemDoc = await adminDb.collection('items').doc(itemId).get();
       
-      if (!itemDoc.exists()) {
+      if (!itemDoc.exists) {
         return { success: false, error: 'Item not found' };
       }
       
       const itemData = { id: itemDoc.id, ...itemDoc.data() } as Item;
       return { success: true, item: itemData };
     } catch (error: any) {
-      console.error("Error getting item by ID:", error);
+      console.error("Error getting item:", error);
       return { success: false, error: error.message };
     }
   }
 
   static async updateItem(itemId: string, itemData: Partial<Item>): Promise<{ success: boolean; error?: string }> {
     try {
-      await updateDoc(doc(db, 'items', itemId), {
+      await adminDb.collection('items').doc(itemId).update({
         ...itemData,
         updatedAt: Timestamp.now()
       });
@@ -318,47 +300,39 @@ export class FirebaseDbService {
 
   static async deleteItem(itemId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      await deleteDoc(doc(db, 'items', itemId));
+      await adminDb.collection('items').doc(itemId).delete();
       return { success: true };
     } catch (error: any) {
       console.error("Error deleting item:", error);
       return { success: false, error: error.message };
     }
   }
-
-  static async getItemsByOwnerId(ownerId: string): Promise<{ success: boolean; items?: Item[]; error?: string }> {
-    return this.getItems({
-      where: { field: 'ownerId', operator: '==', value: ownerId },
-      orderBy: { field: 'createdAt', direction: 'desc' }
-    });
-  }
 }
 
-// Export service instances for easy use
+// Service exports for easy access
 export const userService = {
+  createUser: FirebaseDbService.createUser,
   getUserByEmail: FirebaseDbService.getUserByEmail,
   getUserById: FirebaseDbService.getUserById,
-  createUser: FirebaseDbService.createUser,
   updateUser: FirebaseDbService.updateUser,
 };
 
 export const businessProfileService = {
-  getBusinessProfileByUserId: FirebaseDbService.getBusinessProfileByUserId,
   createBusinessProfile: FirebaseDbService.createBusinessProfile,
+  getBusinessProfileByUserId: FirebaseDbService.getBusinessProfileByUserId,
   updateBusinessProfile: FirebaseDbService.updateBusinessProfile,
 };
 
 export const clientProfileService = {
-  getClientProfileByUserId: FirebaseDbService.getClientProfileByUserId,
   createClientProfile: FirebaseDbService.createClientProfile,
+  getClientProfileByUserId: FirebaseDbService.getClientProfileByUserId,
   updateClientProfile: FirebaseDbService.updateClientProfile,
 };
 
 export const itemService = {
-  getItemById: FirebaseDbService.getItemById,
   createItem: FirebaseDbService.createItem,
   getItems: FirebaseDbService.getItems,
+  getItemById: FirebaseDbService.getItemById,
   updateItem: FirebaseDbService.updateItem,
   deleteItem: FirebaseDbService.deleteItem,
-  getItemsByOwnerId: FirebaseDbService.getItemsByOwnerId,
 };
