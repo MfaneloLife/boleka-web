@@ -10,13 +10,17 @@ type ProfileType = 'client' | 'business';
 interface ProfileSetupFormData {
   // Business profile fields
   businessName?: string;
-  businessDescription?: string;
-  businessLocation?: string;
-  businessPhone?: string;
+  province?: string;
+  city?: string;
+  suburb?: string;
+  contactNumber?: string;
+  access?: string;
   
   // Client profile fields
-  address?: string;
-  contactPhone?: string;
+  clientProvince?: string;
+  clientCity?: string;
+  clientSuburb?: string;
+  cellPhone?: string;
   preferences?: string;
 }
 
@@ -25,6 +29,33 @@ export default function ProfileSetupPage() {
   const [profileType, setProfileType] = useState<ProfileType>('client');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // South African provinces
+  const provinces = [
+    'Mpumalanga',
+    'Gauteng', 
+    'KwaZulu-Natal',
+    'Free State',
+    'Eastern Cape',
+    'North West',
+    'Western Cape',
+    'Limpopo',
+    'Northern Cape'
+  ];
+
+  // Preference options for client
+  const preferenceOptions = [
+    'Everything',
+    'Tools',
+    'Equipment'
+  ];
+
+  // Access options for business
+  const accessOptions = [
+    'Delivery',
+    'Collection only',
+    'Both'
+  ];
   
   const {
     register,
@@ -132,82 +163,189 @@ export default function ProfileSetupPage() {
               </div>
 
               <div>
-                <label htmlFor="businessDescription" className="block text-sm font-medium text-gray-700">
-                  Business Description
+                <label htmlFor="province" className="block text-sm font-medium text-gray-700">
+                  Province *
                 </label>
-                <textarea
-                  id="businessDescription"
-                  rows={3}
-                  {...register('businessDescription')}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="businessLocation" className="block text-sm font-medium text-gray-700">
-                  Location *
-                </label>
-                <input
-                  id="businessLocation"
-                  type="text"
-                  {...register('businessLocation', {
-                    required: 'Location is required',
+                <select
+                  id="province"
+                  {...register('province', {
+                    required: 'Province is required',
                   })}
                   className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.businessLocation && (
-                  <p className="mt-1 text-sm text-red-600">{errors.businessLocation.message}</p>
+                >
+                  <option value="">Choose your Province</option>
+                  {provinces.map((province) => (
+                    <option key={province} value={province}>
+                      {province}
+                    </option>
+                  ))}
+                </select>
+                {errors.province && (
+                  <p className="mt-1 text-sm text-red-600">{errors.province.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="businessPhone" className="block text-sm font-medium text-gray-700">
-                  Contact Phone
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                  City *
                 </label>
                 <input
-                  id="businessPhone"
-                  type="tel"
-                  {...register('businessPhone')}
+                  id="city"
+                  type="text"
+                  {...register('city', {
+                    required: 'City is required',
+                  })}
                   className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
+                {errors.city && (
+                  <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="suburb" className="block text-sm font-medium text-gray-700">
+                  Suburb *
+                </label>
+                <input
+                  id="suburb"
+                  type="text"
+                  {...register('suburb', {
+                    required: 'Suburb is required',
+                  })}
+                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {errors.suburb && (
+                  <p className="mt-1 text-sm text-red-600">{errors.suburb.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700">
+                  Contact Number *
+                </label>
+                <input
+                  id="contactNumber"
+                  type="tel"
+                  {...register('contactNumber', {
+                    required: 'Contact number is required',
+                  })}
+                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {errors.contactNumber && (
+                  <p className="mt-1 text-sm text-red-600">{errors.contactNumber.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="access" className="block text-sm font-medium text-gray-700">
+                  Access *
+                </label>
+                <select
+                  id="access"
+                  {...register('access', {
+                    required: 'Access option is required',
+                  })}
+                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">Choose access option</option>
+                  {accessOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                {errors.access && (
+                  <p className="mt-1 text-sm text-red-600">{errors.access.message}</p>
+                )}
               </div>
             </>
           ) : (
             <>
               <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                  Address
+                <label htmlFor="clientProvince" className="block text-sm font-medium text-gray-700">
+                  Province *
+                </label>
+                <select
+                  id="clientProvince"
+                  {...register('clientProvince', {
+                    required: 'Province is required',
+                  })}
+                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">Choose your Province</option>
+                  {provinces.map((province) => (
+                    <option key={province} value={province}>
+                      {province}
+                    </option>
+                  ))}
+                </select>
+                {errors.clientProvince && (
+                  <p className="mt-1 text-sm text-red-600">{errors.clientProvince.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="clientCity" className="block text-sm font-medium text-gray-700">
+                  City *
                 </label>
                 <input
-                  id="address"
+                  id="clientCity"
                   type="text"
-                  {...register('address')}
+                  {...register('clientCity', {
+                    required: 'City is required',
+                  })}
+                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                {errors.clientCity && (
+                  <p className="mt-1 text-sm text-red-600">{errors.clientCity.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="clientSuburb" className="block text-sm font-medium text-gray-700">
+                  Suburb (optional)
+                </label>
+                <input
+                  id="clientSuburb"
+                  type="text"
+                  {...register('clientSuburb')}
                   className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700">
-                  Contact Phone
+                <label htmlFor="cellPhone" className="block text-sm font-medium text-gray-700">
+                  Cell Phone (optional)
                 </label>
                 <input
-                  id="contactPhone"
+                  id="cellPhone"
                   type="tel"
-                  {...register('contactPhone')}
+                  {...register('cellPhone')}
                   className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
               <div>
                 <label htmlFor="preferences" className="block text-sm font-medium text-gray-700">
-                  Preferences (What are you looking for?)
+                  Preferences *
                 </label>
-                <textarea
+                <select
                   id="preferences"
-                  rows={3}
-                  {...register('preferences')}
+                  {...register('preferences', {
+                    required: 'Preference is required',
+                  })}
                   className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
+                >
+                  <option value="">Choose your preference</option>
+                  {preferenceOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                {errors.preferences && (
+                  <p className="mt-1 text-sm text-red-600">{errors.preferences.message}</p>
+                )}
               </div>
             </>
           )}

@@ -15,7 +15,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { address, contactPhone, preferences } = body;
+    const { clientProvince, clientCity, clientSuburb, cellPhone, preferences } = body;
+
+    if (!clientProvince || !clientCity || !preferences) {
+      return NextResponse.json(
+        { error: 'Province, city, and preferences are required' },
+        { status: 400 }
+      );
+    }
 
     const userResult = await userService.getUserByEmail(session.user.email);
 
@@ -34,8 +41,10 @@ export async function POST(request: NextRequest) {
     if (existingProfileResult.success && existingProfileResult.profile) {
       // Update existing profile
       const updateResult = await clientProfileService.updateClientProfile(user.id, {
-        address,
-        phone: contactPhone,
+        province: clientProvince,
+        city: clientCity,
+        suburb: clientSuburb,
+        phone: cellPhone,
         preferences,
       });
 
@@ -48,8 +57,12 @@ export async function POST(request: NextRequest) {
       // Create new client profile
       const createResult = await clientProfileService.createClientProfile({
         userId: user.id,
-        address,
-        phone: contactPhone,
+        firstName: '', // Will be updated from session later
+        lastName: '', // Will be updated from session later
+        province: clientProvince,
+        city: clientCity,
+        suburb: clientSuburb,
+        phone: cellPhone,
         preferences,
       });
 

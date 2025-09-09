@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { businessName, businessDescription, businessLocation, businessPhone } = body;
+    const { businessName, province, city, suburb, contactNumber, access } = body;
 
-    if (!businessName || !businessLocation) {
+    if (!businessName || !province || !city || !suburb || !contactNumber || !access) {
       return NextResponse.json(
-        { error: 'Business name and location are required' },
+        { error: 'Business name, province, city, suburb, contact number, and access are required' },
         { status: 400 }
       );
     }
@@ -42,9 +42,11 @@ export async function POST(request: NextRequest) {
       // Update existing profile
       const updateResult = await businessProfileService.updateBusinessProfile(user.id, {
         businessName,
-        description: businessDescription,
-        address: businessLocation,
-        phone: businessPhone,
+        province,
+        city,
+        suburb,
+        phone: contactNumber,
+        access,
       });
 
       if (updateResult.success) {
@@ -57,10 +59,12 @@ export async function POST(request: NextRequest) {
       const createResult = await businessProfileService.createBusinessProfile({
         userId: user.id,
         businessName,
-        description: businessDescription,
         category: 'general', // Default category
-        address: businessLocation,
-        phone: businessPhone,
+        province,
+        city,
+        suburb,
+        phone: contactNumber,
+        access,
         isVerified: false,
       });
 

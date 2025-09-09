@@ -34,42 +34,55 @@ providers.push(
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Invalid credentials');
+          console.log('Missing email or password');
+          return null;
         }
 
-        const result = await FirebaseDbService.getUserByEmail(credentials.email);
-
-        if (!result.success || !result.user || !result.user.password) {
-          throw new Error('Invalid credentials');
-        }
-
-        // Ensure stored password is a bcrypt hash
-        const isBcryptHash = typeof result.user.password === 'string' && result.user.password.startsWith('$2');
-        if (!isBcryptHash) {
-          // Likely a social/Firebase user without a local password
-          throw new Error('Invalid credentials');
-        }
-
-        let isCorrectPassword = false;
         try {
-          isCorrectPassword = await bcrypt.compare(
+          const result = await FirebaseDbService.getUserByEmail(credentials.email);
+
+          if (!result.success || !result.user) {
+            console.log('User not found:', credentials.email);
+            return null;
+          }
+
+          if (!result.user.password) {
+            console.log('User has no password (social login user)');
+            return null;
+          }
+
+          // Check if password is a bcrypt hash
+          const isBcryptHash = typeof result.user.password === 'string' && 
+                              (result.user.password.startsWith('$2a$') || 
+                               result.user.password.startsWith('$2b$') || 
+                               result.user.password.startsWith('$2y$'));
+          
+          if (!isBcryptHash) {
+            console.log('Invalid password format for user:', credentials.email);
+            return null;
+          }
+
+          const isCorrectPassword = await bcrypt.compare(
             credentials.password,
             result.user.password
           );
-        } catch {
-          isCorrectPassword = false;
-        }
 
-        if (!isCorrectPassword) {
-          throw new Error('Invalid credentials');
-        }
+          if (!isCorrectPassword) {
+            console.log('Invalid password for user:', credentials.email);
+            return null;
+          }
 
-        return {
-          id: result.user.id,
-          email: result.user.email,
-          name: result.user.name,
-          image: result.user.image,
-        };
+          console.log('Login successful for user:', credentials.email);
+          return {
+            id: result.user.id,
+            email: result.user.email,
+            name: result.user.name,
+            image: result.user.image,
+          };
+        } catch (error) {
+          console.error('Error in credentials authorization:', error);
+          return null;
+        }
       }
     })
 );
@@ -86,43 +99,64 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async session({ session, token }) {
       if (session.user && token.sub) {
-        session.user = {
-          ...session.user,
-          id: token.sub
-        };
+        // Get user from database to include all user data
+        const userResult = await FirebaseDbService.getUserByEmail(session.user.email!);
+        if (userResult.success && userResult.user) {
+          session.user = {
+            ...session.user,
+            id: userResult.user.id,
+            // Add custom properties to session
+            // @ts-ignore - extending session user with custom fields
+            hasBusinessProfile: userResult.user.hasBusinessProfile
+          };
+        } else {
+          session.user.id = token.sub;
+        }
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
+        // For social logins, get the user from database
+        if (account?.provider !== 'credentials' && user.email) {
+          const userResult = await FirebaseDbService.getUserByEmail(user.email);
+          if (userResult.success && userResult.user) {
+            token.id = userResult.user.id;
+          }
+        }
       }
       return token;
     },
-    async signIn({ user, account }) {
-      // For social logins, ensure user has a client profile
-      if (account && account.provider !== 'credentials' && user.email) {
-        try {
+    async signIn({ user, account, profile }) {
+      try {
+        // For social logins (Google, Facebook)
+        if (account && account.provider !== 'credentials' && user.email) {
           // Check if user exists
           const existingUserResult = await FirebaseDbService.getUserByEmail(user.email);
 
-          // If user exists but doesn't have a client profile, create one
           if (existingUserResult.success && existingUserResult.user) {
+            // User exists, check if they have a client profile
             const clientProfileResult = await FirebaseDbService.getClientProfileByUserId(existingUserResult.user.id);
             if (!clientProfileResult.success) {
               await FirebaseDbService.createClientProfile({
                 userId: existingUserResult.user.id,
                 firstName: user.name?.split(' ')[0] || '',
-                lastName: user.name?.split(' ').slice(1).join(' ') || ''
+                lastName: user.name?.split(' ').slice(1).join(' ') || '',
+                province: '', // Will be set during profile setup
+                city: '', // Will be set during profile setup
+                suburb: '', // Optional
+                phone: '', // Optional
+                preferences: '' // Will be set during profile setup
               });
             }
-          }
-          
-          // If new user from social login, create user and client profile
-          if (!existingUserResult.success && user.email && user.name) {
+            // Update user ID for session
+            user.id = existingUserResult.user.id;
+          } else {
+            // New user from social login, create user and client profile
             const newUserResult = await FirebaseDbService.createUser({
               email: user.email,
-              name: user.name,
+              name: user.name || '',
               image: user.image || undefined,
               hasBusinessProfile: false
             });
@@ -130,17 +164,27 @@ export const authOptions: AuthOptions = {
             if (newUserResult.success && newUserResult.id) {
               await FirebaseDbService.createClientProfile({
                 userId: newUserResult.id,
-                firstName: user.name.split(' ')[0] || '',
-                lastName: user.name.split(' ').slice(1).join(' ') || ''
+                firstName: user.name?.split(' ')[0] || '',
+                lastName: user.name?.split(' ').slice(1).join(' ') || '',
+                province: '', // Will be set during profile setup
+                city: '', // Will be set during profile setup
+                suburb: '', // Optional
+                phone: '', // Optional
+                preferences: '' // Will be set during profile setup
               });
+              // Update user ID for session
+              user.id = newUserResult.id;
             }
           }
-        } catch (error) {
-          console.error('Error in signIn callback:', error);
-          // Don't block sign in if this fails
         }
+        
+        // For credential login, the user is already authenticated
+        return true;
+      } catch (error) {
+        console.error('Error in signIn callback:', error);
+        // Don't block sign in if this fails, but log the error
+        return true;
       }
-      return true;
     }
   },
   secret: process.env.NEXTAUTH_SECRET,

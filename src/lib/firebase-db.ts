@@ -18,10 +18,12 @@ export interface BusinessProfile {
   id: string;
   userId: string;
   businessName: string;
-  description?: string;
   category: string;
-  address?: string;
-  phone?: string;
+  province: string;
+  city: string;
+  suburb: string;
+  phone: string;
+  access: string; // Delivery, Collection only, Both
   website?: string;
   isVerified: boolean;
   createdAt: Date;
@@ -33,8 +35,11 @@ export interface ClientProfile {
   userId: string;
   firstName: string;
   lastName: string;
+  province: string;
+  city: string;
+  suburb?: string;
   phone?: string;
-  address?: string;
+  preferences: string; // Everything, Tools, Equipment
   createdAt: Date;
   updatedAt: Date;
 }

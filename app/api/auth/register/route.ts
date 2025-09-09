@@ -31,11 +31,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
     }
 
-    // Create client profile
+    // Create client profile with default values
     const clientProfileResult = await FirebaseDbService.createClientProfile({
       userId: userResult.id,
       firstName: name?.split(' ')[0] || '',
-      lastName: name?.split(' ').slice(1).join(' ') || ''
+      lastName: name?.split(' ').slice(1).join(' ') || '',
+      province: '', // Will be set during profile setup
+      city: '', // Will be set during profile setup
+      suburb: '', // Optional
+      phone: '', // Optional
+      preferences: '' // Will be set during profile setup
     });
 
     if (!clientProfileResult.success) {
