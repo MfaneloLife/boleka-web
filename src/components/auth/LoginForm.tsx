@@ -29,16 +29,42 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
         redirect: false,
         email: data.email,
         password: data.password,
-        callbackUrl,
       });
       if (!res) throw new Error('No response from auth');
       if (res.error) {
         setAuthError(res.error);
         throw new Error(res.error);
       }
-      router.push(res.url || callbackUrl);
+      
+      // Check profile completion after successful login
+      const profileCheckResponse = await fetch('/api/profile/check');
+      if (profileCheckResponse.ok) {
+        const { needsProfileSetup } = await profileCheckResponse.json();
+        if (needsProfileSetup) {
+          router.push('/auth/profile-setup');
+        } else {
+          router.push(callbackUrl);
+        }
+      } else {
+        // If profile check fails, redirect to profile setup to be safe
+        router.push('/auth/profile-setup');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login');
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+    try {
+      const res = await nextAuthSignIn(provider, { 
+        redirect: false,
+        callbackUrl: '/auth/profile-setup' // Always redirect social logins to profile setup first
+      });
+      if (res?.url) {
+        router.push(res.url);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
     }
   };
 
@@ -53,11 +79,7 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
 
       <div className="flex flex-col space-y-4">
         <button
-          onClick={() => {
-            nextAuthSignIn('google', { callbackUrl }).catch(err =>
-              setError(err instanceof Error ? err.message : 'Failed to sign in with Google')
-            );
-          }}
+          onClick={() => handleSocialLogin('google')}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
@@ -83,11 +105,7 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
         </button>
 
         <button
-          onClick={() => {
-            nextAuthSignIn('facebook', { callbackUrl }).catch(err =>
-              setError(err instanceof Error ? err.message : 'Failed to sign in with Facebook')
-            );
-          }}
+          onClick={() => handleSocialLogin('facebook')}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"
         >

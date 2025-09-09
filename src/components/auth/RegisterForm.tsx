@@ -46,21 +46,35 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
         const r = await resp.json().catch(() => ({}));
         throw new Error(r.error || 'Registration failed');
       }
-      // Sign in immediately via credentials
+      // Sign in immediately via credentials and redirect to profile setup
       const res = await nextAuthSignIn('credentials', {
         redirect: false,
         email: data.email,
         password: data.password,
-        callbackUrl,
       });
       if (!res) throw new Error('No response from auth');
       if (res.error) {
         setAuthError(res.error);
         throw new Error(res.error);
       }
-      router.push(res.url || callbackUrl);
+      // Always redirect new users to profile setup
+      router.push('/auth/profile-setup');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
+    }
+  };
+
+  const handleSocialRegister = async (provider: 'google' | 'facebook') => {
+    try {
+      const res = await nextAuthSignIn(provider, { 
+        redirect: false,
+        callbackUrl: '/auth/profile-setup' // Always redirect social signups to profile setup
+      });
+      if (res?.url) {
+        router.push(res.url);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to sign up with ${provider}`);
     }
   };
 
@@ -75,11 +89,7 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
 
       <div className="flex flex-col space-y-4">
         <button
-          onClick={() => {
-            nextAuthSignIn('google', { callbackUrl }).catch(err =>
-              setError(err instanceof Error ? err.message : 'Failed to sign up with Google')
-            );
-          }}
+          onClick={() => handleSocialRegister('google')}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
@@ -105,11 +115,7 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
         </button>
 
         <button
-          onClick={() => {
-            nextAuthSignIn('facebook', { callbackUrl }).catch(err =>
-              setError(err instanceof Error ? err.message : 'Failed to sign up with Facebook')
-            );
-          }}
+          onClick={() => handleSocialRegister('facebook')}
           type="button"
           className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"
         >
