@@ -24,3 +24,49 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Fix mobile input field visibility */
+@media (max-width: 768px) {
+  input[type="text"], 
+  input[type="email"], 
+  input[type="password"], 
+  input[type="number"], 
+  input[type="tel"], 
+  select, 
+  textarea {
+    background-color: #f9fafb !important;
+    border: 2px solid #d1d5db !important;
+    color: #374151 !important;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 12px !important;
+    border-radius: 8px !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+  
+  input[type="text"]:focus, 
+  input[type="email"]:focus, 
+  input[type="password"]:focus, 
+  input[type="number"]:focus, 
+  input[type="tel"]:focus, 
+  select:focus, 
+  textarea:focus {
+    background-color: #ffffff !important;
+    border-color: #6366f1 !important;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+  }
+  
+  input::placeholder {
+    color: #9ca3af !important;
+    opacity: 1 !important;
+  }
+  
+  /* Fix for dark grey text on mobile */
+  input, select, textarea {
+    -webkit-text-fill-color: #374151 !important;
+    -webkit-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+}

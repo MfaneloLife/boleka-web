@@ -1,52 +1,104 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Item {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  price: number;
-  imageUrls: string[];
-  location: string;
+  dailyPrice: number;
+  images: string[];
   category: string;
-  availability: boolean;
+  condition: string;
+  isAvailable: boolean;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function BusinessItemsPage() {
-  const [items, setItems] = useState<Item[]>([
-    // Mock data for demonstration
-    {
-      id: '101',
-      title: 'Power Drill',
-      description: 'Professional power drill, barely used and in excellent condition',
-      price: 12,
-      imageUrls: ['/drill.jpg'],
-      location: 'Cape Town',
-      category: 'Tools & Equipment',
-      availability: true
-    },
-    {
-      id: '102',
-      title: 'Party Tent',
-      description: 'Large party tent, perfect for outdoor events and gatherings',
-      price: 45,
-      imageUrls: ['/tent.jpg'],
-      location: 'Cape Town',
-      category: 'Home & Garden',
-      availability: true
-    }
-  ]);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [items, setItems] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const toggleAvailability = (id: string) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, availability: !item.availability } : item
-    ));
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/login');
+    } else if (status === 'authenticated') {
+      fetchUserItems();
+    }
+  }, [status, router]);
+
+  const fetchUserItems = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/items?ownerId=me');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch items');
+      }
+      
+      const data = await response.json();
+      setItems(data.items || []);
+    } catch (err) {
+      console.error('Error fetching items:', err);
+      setError('Failed to load your items. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const toggleAvailability = async (id: string) => {
+    try {
+      const item = items.find(item => item.id === id);
+      if (!item) return;
+
+      const response = await fetch(`/api/items/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isAvailable: !item.isAvailable
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update item availability');
+      }
+
+      // Update local state
+      setItems(items.map(item => 
+        item.id === id ? { ...item, isAvailable: !item.isAvailable } : item
+      ));
+    } catch (err) {
+      console.error('Error updating item availability:', err);
+      setError('Failed to update item availability');
+    }
+  };
+
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-md">
+          {error}
+        </div>
+      )}
+
       <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">My Items</h1>
@@ -69,19 +121,28 @@ export default function BusinessItemsPage() {
               <li key={item.id} className="px-4 py-4 sm:px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="flex-shrink-0 h-16 w-16 bg-gray-200 rounded-md mr-4">
-                      {/* Placeholder for image */}
-                      <div className="flex items-center justify-center h-full text-xs text-gray-500">
-                        Image
-                      </div>
+                    <div className="flex-shrink-0 h-16 w-16 bg-gray-200 rounded-md mr-4 overflow-hidden">
+                      {item.images && item.images.length > 0 ? (
+                        <Image
+                          src={item.images[0]}
+                          alt={item.name}
+                          width={64}
+                          height={64}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-xs text-gray-500">
+                          No Image
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium text-indigo-600">{item.title}</h3>
+                      <h3 className="text-lg font-medium text-indigo-600">{item.name}</h3>
                       <p className="text-sm text-gray-500 line-clamp-1">{item.description}</p>
                       <div className="mt-1 flex items-center text-sm text-gray-500">
-                        <span className="mr-2">R{item.price}/day</span>
+                        <span className="mr-2">R{item.dailyPrice}/day</span>
                         <span className="mr-2">•</span>
-                        <span>{item.location}</span>
+                        <span>{item.condition}</span>
                         <span className="mr-2">•</span>
                         <span>{item.category}</span>
                       </div>
@@ -91,12 +152,12 @@ export default function BusinessItemsPage() {
                     <button
                       onClick={() => toggleAvailability(item.id)}
                       className={`inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md ${
-                        item.availability
+                        item.isAvailable
                           ? 'bg-green-100 text-green-800 hover:bg-green-200'
                           : 'bg-red-100 text-red-800 hover:bg-red-200'
                       }`}
                     >
-                      {item.availability ? 'Available' : 'Unavailable'}
+                      {item.isAvailable ? 'Available' : 'Unavailable'}
                     </button>
                     <Link
                       href={`/dashboard/business/items/${item.id}/edit`}

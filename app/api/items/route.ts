@@ -15,18 +15,37 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const category = url.searchParams.get('category');
     const searchTerm = url.searchParams.get('search');
+    const ownerIdParam = url.searchParams.get('ownerId');
     
-    // Build filter conditions for Firebase
-    let conditions: any = {};
-    
-    if (category) {
-      conditions.where = { field: 'category', operator: '==', value: category };
+    // Get user to determine ownerId for "me" requests
+    let ownerId = null;
+    if (ownerIdParam === 'me') {
+      const userResult = await FirebaseDbService.getUserByEmail(session.user.email);
+      if (userResult.success && userResult.user) {
+        ownerId = userResult.user.id;
+      }
+    } else if (ownerIdParam) {
+      ownerId = ownerIdParam;
     }
     
-    conditions.orderBy = { field: 'createdAt', direction: 'desc' };
+    // Build filter conditions for Firebase
+    const filters: any = {};
+    
+    if (category) {
+      filters.category = category;
+    }
+    
+    if (ownerId) {
+      filters.ownerId = ownerId;
+    }
+    
+    // Set default to show only available items unless it's the owner viewing their own items
+    if (!ownerId) {
+      filters.isAvailable = true;
+    }
     
     // Get items from Firebase
-    const result = await FirebaseDbService.getItems(conditions);
+    const result = await FirebaseDbService.getItems(filters);
     
     if (!result.success) {
       return NextResponse.json({ error: 'Failed to fetch items' }, { status: 500 });
