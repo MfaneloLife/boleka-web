@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth/next';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '../../auth/[...nextauth]/route';
 import { checkProfileCompletion } from '@/src/lib/profile-utils';
 
 export async function GET(request: NextRequest) {
