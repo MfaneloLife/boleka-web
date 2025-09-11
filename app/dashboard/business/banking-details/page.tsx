@@ -325,14 +325,6 @@ export default function BankingDetailsPage() {
     </div>
   );
 }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (status === 'authenticated') {
-      fetchBusinessProfile();
-    }
   }, [router, status]);
 
   const handleSuccess = () => {
