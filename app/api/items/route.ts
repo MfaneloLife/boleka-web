@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     // Parse query parameters
     const url = new URL(req.url);
     const category = url.searchParams.get('category');
+    const location = url.searchParams.get('location');
     const searchTerm = url.searchParams.get('search');
     const ownerIdParam = url.searchParams.get('ownerId');
     
@@ -33,6 +34,10 @@ export async function GET(req: NextRequest) {
     
     if (category) {
       filters.category = category;
+    }
+    
+    if (location) {
+      filters.location = location;
     }
     
     if (ownerId) {

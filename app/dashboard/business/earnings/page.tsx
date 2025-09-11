@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { Loader2, AlertCircle, DollarSign, TrendingUp, Calendar } from 'lucide-react';
 
 type Payment = {
   id: string;
@@ -13,16 +12,17 @@ type Payment = {
   status: string;
   merchantPaid: boolean;
   merchantPayoutDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-  request: {
+  createdAt: any;
+  updatedAt: any;
+  request?: {
     id: string;
     item: {
       id: string;
+      name: string;
       title: string;
     };
   };
-  payer: {
+  payer?: {
     id: string;
     name: string;
     email: string;
@@ -38,7 +38,7 @@ type BankingDetails = {
 };
 
 type PayoutsResponse = {
-  pendingPayouts: Payment[];
+  payments: Payment[];
   summary: {
     count: number;
     totalAmount: number;
@@ -46,6 +46,35 @@ type PayoutsResponse = {
     totalMerchantAmount: number;
   };
   bankingDetails: BankingDetails;
+};
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR'
+  }).format(amount);
+};
+
+const formatDate = (timestamp: any) => {
+  if (!timestamp) return 'Unknown';
+  
+  let date;
+  if (timestamp.seconds) {
+    // Firebase timestamp
+    date = new Date(timestamp.seconds * 1000);
+  } else if (timestamp instanceof Date) {
+    date = timestamp;
+  } else {
+    date = new Date(timestamp);
+  }
+  
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 };
 
 export default function EarningsPage() {
@@ -164,142 +193,217 @@ export default function EarningsPage() {
 
   // Render main earnings dashboard
   return (
-    <div className="max-w-5xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Business Earnings Dashboard</h1>
+    <div className="max-w-6xl mx-auto p-4 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Business Earnings</h1>
+          <p className="text-gray-600 mt-1">Track your rental income and PayFast transactions</p>
+        </div>
+        <button
+          onClick={() => router.push('/dashboard/business/banking-details')}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Update Banking Details
+        </button>
+      </div>
       
       {/* Platform Fee Information */}
-      <div className="mb-8 bg-orange-50 border border-orange-200 rounded-lg overflow-hidden">
-        <div className="px-4 py-3">
-          <h2 className="text-lg font-semibold">Platform Fee Information</h2>
-        </div>
-        <div className="px-4 py-3">
-          <p className="text-sm mb-2">
-            Boleka charges a 5% platform fee on all transactions. This fee is automatically deducted from each payment you receive.
-          </p>
-          <p className="text-sm">
-            For example, if a customer pays R100 for your rental item, you&apos;ll receive R95 in your account, and R5 goes to Boleka as a platform fee.
-          </p>
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">PayFast Integration & Platform Fee</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              All payments are processed securely through PayFast. Boleka charges a 5% platform fee on successful transactions.
+            </p>
+            <div className="mt-3 text-sm text-gray-700">
+              <span className="font-medium">Example:</span> Customer pays R100 → You receive R95 → Boleka fee R5
+            </div>
+          </div>
         </div>
       </div>
       
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="pb-2">
-            <h3 className="text-base font-medium">Total Sales</h3>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{formatCurrency(data?.summary?.totalAmount || 0)}</p>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="pb-2">
-            <h3 className="text-base font-medium">Platform Fee (5%)</h3>
-            <p className="text-xs text-gray-600">Fee paid to Boleka</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{formatCurrency(data?.summary?.totalCommission || 0)}</p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Transactions</p>
+              <p className="text-2xl font-bold text-gray-900">{data?.summary?.count || 0}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="pb-2">
-            <h3 className="text-base font-medium">Your Net Earnings</h3>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Sales</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(data?.summary?.totalAmount || 0)}</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-blue-600" />
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold">{formatCurrency(data?.summary?.totalMerchantAmount || 0)}</p>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Platform Fee (5%)</p>
+              <p className="text-2xl font-bold text-red-600">{formatCurrency(data?.summary?.totalCommission || 0)}</p>
+            </div>
+            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+              <div className="w-6 h-6 text-red-600 font-bold text-lg">%</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Your Net Earnings</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(data?.summary?.totalMerchantAmount || 0)}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
           </div>
         </div>
       </div>
       
       {/* Banking Information */}
-      <div className="bg-white rounded-lg shadow mb-8">
-        <div className="px-4 py-3 border-b">
-          <h3 className="text-lg font-semibold">Banking Details</h3>
-          <p className="text-sm text-gray-600">
-            Your earnings will be paid to this account
-          </p>
-        </div>
-        <div className="px-4 py-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Bank Name</p>
-              <p className="font-medium">{data?.bankingDetails?.bankName || 'Not set'}</p>
+              <h3 className="text-lg font-semibold text-gray-900">Banking Details</h3>
+              <p className="text-sm text-gray-600">Your earnings will be transferred to this account</p>
+            </div>
+            <button 
+              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+              onClick={handleAddBankingDetails}
+            >
+              Update Details
+            </button>
+          </div>
+        </div>
+        <div className="px-6 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Bank Name</p>
+              <p className="mt-1 text-sm font-medium text-gray-900">{data?.bankingDetails?.bankName || 'Not set'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Account Number</p>
-              <p className="font-medium">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Account Number</p>
+              <p className="mt-1 text-sm font-medium text-gray-900">
                 {data?.bankingDetails?.accountNumber 
                   ? `****${data.bankingDetails.accountNumber.slice(-4)}` 
                   : 'Not set'}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Account Type</p>
-              <p className="font-medium">{data?.bankingDetails?.accountType || 'Not set'}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Account Type</p>
+              <p className="mt-1 text-sm font-medium text-gray-900">{data?.bankingDetails?.accountType || 'Not set'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Account Holder</p>
-              <p className="font-medium">{data?.bankingDetails?.accountHolderName || 'Not set'}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Account Holder</p>
+              <p className="mt-1 text-sm font-medium text-gray-900">{data?.bankingDetails?.accountHolderName || 'Not set'}</p>
             </div>
           </div>
         </div>
-        <div className="px-4 py-3 border-t">
-          <button 
-            className="px-3 py-1 bg-gray-200 text-gray-800 rounded text-sm hover:bg-gray-300"
-            onClick={handleAddBankingDetails}
-          >
-            Update Banking Details
-          </button>
-        </div>
       </div>
       
-      {/* Payment History */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-4 py-3 border-b">
-          <h3 className="text-lg font-semibold">Payment History</h3>
-          <p className="text-sm text-gray-600">
-            All transactions including platform fees and payouts
+      {/* Payment History - All Successful Payments */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-5 h-5 text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900">Payment History</h3>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            All successful payments processed through PayFast
           </p>
         </div>
-        <div className="px-4 py-3">
-          {data?.pendingPayouts && data.pendingPayouts.length > 0 ? (
+        <div className="px-6 py-4">
+          {data?.payments && data.payments.length > 0 ? (
             <div className="space-y-4">
-              {data.pendingPayouts.map((payment) => (
-                <div key={payment.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-medium">{payment.request.item.title}</h3>
-                      <p className="text-sm text-gray-600">
-                        Payment from {payment.payer.name} on {formatDate(payment.createdAt)}
+              {data.payments.map((payment) => (
+                <div key={payment.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">
+                        {payment.request?.item?.name || payment.request?.item?.title || 'Item Rental'}
+                      </h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Payment from {payment.payer?.name || 'Customer'} • {formatDate(payment.createdAt)}
                       </p>
+                      {payment.payer?.email && (
+                        <p className="text-xs text-gray-500">{payment.payer.email}</p>
+                      )}
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs ${payment.merchantPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
-                      {payment.merchantPaid ? "Paid Out" : "Pending Payout"}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        payment.status === 'COMPLETED' || payment.status === 'PAID'
+                          ? "bg-green-100 text-green-800" 
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}>
+                        {payment.status}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        payment.merchantPaid 
+                          ? "bg-blue-100 text-blue-800" 
+                          : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {payment.merchantPaid ? "Paid Out" : "Pending Payout"}
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-2 mt-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Total Sale Amount</p>
-                      <p className="font-medium">{formatCurrency(payment.amount)}</p>
+                  <div className="grid grid-cols-3 gap-4 pt-3 border-t border-gray-100">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500 mb-1">Total Sale</p>
+                      <p className="font-semibold text-gray-900">{formatCurrency(payment.amount)}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Platform Fee (5%)</p>
-                      <p className="font-medium">{formatCurrency(payment.commissionAmount)}</p>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500 mb-1">Platform Fee</p>
+                      <p className="font-semibold text-red-600">-{formatCurrency(payment.commissionAmount)}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Your Net Earnings</p>
-                      <p className="font-medium">{formatCurrency(payment.merchantAmount)}</p>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500 mb-1">Your Earnings</p>
+                      <p className="font-semibold text-green-600">{formatCurrency(payment.merchantAmount)}</p>
                     </div>
                   </div>
+                  
+                  {payment.merchantPayoutDate && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-600">
+                        <strong>Paid out:</strong> {formatDate(payment.merchantPayoutDate)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-600">No payment history found</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No payments yet</h3>
+              <p className="text-gray-600 mb-4">
+                You haven't received any payments yet. Start listing items to begin earning!
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/business/items')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                List Your First Item
+              </button>
             </div>
           )}
         </div>
