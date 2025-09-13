@@ -100,6 +100,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <button
             onClick={() => setIsSidebarOpen(false)}
             className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
+            aria-label="Close sidebar"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
@@ -177,6 +178,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <button
               onClick={() => setIsSidebarOpen(true)}
               className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+              aria-label="Open sidebar"
             >
               <Bars3Icon className="h-6 w-6" />
             </button>

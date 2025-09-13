@@ -1,9 +1,11 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 
 const firebaseAdminConfig = {
   projectId: "bolekaweb",
+  storageBucket: "bolekaweb.firebasestorage.app",
   // Using Application Default Credentials for development
   // For production, you'll need to add your service account key
   ...(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY ? {
@@ -19,5 +21,6 @@ const firebaseAdminConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseAdminConfig) : getApps()[0];
 const adminDb = getFirestore(app);
 const adminAuth = getAuth(app);
+const adminStorage = getStorage(app);
 
-export { adminDb, adminAuth };
+export { adminDb, adminAuth, adminStorage };

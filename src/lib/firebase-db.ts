@@ -26,6 +26,12 @@ export interface BusinessProfile {
   access: string; // Delivery, Collection only, Both
   website?: string;
   isVerified: boolean;
+  // Banking details
+  bankName?: string;
+  accountNumber?: string;
+  accountType?: string;
+  branchCode?: string;
+  accountHolderName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -296,7 +302,7 @@ export class FirebaseDbService {
 
   static async getItems(filters?: { category?: string; ownerId?: string; isAvailable?: boolean; location?: string }): Promise<{ success: boolean; items?: any[]; error?: string }> {
     try {
-      let query = adminDb.collection('items');
+      let query: any = adminDb.collection('items');
       
       if (filters?.category) {
         query = query.where('category', '==', filters.category);

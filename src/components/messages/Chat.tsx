@@ -124,7 +124,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
         sender: {
           id: session.user.id || 'user1',
           name: session.user.name || 'You',
-          image: session.user.image
+          image: session.user.image || null
         },
         isCurrentUser: true
       };

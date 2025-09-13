@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const requestData = requestQuery.request;
 
     // Calculate commission and merchant amounts
-    const commissionRate = 0.05; // 5% commission
+    const commissionRate = 0.08; // 8% commission
     const commissionAmount = Math.round(amount * commissionRate * 100) / 100;
     const merchantAmount = Math.round((amount - commissionAmount) * 100) / 100;
 

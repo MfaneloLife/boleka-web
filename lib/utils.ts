@@ -33,7 +33,7 @@ export function truncateText(text: string, maxLength: number): string {
 /**
  * Calculate commission amount based on a percentage
  */
-export function calculateCommission(amount: number, rate: number = 0.05): number {
+export function calculateCommission(amount: number, rate: number = 0.08): number {
   return Number((amount * rate).toFixed(2));
 }
 

@@ -15,7 +15,7 @@ Boleka is a modern web application that allows users to share items within their
 
 - **Frontend**: Next.js with App Router, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: Firebase Firestore with Firebase Admin SDK
 - **Authentication**: NextAuth.js
 - **Storage**: Firebase Storage (for images)
 - **Messaging**: Firebase Firestore for real-time messaging
@@ -35,9 +35,10 @@ Boleka is a modern web application that allows users to share items within their
    npm install
    ```
 3. Set up environment variables by copying `.env.example` to `.env` and filling in the values
-4. Initialize the database:
+4. Set up Firebase:
    ```
-   npx prisma migrate dev
+   # Add your Firebase service account key to src/lib/firebase-admin.ts
+   # Configure Firebase Auth with Google OAuth
    ```
 5. Start the development server:
    ```
@@ -48,7 +49,7 @@ Boleka is a modern web application that allows users to share items within their
 
 - `/app`: Next.js App Router pages and API routes
 - `/src/components`: Reusable components
-- `/prisma`: Database schema and migrations
+- `/src/lib`: Firebase configuration and utilities
 - `/public`: Static assets
 - `/lib`: Utility functions, including Firebase configuration
 
@@ -134,9 +135,9 @@ Boleka is a modern web application that allows users to share items within their
 
 ### Platform Fee System
 
-The application includes a 5% platform fee on all payments processed through the system:
+The application includes a 8% platform fee on all payments processed through the system:
 
-- Businesses are charged a 5% fee on each transaction
+- Businesses are charged a 8% fee on each transaction
 - The fee is automatically calculated during payment processing
 - Businesses can view their earnings, fees paid, and net amounts in their dashboard
 - Platform fees are clearly explained in the business onboarding process

@@ -187,7 +187,7 @@ export default function BankingDetailsPage() {
             <div className="ml-3">
               <p className="text-sm text-yellow-700">
                 <strong>Important:</strong> Your banking details are securely stored and used only for transferring your earnings. 
-                Boleka charges a 5% platform fee on all transactions, and the remaining 95% is transferred to your account.
+                Boleka charges a 8% platform fee on all transactions, and the remaining 92% is transferred to your account.
               </p>
             </div>
           </div>

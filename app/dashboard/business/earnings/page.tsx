@@ -165,7 +165,7 @@ export default function EarningsPage() {
           <div className="bg-white px-4 py-3">
             <p className="mb-4">
               Before you can receive payments for your rentals, you need to set up your banking details.
-              This allows us to transfer your earnings (minus the 5% platform fee) to your account.
+              This allows us to transfer your earnings (minus the 8% platform fee) to your account.
             </p>
             <div className="bg-gray-100 p-4 rounded-md mb-4">
               <h3 className="font-semibold mb-2">Required Information:</h3>
@@ -216,10 +216,10 @@ export default function EarningsPage() {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">PayFast Integration & Platform Fee</h2>
             <p className="text-sm text-gray-600 mt-1">
-              All payments are processed securely through PayFast. Boleka charges a 5% platform fee on successful transactions.
+              All payments are processed securely through PayFast. Boleka charges a 8% platform fee on successful transactions.
             </p>
             <div className="mt-3 text-sm text-gray-700">
-              <span className="font-medium">Example:</span> Customer pays R100 → You receive R95 → Boleka fee R5
+              <span className="font-medium">Example:</span> Customer pays R100 → You receive R92 → Boleka fee R8
             </div>
           </div>
         </div>
@@ -254,7 +254,7 @@ export default function EarningsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Platform Fee (5%)</p>
+              <p className="text-sm font-medium text-gray-600">Platform Fee (8%)</p>
               <p className="text-2xl font-bold text-red-600">{formatCurrency(data?.summary?.totalCommission || 0)}</p>
             </div>
             <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">

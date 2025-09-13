@@ -3,6 +3,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
@@ -21,6 +22,7 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // Initialize analytics in browser environment only
 let analytics = null;
@@ -36,4 +38,4 @@ if (typeof window !== 'undefined') {
 const googleProvider = new GoogleAuthProvider();
 const facebookProvider = new FacebookAuthProvider();
 
-export { auth, db, googleProvider, facebookProvider, analytics };
+export { auth, db, storage, googleProvider, facebookProvider, analytics };

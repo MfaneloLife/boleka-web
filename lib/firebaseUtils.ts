@@ -50,7 +50,11 @@ export async function getMessagesForRequest(requestId: string) {
       messages.push({
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+        createdAt: data.createdAt && typeof data.createdAt === 'object' && 'toDate' in data.createdAt 
+          ? (data.createdAt as any).toDate() 
+          : data.createdAt instanceof Date 
+            ? data.createdAt 
+            : new Date(),
       });
     });
 
@@ -106,7 +110,11 @@ export async function sendMessage(
     return {
       id: messageSnapshot.id,
       ...messageData,
-      createdAt: messageData.createdAt?.toDate ? messageData.createdAt.toDate() : new Date(),
+      createdAt: messageData.createdAt && typeof messageData.createdAt === 'object' && 'toDate' in messageData.createdAt 
+        ? (messageData.createdAt as any).toDate() 
+        : messageData.createdAt instanceof Date 
+          ? messageData.createdAt 
+          : new Date(),
     };
   } catch (error) {
     console.error('Error sending message:', error);

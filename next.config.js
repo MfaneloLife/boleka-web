@@ -13,7 +13,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   // Updated from experimental.serverComponentsExternalPackages
-  serverExternalPackages: ['@prisma/client', 'bcrypt', 'bcryptjs'],
+  serverExternalPackages: ['bcrypt', 'bcryptjs'],
   // ...existing code...
 }
 

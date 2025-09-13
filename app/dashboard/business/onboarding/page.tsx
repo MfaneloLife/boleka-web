@@ -150,7 +150,7 @@ export default function BusinessOnboardingPage() {
               
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <div>
-                  <p className="text-sm text-gray-600">Boleka platform fee (5%):</p>
+                  <p className="text-sm text-gray-600">Boleka platform fee (8%):</p>
                   <p className="font-medium text-orange-600">-R50.00</p>
                 </div>
                 <div className="text-right">

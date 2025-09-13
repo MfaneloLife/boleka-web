@@ -79,7 +79,7 @@ export default function BankingDetailsForm({
     <div className="bg-white p-6 rounded-lg shadow-md">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Banking Details</h2>
       <p className="text-sm text-gray-500 mb-6">
-        Your banking details are required to receive payments from rentals. Boleka will deposit rental payments minus 5% commission directly to this account.
+        Your banking details are required to receive payments from rentals. Boleka will deposit rental payments minus 8% commission directly to this account.
       </p>
       
       {error && (

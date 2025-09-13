@@ -52,14 +52,6 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    } else if (status === 'authenticated') {
-      fetchConversation();
-    }
-  }, [status, router, params.requestId, fetchConversation]);
-
   const fetchConversation = async () => {
     try {
       setIsLoading(true);
@@ -68,17 +60,23 @@ export default function ConversationPage({ params }: { params: { requestId: stri
       if (!response.ok) {
         throw new Error('Failed to fetch conversation');
       }
-      
+
       const data = await response.json();
-      setRequest(data.request);
-      setMessages(data.messages);
+      setMessages(data.messages || []);
     } catch (err) {
-      console.error('Error fetching conversation:', err);
-      setError('Failed to load the conversation. Please try again.');
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/login');
+    } else if (status === 'authenticated') {
+      fetchConversation();
+    }
+  }, [status, router, params.requestId]);
 
   const handleSendMessage = async (content: string, file?: File) => {
     if ((!content.trim() && !file) || !session?.user?.email) return;

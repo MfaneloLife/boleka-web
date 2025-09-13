@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read and write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Users can read and write their own client profile
+    match /clientProfiles/{profileId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Users can read and write their own business profile
+    match /businessProfiles/{profileId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Items: Users can read all available items, but only modify their own
+    match /items/{itemId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+        resource.data.ownerId == request.auth.uid;
+    }
+    
+    // Requests: Users can read and create requests, but only modify their own
+    match /requests/{requestId} {
+      allow read: if request.auth != null && 
+        (resource.data.requesterId == request.auth.uid || 
+         resource.data.ownerId == request.auth.uid);
+      allow create: if request.auth != null && 
+        request.resource.data.requesterId == request.auth.uid;
+      allow update: if request.auth != null && 
+        (resource.data.requesterId == request.auth.uid || 
+         resource.data.ownerId == request.auth.uid);
+    }
+    
+    // Messages: Users can read and create messages for their conversations
+    match /messages/{messageId} {
+      allow read, create: if request.auth != null;
+      // Additional validation can be added to check if user is part of the conversation
+    }
+    
+    // Payments: Users can read their own payments
+    match /payments/{paymentId} {
+      allow read: if request.auth != null && 
+        resource.data.payerId == request.auth.uid;
+      allow create: if request.auth != null && 
+        request.resource.data.payerId == request.auth.uid;
+    }
+    
+    // Notifications: Users can read and update their own notifications
+    match /notifications/{notificationId} {
+      allow read, update: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // User recommendations: Users can read their own recommendations
+    match /userRecommendations/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

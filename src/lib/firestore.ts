@@ -29,14 +29,14 @@ export class FirestoreService {
       return { success: true, id: docRef.id };
     } catch (error) {
       console.error("Error adding document:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
   // Get all documents from collection
   static async getDocuments(collectionName: string, conditions?: any) {
     try {
-      let q = collection(db, collectionName);
+      let q: any = collection(db, collectionName);
       
       if (conditions?.where) {
         q = query(q, where(conditions.where.field, conditions.where.operator, conditions.where.value));
@@ -51,15 +51,15 @@ export class FirestoreService {
       }
 
       const querySnapshot = await getDocs(q);
-      const documents = [];
+      const documents: any[] = [];
       querySnapshot.forEach((doc) => {
-        documents.push({ id: doc.id, ...doc.data() });
+        documents.push({ id: doc.id, ...(doc.data() as any) });
       });
       
       return { success: true, data: documents };
     } catch (error) {
       console.error("Error getting documents:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -76,7 +76,7 @@ export class FirestoreService {
       }
     } catch (error) {
       console.error("Error getting document:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -91,7 +91,7 @@ export class FirestoreService {
       return { success: true };
     } catch (error) {
       console.error("Error updating document:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -103,7 +103,7 @@ export class FirestoreService {
       return { success: true };
     } catch (error) {
       console.error("Error deleting document:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 }

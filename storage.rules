@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Users can upload images to their own folders
+    match /items/{userId}/{itemId}/{imageFile} {
+      allow read: if true; // Anyone can view item images
+      allow write: if request.auth != null && request.auth.uid == userId &&
+        request.resource.contentType.matches('image/.*') &&
+        request.resource.size < 5 * 1024 * 1024; // Max 5MB
+    }
+    
+    // Profile images
+    match /profiles/{userId}/{imageFile} {
+      allow read: if true; // Anyone can view profile images
+      allow write: if request.auth != null && request.auth.uid == userId &&
+        request.resource.contentType.matches('image/.*') &&
+        request.resource.size < 2 * 1024 * 1024; // Max 2MB
+    }
+    
+    // Message images
+    match /messages/{userId}/{messageId}/{imageFile} {
+      allow read, write: if request.auth != null; // Authenticated users only
+      // Additional validation can be added for message participants
+    }
+  }
+}

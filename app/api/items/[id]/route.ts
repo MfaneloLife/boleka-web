@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]/route';
-import { FirebaseDbService } from '@/src/lib/firebase-db';
+import { authOptions } from '@/lib/auth';
+import { getItemById, updateItem, deleteItem } from '@/src/lib/firebase-storage';
+import { adminDb } from '@/src/lib/firebase-admin';
 
 export async function GET(
   request: NextRequest,
@@ -16,13 +17,13 @@ export async function GET(
     
     const { id } = params;
     
-    const result = await FirebaseDbService.getItemById(id);
+    const item = await getItemById(id);
     
-    if (!result.success || !result.item) {
+    if (!item) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
     
-    return NextResponse.json(result.item);
+    return NextResponse.json(item);
   } catch (error) {
     console.error('Error fetching item:', error);
     return NextResponse.json({ error: 'Failed to fetch item' }, { status: 500 });
@@ -41,33 +42,34 @@ export async function PATCH(
     }
 
     const { id } = params;
-    const body = await req.json();
 
-    // Get user
-    const userResult = await FirebaseDbService.getUserByEmail(session.user.email);
-    
-    if (!userResult.success || !userResult.user) {
+    // Get user from Firebase
+    const usersSnapshot = await adminDb.collection('users')
+      .where('email', '==', session.user.email)
+      .limit(1)
+      .get();
+
+    if (usersSnapshot.empty) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get the item to verify ownership
-    const itemResult = await FirebaseDbService.getItemById(id);
-    
-    if (!itemResult.success || !itemResult.item) {
+    const userDoc = usersSnapshot.docs[0];
+
+    // Check if user owns the item
+    const itemDoc = await adminDb.collection('items').doc(id).get();
+    if (!itemDoc.exists) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
 
-    // Verify ownership
-    if (itemResult.item.ownerId !== userResult.user.id) {
+    const itemData = itemDoc.data();
+    if (itemData?.ownerId !== userDoc.id) {
       return NextResponse.json({ error: 'Not authorized to update this item' }, { status: 403 });
     }
 
-    // Update item
-    const updateResult = await FirebaseDbService.updateItem(id, body);
-    
-    if (!updateResult.success) {
-      return NextResponse.json({ error: 'Failed to update item' }, { status: 500 });
-    }
+    const body = await req.json();
+
+    // Update item using new Firebase storage system
+    await updateItem(id, body);
 
     return NextResponse.json({ message: 'Item updated successfully' });
   } catch (error) {
@@ -89,31 +91,31 @@ export async function DELETE(
 
     const { id } = params;
 
-    // Get user
-    const userResult = await FirebaseDbService.getUserByEmail(session.user.email);
-    
-    if (!userResult.success || !userResult.user) {
+    // Get user from Firebase
+    const usersSnapshot = await adminDb.collection('users')
+      .where('email', '==', session.user.email)
+      .limit(1)
+      .get();
+
+    if (usersSnapshot.empty) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get the item to verify ownership
-    const itemResult = await FirebaseDbService.getItemById(id);
-    
-    if (!itemResult.success || !itemResult.item) {
+    const userDoc = usersSnapshot.docs[0];
+
+    // Check if user owns the item
+    const itemDoc = await adminDb.collection('items').doc(id).get();
+    if (!itemDoc.exists) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
 
-    // Verify ownership
-    if (itemResult.item.ownerId !== userResult.user.id) {
+    const itemData = itemDoc.data();
+    if (itemData?.ownerId !== userDoc.id) {
       return NextResponse.json({ error: 'Not authorized to delete this item' }, { status: 403 });
     }
 
-    // Delete item
-    const deleteResult = await FirebaseDbService.deleteItem(id);
-    
-    if (!deleteResult.success) {
-      return NextResponse.json({ error: 'Failed to delete item' }, { status: 500 });
-    }
+    // Delete item and its images using new Firebase storage system
+    await deleteItem(id);
 
     return NextResponse.json({ message: 'Item deleted successfully' });
   } catch (error) {

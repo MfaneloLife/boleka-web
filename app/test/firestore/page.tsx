@@ -6,8 +6,8 @@ import { FirestoreService, UserFirestoreService, ItemFirestoreService } from "@/
 export default function FirestoreTestPage() {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [items, setItems] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
 
   const showMessage = (msg: string, isError = false) => {
     setMessage(msg);
