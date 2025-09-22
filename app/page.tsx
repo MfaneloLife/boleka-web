@@ -1,4 +1,12 @@
 import Image from "next/image";
+import type { Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+};
 import Link from "next/link";
 
 export default function Home() {
