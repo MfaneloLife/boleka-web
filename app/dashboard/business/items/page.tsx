@@ -1,44 +1,51 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { auth } from '@/src/lib/firebase';
 
 interface Item {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  dailyPrice: number;
+  price: number;
   images: string[];
   category: string;
   condition: string;
-  isAvailable: boolean;
+  status: 'available' | 'rented' | 'maintenance';
   ownerId: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export default function BusinessItemsPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    } else if (status === 'authenticated') {
-      fetchUserItems();
-    }
-  }, [status, router]);
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+      await fetchUserItems();
+    });
+    return () => unsub();
+  }, [router]);
 
   const fetchUserItems = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/items?ownerId=me');
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/items?ownerId=me', {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch items');
@@ -59,13 +66,17 @@ export default function BusinessItemsPage() {
       const item = items.find(item => item.id === id);
       if (!item) return;
 
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch(`/api/items/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          isAvailable: !item.isAvailable
+          // Keep legacy isAvailable for compatibility if used downstream
+          isAvailable: item.status !== 'available',
+          status: item.status === 'available' ? 'maintenance' : 'available',
         }),
       });
 
@@ -75,7 +86,12 @@ export default function BusinessItemsPage() {
 
       // Update local state
       setItems(items.map(item => 
-        item.id === id ? { ...item, isAvailable: !item.isAvailable } : item
+        item.id === id
+          ? {
+              ...item,
+              status: item.status === 'available' ? 'maintenance' : 'available',
+            }
+          : item
       ));
     } catch (err) {
       console.error('Error updating item availability:', err);
@@ -125,7 +141,7 @@ export default function BusinessItemsPage() {
                       {item.images && item.images.length > 0 ? (
                         <Image
                           src={item.images[0]}
-                          alt={item.name}
+                          alt={item.title}
                           width={64}
                           height={64}
                           className="w-full h-full object-cover"
@@ -137,10 +153,10 @@ export default function BusinessItemsPage() {
                       )}
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium text-indigo-600">{item.name}</h3>
+                      <h3 className="text-lg font-medium text-indigo-600">{item.title}</h3>
                       <p className="text-sm text-gray-500 line-clamp-1">{item.description}</p>
                       <div className="mt-1 flex items-center text-sm text-gray-500">
-                        <span className="mr-2">R{item.dailyPrice}/day</span>
+                        <span className="mr-2">R{item.price}/day</span>
                         <span className="mr-2">•</span>
                         <span>{item.condition}</span>
                         <span className="mr-2">•</span>
@@ -152,12 +168,12 @@ export default function BusinessItemsPage() {
                     <button
                       onClick={() => toggleAvailability(item.id)}
                       className={`inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md ${
-                        item.isAvailable
+                        item.status === 'available'
                           ? 'bg-green-100 text-green-800 hover:bg-green-200'
                           : 'bg-red-100 text-red-800 hover:bg-red-200'
                       }`}
                     >
-                      {item.isAvailable ? 'Available' : 'Unavailable'}
+                      {item.status === 'available' ? 'Available' : 'Unavailable'}
                     </button>
                     <Link
                       href={`/dashboard/business/items/${item.id}/edit`}

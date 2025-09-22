@@ -1,20 +1,19 @@
-import { getServerSession } from 'next-auth/next';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { adminAuth } from '@/src/lib/firebase-admin';
 import { userService } from '@/src/lib/firebase-db';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const token = authHeader.substring('Bearer '.length);
+    const decoded = await adminAuth.verifyIdToken(token);
+    const email = decoded.email;
+    if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const userResult = await userService.getUserByEmail(session.user.email);
+    const userResult = await userService.getUserByEmail(email);
 
     if (!userResult.success || !userResult.user) {
       return NextResponse.json(
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = userResult.user;
+  const user = userResult.user;
 
     // Return user profile data, excluding sensitive information
     return NextResponse.json({

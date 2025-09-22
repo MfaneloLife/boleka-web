@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     setIsClient(true);
     
     if (status === 'unauthenticated') {
-      router.push('/auth/login?redirect=dashboard');
+      router.push('/auth/login');
     }
   }, [status, router]);
 

@@ -37,7 +37,9 @@ export async function uploadItemImages(
     const imagePath = `items/${userId}/${itemId}/image_${index}_${Date.now()}.${image.name.split('.').pop()}`;
     const imageRef = ref(storage, imagePath);
     
-    await uploadBytes(imageRef, image);
+    await uploadBytes(imageRef, image, {
+      contentType: (image as any).type || 'image/jpeg',
+    });
     return await getDownloadURL(imageRef);
   });
 

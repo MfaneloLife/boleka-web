@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { auth } from '@/src/lib/firebase';
 
 interface Conversation {
   id: string;
@@ -40,24 +40,36 @@ interface Conversation {
 }
 
 export default function MessagesPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    } else if (status === 'authenticated') {
-      fetchConversations();
-    }
-  }, [status, router]);
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+      setUserEmail(user.email);
+      setAuthReady(true);
+      await fetchConversations();
+    });
+    return () => unsub();
+  }, [router]);
 
   const fetchConversations = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/messages');
+      const user = auth.currentUser;
+      const idToken = await user?.getIdToken();
+      const response = await fetch('/api/messages', {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch conversations');
@@ -74,10 +86,10 @@ export default function MessagesPage() {
   };
 
   const getOtherParty = (conversation: Conversation) => {
-    if (!session?.user?.email) return null;
+    if (!userEmail) return null;
     
     // Determine if the current user is the requester or the owner
-    const userIsRequester = conversation.requester.id === session.user.email;
+    const userIsRequester = conversation.requester.id === userEmail;
     
     // Return the other party's information
     return userIsRequester ? conversation.owner : conversation.requester;
@@ -93,7 +105,7 @@ export default function MessagesPage() {
     });
   };
 
-  if (status === 'loading' || isLoading) {
+  if (!authReady || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>

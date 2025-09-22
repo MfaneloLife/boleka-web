@@ -258,7 +258,7 @@ export class FirebaseDbService {
       const querySnapshot = await query.orderBy('createdAt', 'desc').get();
       const items: Item[] = [];
       
-      querySnapshot.forEach((doc) => {
+      querySnapshot.forEach((doc: any) => {
         items.push({ id: doc.id, ...doc.data() } as Item);
       });
       

@@ -3,30 +3,22 @@
 import React, { useState } from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
-
-type ProfileType = 'client' | 'business';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/src/context/AuthContext';
 
 interface ProfileSetupFormData {
-  // Business profile fields
   businessName?: string;
   province?: string;
   city?: string;
   suburb?: string;
   contactNumber?: string;
   access?: string;
-  
-  // Client profile fields
-  clientProvince?: string;
-  clientCity?: string;
-  clientSuburb?: string;
-  cellPhone?: string;
-  preferences?: string;
 }
 
 export default function ProfileSetupPage() {
   const router = useRouter();
-  const [profileType, setProfileType] = useState<ProfileType>('client');
+  const { currentUser } = useAuth();
+  const searchParams = useSearchParams(); // kept in case of future use
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -41,13 +33,6 @@ export default function ProfileSetupPage() {
     'Western Cape',
     'Limpopo',
     'Northern Cape'
-  ];
-
-  // Preference options for client
-  const preferenceOptions = [
-    'Everything',
-    'Tools',
-    'Equipment'
   ];
 
   // Access options for business
@@ -68,14 +53,18 @@ export default function ProfileSetupPage() {
     setError(null);
 
     try {
-      const endpoint = profileType === 'business' 
-        ? '/api/profile/business' 
-        : '/api/profile/client';
-      
-      const response = await fetch(endpoint, {
+      if (!currentUser) {
+        throw new Error('You must be logged in to create a profile');
+      }
+
+      // Get the Firebase ID token
+      const idToken = await currentUser.getIdToken();
+
+      const response = await fetch('/api/profile/business', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify(data),
       });
@@ -85,8 +74,8 @@ export default function ProfileSetupPage() {
         throw new Error(result.error || 'Failed to update profile');
       }
 
-      // Redirect to dashboard based on profile type
-      router.push(profileType === 'business' ? '/dashboard/business' : '/dashboard/client');
+      // Redirect to business dashboard after setup
+      router.push('/dashboard/business');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -98,43 +87,10 @@ export default function ProfileSetupPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-2xl p-8 space-y-8 bg-white rounded-lg shadow-md">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Set Up Your Profile</h1>
-          <p className="mt-2 text-gray-600">
-            Choose the type of profile you want to start with. You can always add another type later.
-          </p>
+          <h1 className="text-2xl font-bold">Set up your Business Profile</h1>
+          <p className="mt-2 text-gray-600">Create your business profile to list items, accept requests, and get paid. You can skip and do this later.</p>
         </div>
 
-        <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
-          <button
-            type="button"
-            onClick={() => setProfileType('client')}
-            className={`flex-1 p-4 border rounded-lg ${
-              profileType === 'client'
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-gray-300'
-            }`}
-          >
-            <h3 className="text-lg font-medium">Client Profile</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Search for items, send requests, and make payments
-            </p>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => setProfileType('business')}
-            className={`flex-1 p-4 border rounded-lg ${
-              profileType === 'business'
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-gray-300'
-            }`}
-          >
-            <h3 className="text-lg font-medium">Business Profile</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              List items, accept requests, and receive payments
-            </p>
-          </button>
-        </div>
 
         {error && (
           <div className="p-3 text-sm text-white bg-red-500 rounded">
@@ -143,7 +99,6 @@ export default function ProfileSetupPage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-          {profileType === 'business' ? (
             <>
               <div>
                 <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
@@ -259,111 +214,29 @@ export default function ProfileSetupPage() {
                 )}
               </div>
             </>
-          ) : (
-            <>
-              <div>
-                <label htmlFor="clientProvince" className="block text-sm font-medium text-gray-700">
-                  Province *
-                </label>
-                <select
-                  id="clientProvince"
-                  {...register('clientProvince', {
-                    required: 'Province is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Choose your Province</option>
-                  {provinces.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
-                {errors.clientProvince && (
-                  <p className="mt-1 text-sm text-red-600">{errors.clientProvince.message}</p>
-                )}
-              </div>
 
-              <div>
-                <label htmlFor="clientCity" className="block text-sm font-medium text-gray-700">
-                  City *
-                </label>
-                <input
-                  id="clientCity"
-                  type="text"
-                  {...register('clientCity', {
-                    required: 'City is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.clientCity && (
-                  <p className="mt-1 text-sm text-red-600">{errors.clientCity.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="clientSuburb" className="block text-sm font-medium text-gray-700">
-                  Suburb (optional)
-                </label>
-                <input
-                  id="clientSuburb"
-                  type="text"
-                  {...register('clientSuburb')}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="cellPhone" className="block text-sm font-medium text-gray-700">
-                  Cell Phone (optional)
-                </label>
-                <input
-                  id="cellPhone"
-                  type="tel"
-                  {...register('cellPhone')}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="preferences" className="block text-sm font-medium text-gray-700">
-                  Preferences *
-                </label>
-                <select
-                  id="preferences"
-                  {...register('preferences', {
-                    required: 'Preference is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Choose your preference</option>
-                  {preferenceOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                {errors.preferences && (
-                  <p className="mt-1 text-sm text-red-600">{errors.preferences.message}</p>
-                )}
-              </div>
-            </>
-          )}
-
-          <div>
+          <div className="space-y-3">
             <Button
               type="submit"
               disabled={isSubmitting}
               className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              {isSubmitting ? 'Setting up profile...' : 'Continue'}
+              {isSubmitting ? 'Setting up profile...' : 'Save Profile'}
             </Button>
+            
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard/client')}
+              className="w-full px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            >
+              Skip for now
+            </button>
           </div>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            You can always add {profileType === 'client' ? 'a business' : 'a client'} profile later from your dashboard.
+            You can always edit your business profile later from your dashboard.
           </p>
         </div>
       </div>

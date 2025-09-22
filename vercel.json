@@ -5,25 +5,25 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "env": {
-    "NEXTAUTH_URL": "https://boleka-web-git-main-mfanelolifes-projects.vercel.app",
+    "NEXTAUTH_URL": "https://boleka-web.vercel.app",
     "NEXTAUTH_SECRET": "your-super-secret-nextauth-key-2025-boleka-secure",
-    "NEXT_PUBLIC_APP_URL": "https://boleka-web-git-main-mfanelolifes-projects.vercel.app",
+    "NEXT_PUBLIC_APP_URL": "https://boleka-web.vercel.app",
     "PAYFAST_MERCHANT_ID": "17739107",
     "PAYFAST_MERCHANT_KEY": "m2hpqzhb9yvsr",
     "PAYFAST_PASS_PHRASE": "",
     "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyBn3tVcJVv6TVeElo3pjap__plXPllYoOE",
     "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "bolekaweb.firebaseapp.com",
     "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "bolekaweb",
-    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "bolekaweb.firebasestorage.app",
+  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "bolekaweb.appspot.com",
     "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "930497779587",
     "NEXT_PUBLIC_FIREBASE_APP_ID": "1:930497779587:web:3a57bd7a5a77a7a90608b6",
     "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-CHPM9YS2RG",
     "FIREBASE_PROJECT_ID": "bolekaweb",
     "FIREBASE_CLIENT_EMAIL": "firebase-adminsdk-fbsvc@bolekaweb.iam.gserviceaccount.com",
     "FIREBASE_PRIVATE_KEY": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCkhwtvv36Kw5QH\n746lNXU6DV5XLb4uAuaj1UmS38VK/9QCJduJGD0g4JSSUNkrl4iaRCURLj+8gaXq\n8w5+S5q5o2PilJKEvcZgqQIjCWsfDBRMcRdLeKQtVSZm9dEz/ZoTLRMAzIdjmqJV\nj5xaSz2Ij6e6ld5yn68BnLWHkTHbeXObuaQQLoCjfKVYYVMIZEfUoJan3haCiNB8\noVleioJP44V+tMxrgPX3IOjOyDSFo5J88d8yhma+LJqSXDHZF/7evtwaOW2gpa0K\nTg+8bWDf5NqTJ7ZvFHSxt0yr0AWgPF+FqrA4xIcR0TI0Puywe9CENmTw/VmKVwnN\nIhT83R7rAgMBAAECggEAN5dpxdhuaXSsEAJhsHDfqz3ZIpvSJrnUNIdc1MPHZhAL\nEq63/xqxjOpVSRsIRjJtdbKQ071My+UCquB1hTcGkLMkjOqmlzOIVCDHGA+Womby\ndOHBfT7GOosK7r8gcPC/nrscMKjrFjypnT9pFRlXMU1Y3zLEdvZ9q43HyIbG0eEs\ned0YRIjjG+4JnlnS42SBZ2gNv9NAy/AGLy9tV9bi0eQdfhqI2b14aTlG4/vhtdfy\ngWtccsAnhDAREORhkFARBZa785/Y1w2ie7z073wnKQwb9/aZhoeBdAsUdManmP7e\nlTU22W2OS+9yH71qjMyz8yQcD4XP8qFe4uJMx6zEAQKBgQDfvIBCZPkjmLDpbDSz\nWU3/7zyDzsPZNVUpPcsuFNORTPVJPSFX/9WwPO3b1sAnPql0EMORG4GWt4BzJoZs\nT3HMGqrZUaQbOV/ocFrBec5ck5QYnn1WqBOLSwj8dLcq7f2Pc5Paha8uOHv2BZ3g\nHNROfrB/ZeYRPNBs6lVJwh6OXQKBgQC8QMc6zlbwl+pgCJ68klS+4TZTfzHomBsH\nEdLhNysqQELGOAy3JU6TtS+I7mGDFXpkaxiAyzhNBC4gwE3KG5KTcMBi2Ud9bAHF\n+QgzHFHOmKu0lzm1oxt0jQKP2NF/Uxhvp1ElcBKrDSalEfbBuvglia8niTg2ogrZ\ngdyFMfC95wKBgQCizv7eUa/iMVh7Y5wt7oyN8z8sAygNRXwFGMxjahBSqZfMhclf\nyfFr38qOsQT/CeAxb4mAbG2uiTXVlXE4G8+JYNZ2caxjiyq5cBj6tXJvd4zLJXm7\nt28Ra7bMTvqDKM/ctZQf7iv+DGhYLNonnZL408QH0NTMMl7RAuyxUar+mQKBgDX3\nzCXLqZjntEU7s2YT/T+LiOt+92vaz0TDk1UFX9aI/ZudzedjRpeJxcrXrBTMP34y\nRaAGomlR3Xd+Kc7bALZMCJtN9vS51fhPYE5mu/0iP3dSMzUjQWe0VRuv6L87rzGz\nIcw9yNxItN91uuvnEeSRCCmpaPgglEOuuu1kV8PZAoGBAIvIDJTcvRUjho9VbZWg\nynHhoaNBvbZqNA9sSBaS19jjAjDLUj25o9MXK7xu8FJjkihxEGN2UpWR2FaWr/ky\niWLfxhiPpqyrrIBeZTsNiteYJHwaA89sm+YJR23PNq1OlxhjUG17IGuJHCYVS1iz\n7mOBNZfBYm699ZNz7UAqHCov\n-----END PRIVATE KEY-----\n",
-    "GOOGLE_CLIENT_ID": "",
-    "GOOGLE_CLIENT_SECRET": "",
-    "FACEBOOK_CLIENT_ID": "",
-    "FACEBOOK_CLIENT_SECRET": ""
+    "GOOGLE_CLIENT_ID": "930497779587-152c71l2khiimcv772fg252njpjtn2u3.apps.googleusercontent.com",
+    "GOOGLE_CLIENT_SECRET": "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",
+    "FACEBOOK_CLIENT_ID": "1519982085660032",
+    "FACEBOOK_CLIENT_SECRET": "f80d7bc5757c89ef4ba633b400d2f2e5"
   }
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -33,10 +32,9 @@ interface QuickStats {
 }
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
   const [hasBusinessProfile, setHasBusinessProfile] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
   const [featuredItems, setFeaturedItems] = useState<Item[]>([]);
@@ -48,27 +46,21 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    } else if (status === 'authenticated') {
-      // Fetch user profile and dashboard data
-      Promise.all([
-        fetch('/api/profile').then(res => res.json()),
-        fetch('/api/items/featured').then(res => res.json()),
-        fetch('/api/dashboard/stats').then(res => res.json())
-      ])
-        .then(([profileData, itemsData, statsData]) => {
-          setHasBusinessProfile(profileData.hasBusinessProfile || false);
-          setFeaturedItems(itemsData.items || []);
-          setQuickStats(statsData || quickStats);
-          setIsLoading(false);
-        })
-        .catch(err => {
-          console.error('Error fetching dashboard data:', err);
-          setIsLoading(false);
-        });
-    }
-  }, [status, router]);
+    // Fetch public dashboard data; auth-protected API routes may require NextAuth session,
+    // so wrap those fetches with try/catch
+    Promise.all([
+      fetch('/api/items/featured').then(res => res.json()).catch(() => ({ items: [] })),
+      fetch('/api/dashboard/stats').then(res => res.json()).catch(() => quickStats)
+    ])
+      .then(([itemsData, statsData]) => {
+        setFeaturedItems(itemsData.items || []);
+        setQuickStats(statsData || quickStats);
+      })
+      .catch(err => {
+        console.error('Error fetching dashboard data:', err);
+      })
+      .finally(() => setIsLoading(false));
+  }, [router]);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -84,7 +76,7 @@ export default function DashboardPage() {
     }
   };
 
-  if (status === 'loading' || isLoading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
@@ -97,7 +89,7 @@ export default function DashboardPage() {
       {/* Welcome Header */}
       <div className="text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">
-          Welcome back, {session?.user?.name?.split(' ')[0] || 'User'}! 👋
+          Welcome back! 👋
         </h1>
         <p className="text-lg text-gray-600">
           Find what you need or share what you have
@@ -116,14 +108,14 @@ export default function DashboardPage() {
         </div>
         
         <div className="max-w-4xl mx-auto">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4">
             {/* Search Input */}
             <div className="flex-1 relative">
               <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search for tools, equipment, vehicles..."
-                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-lg"
+                className="w-full pl-12 pr-4 py-3 md:py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base md:text-lg"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -136,7 +128,7 @@ export default function DashboardPage() {
               <input
                 type="text"
                 placeholder="Location"
-                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-lg"
+                className="w-full pl-12 pr-4 py-3 md:py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base md:text-lg"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -146,7 +138,7 @@ export default function DashboardPage() {
             {/* Search Button */}
             <button
               onClick={handleSearch}
-              className="px-8 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold text-lg flex items-center justify-center"
+              className="px-5 md:px-8 py-3 md:py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold text-base md:text-lg flex items-center justify-center"
             >
               <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
               Search
@@ -223,7 +215,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Client Actions */}
         <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-8">
           <div className="flex items-center mb-4">
@@ -265,13 +257,33 @@ export default function DashboardPage() {
             </Link>
           ) : (
             <Link
-              href="/auth/profile-setup?type=business"
+              href="/auth/profile-setup?mode=business"
               className="inline-flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
             >
               Setup Business Profile
               <ArrowRightIcon className="h-5 w-5 ml-2" />
             </Link>
           )}
+        </div>
+
+        {/* ML Vision Actions */}
+        <div className="bg-gradient-to-br from-purple-50 to-pink-100 rounded-2xl p-8">
+          <div className="flex items-center mb-4">
+            <div className="p-3 bg-purple-600 rounded-lg">
+              <CubeIcon className="h-6 w-6 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 ml-4">ML Vision Scanner</h3>
+          </div>
+          <p className="text-gray-600 mb-6">
+            Scan barcodes, extract text, and analyze images with AI-powered tools for inventory management.
+          </p>
+          <Link
+            href="/ml-vision"
+            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+          >
+            Open Scanner
+            <ArrowRightIcon className="h-5 w-5 ml-2" />
+          </Link>
         </div>
       </div>
 

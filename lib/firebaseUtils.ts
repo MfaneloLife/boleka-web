@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { getDownloadURL, ref, uploadBytes, uploadString } from 'firebase/storage';
-import { storage } from './firebase';
+import { storage, auth } from './firebase';
 
 // Define message interface
 export interface FirebaseMessage {
@@ -77,7 +77,12 @@ export async function sendMessage(
     // If there's an image, upload it to storage
     if (imageBase64 && imageType) {
       const imageFormat = imageType.split('/')[1] || 'jpeg';
-      const storageRef = ref(storage, `message-images/${Date.now()}.${imageFormat}`);
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        throw new Error('User must be signed in to upload message images');
+      }
+      const messageFolder = Date.now().toString();
+      const storageRef = ref(storage, `messages/${uid}/${messageFolder}/${message.requestId}.${imageFormat}`);
       
       // Upload base64 string to Firebase Storage
       await uploadString(storageRef, imageBase64, 'base64', {
@@ -204,8 +209,24 @@ export async function getUserConversations(userId: string) {
 // Upload an image to Firebase Storage
 export async function uploadImage(file: File, path = 'images') {
   try {
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const uploadResult = await uploadBytes(storageRef, file);
+    // If called for item images, rewrite path to match storage.rules:
+    // rules expect: items/{userId}/{itemId}/{imageFile}
+    let targetPath = `${path}/${Date.now()}_${file.name}`;
+
+    if (path === 'item-images') {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        throw new Error('User must be signed in to upload item images');
+      }
+      const folderId = Date.now().toString(); // use a timestamp as temporary itemId folder
+      targetPath = `items/${uid}/${folderId}/${file.name}`;
+    }
+
+    const storageRef = ref(storage, targetPath);
+    // Pass contentType metadata explicitly to satisfy Storage rules
+    const uploadResult = await uploadBytes(storageRef, file, {
+      contentType: file.type || 'image/jpeg',
+    });
     const downloadURL = await getDownloadURL(uploadResult.ref);
     return downloadURL;
   } catch (error) {

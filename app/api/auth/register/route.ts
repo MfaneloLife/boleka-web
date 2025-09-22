@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
 import { FirebaseDbService } from '@/src/lib/firebase-db';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, password } = body as { email?: string; name?: string; password?: string };
+    const { email, name } = body as { email?: string; name?: string };
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
     // Check if user already exists
@@ -17,14 +16,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Create user
+    // Create user without password (passwordless authentication)
     const userResult = await FirebaseDbService.createUser({
       email,
       name: name ?? undefined,
-      password: hashedPassword,
-      hasBusinessProfile: false
+      hasBusinessProfile: false,
+      authMethod: 'email' // Track that this user uses passwordless email auth
     });
 
     if (!userResult.success || !userResult.id) {

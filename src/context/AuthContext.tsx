@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import { auth, googleProvider, facebookProvider } from '@/src/lib/firebase';
+import { ProfileFirestoreService } from '@/src/lib/firestore';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -78,31 +79,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await updateProfile(result.user, { displayName: name });
           console.log('User profile updated with name');
           
-          // Create user profile in your database
+          // Create user profile in Firestore
           try {
-            console.log('Creating user profile in database');
-            const response = await fetch('/api/auth/create-user-profile', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                uid: result.user.uid,
-                email: result.user.email,
-                name: name,
-              }),
+            console.log('Creating user profile in Firestore');
+            const userProfileResult = await ProfileFirestoreService.createUserProfile(result.user.uid, {
+              email: result.user.email,
+              name: name,
+              photoURL: result.user.photoURL,
+              provider: 'email'
             });
             
-            if (!response.ok) {
-              const errorData = await response.json();
-              console.error('API error creating user profile:', errorData);
-              throw new Error(`Failed to create user profile: ${errorData.error || response.statusText}`);
+            if (userProfileResult.success) {
+              console.log('User profile created successfully in Firestore');
+            } else {
+              console.error('Error creating user profile:', userProfileResult.error);
             }
             
-            const data = await response.json();
-            console.log('User profile created successfully:', data);
-          } catch (apiError) {
-            console.error('Error creating user profile in database:', apiError);
+            // Automatically create a basic client profile in Firestore
+            try {
+              console.log('Creating basic client profile in Firestore');
+              const clientProfileResult = await ProfileFirestoreService.createClientProfile(result.user.uid, {
+                email: result.user.email,
+                name: name,
+                clientProvince: '',
+                clientCity: '',
+                clientSuburb: '',
+                cellPhone: '',
+                preferences: 'Everything',
+                profileImageUrl: result.user.photoURL || ''
+              });
+              
+              if (clientProfileResult.success) {
+                console.log('Basic client profile created successfully in Firestore');
+              } else {
+                console.log('Client profile creation will be handled later:', clientProfileResult.error);
+              }
+            } catch (clientError) {
+              console.log('Client profile will be created during profile setup:', clientError);
+            }
+          } catch (firestoreError) {
+            console.error('Error creating profiles in Firestore:', firestoreError);
             // Continue - the user is created in Firebase, we can try to create the profile later
           }
         } catch (profileError) {
@@ -141,38 +157,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signInWithGoogle() {
     try {
       setError(null);
-      const result = await signInWithPopup(auth, googleProvider);
+      console.log('Starting Google sign-in...');
       
-      // Create or update user profile in your database
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log('Google sign-in successful:', result.user.uid);
+      
+      // Create or update user profile in Firestore
       if (result.user) {
         try {
-          const response = await fetch('/api/auth/create-user-profile', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              uid: result.user.uid,
-              email: result.user.email,
-              name: result.user.displayName,
-              photoURL: result.user.photoURL,
-              provider: 'google',
-            }),
+          console.log('Creating/updating user profile for Google user in Firestore...');
+          const userProfileResult = await ProfileFirestoreService.createUserProfile(result.user.uid, {
+            email: result.user.email,
+            name: result.user.displayName,
+            photoURL: result.user.photoURL,
+            provider: 'google'
           });
           
-          if (!response.ok) {
-            console.error('Failed to create profile for Google user:', await response.text());
+          if (!userProfileResult.success) {
+            console.error('Failed to create profile for Google user:', userProfileResult.error);
+          } else {
+            console.log('User profile created/updated successfully in Firestore');
+            
+            // Automatically create a basic client profile for new Google users
+            try {
+              console.log('Creating basic client profile for Google user in Firestore');
+              const clientProfileResult = await ProfileFirestoreService.createClientProfile(result.user.uid, {
+                email: result.user.email,
+                name: result.user.displayName,
+                clientProvince: '',
+                clientCity: '',
+                clientSuburb: '',
+                cellPhone: '',
+                preferences: 'Everything',
+                profileImageUrl: result.user.photoURL || ''
+              });
+              
+              if (clientProfileResult.success) {
+                console.log('Basic client profile created successfully for Google user in Firestore');
+              } else {
+                console.log('Client profile creation will be handled later:', clientProfileResult.error);
+              }
+            } catch (clientError) {
+              console.log('Client profile will be created during profile setup:', clientError);
+            }
           }
-        } catch (apiError) {
-          console.error('Error creating profile for Google user:', apiError);
+        } catch (firestoreError) {
+          console.error('Error creating profile for Google user in Firestore:', firestoreError);
         }
       }
       
       return result.user;
     } catch (error: unknown) {
       console.error("Google sign-in error:", error);
-      setError("Failed to sign in with Google");
-      throw new Error("Failed to sign in with Google");
+      let errorMessage = "Failed to sign in with Google";
+      
+      if (error instanceof FirebaseError) {
+        switch (error.code) {
+          case 'auth/popup-closed-by-user':
+            errorMessage = "Sign-in was cancelled";
+            break;
+          case 'auth/popup-blocked':
+            errorMessage = "Popup was blocked by browser. Please allow popups and try again";
+            break;
+          case 'auth/cancelled-popup-request':
+            errorMessage = "Sign-in was cancelled";
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = "Network error. Please check your connection and try again";
+            break;
+          default:
+            errorMessage = `Google sign-in failed: ${error.message}`;
+        }
+      }
+      
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   }
 
@@ -181,28 +240,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const result = await signInWithPopup(auth, facebookProvider);
       
-      // Create or update user profile in your database
+      // Create or update user profile in Firestore
       if (result.user) {
         try {
-          const response = await fetch('/api/auth/create-user-profile', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              uid: result.user.uid,
-              email: result.user.email,
-              name: result.user.displayName,
-              photoURL: result.user.photoURL,
-              provider: 'facebook',
-            }),
+          const userProfileResult = await ProfileFirestoreService.createUserProfile(result.user.uid, {
+            email: result.user.email,
+            name: result.user.displayName,
+            photoURL: result.user.photoURL,
+            provider: 'facebook'
           });
           
-          if (!response.ok) {
-            console.error('Failed to create profile for Facebook user:', await response.text());
+          if (!userProfileResult.success) {
+            console.error('Failed to create profile for Facebook user:', userProfileResult.error);
+          } else {
+            console.log('User profile created/updated successfully for Facebook user in Firestore');
+            
+            // Automatically create a basic client profile for new Facebook users
+            try {
+              console.log('Creating basic client profile for Facebook user in Firestore');
+              const clientProfileResult = await ProfileFirestoreService.createClientProfile(result.user.uid, {
+                email: result.user.email,
+                name: result.user.displayName,
+                clientProvince: '',
+                clientCity: '',
+                clientSuburb: '',
+                cellPhone: '',
+                preferences: 'Everything',
+                profileImageUrl: result.user.photoURL || ''
+              });
+              
+              if (clientProfileResult.success) {
+                console.log('Basic client profile created successfully for Facebook user in Firestore');
+              } else {
+                console.log('Client profile creation will be handled later:', clientProfileResult.error);
+              }
+            } catch (clientError) {
+              console.log('Client profile will be created during profile setup:', clientError);
+            }
           }
-        } catch (apiError) {
-          console.error('Error creating profile for Facebook user:', apiError);
+        } catch (firestoreError) {
+          console.error('Error creating profile for Facebook user in Firestore:', firestoreError);
         }
       }
       

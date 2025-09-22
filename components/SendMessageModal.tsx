@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import Button from '@/components/Button';
+import { auth } from '@/src/lib/firebase';
 
 interface SendMessageModalProps {
   itemId: string;
@@ -19,12 +19,11 @@ export default function SendMessageModal({ itemId, onClose, ownerId, isOpen, rec
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { data: session } = useSession();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!message.trim() || !session?.user?.email) {
+    if (!message.trim()) {
       setError('Please enter a message');
       return;
     }
@@ -32,12 +31,19 @@ export default function SendMessageModal({ itemId, onClose, ownerId, isOpen, rec
     try {
       setIsLoading(true);
       setError(null);
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setError('You need to be signed in to send a message.');
+        return;
+      }
+      const idToken = await currentUser.getIdToken();
       
       // Create a new request
       const requestResponse = await fetch('/api/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           itemId,
@@ -62,8 +68,8 @@ export default function SendMessageModal({ itemId, onClose, ownerId, isOpen, rec
   };
 
   return isOpen ? (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-3 sm:p-0">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Send Message</h2>
           <button

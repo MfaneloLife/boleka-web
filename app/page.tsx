@@ -19,7 +19,7 @@ export default function Home() {
                 Login
               </Link>
               <Link 
-                href="/auth/register" 
+                href="/auth/login" 
                 className="bg-white text-orange-600 hover:bg-orange-50 px-4 py-2 rounded-md font-medium"
               >
                 Sign Up
@@ -42,7 +42,7 @@ export default function Home() {
               </p>
               <div className="mt-8 flex space-x-4">
                 <Link
-                  href="/auth/register"
+                  href="/auth/login"
                   className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-orange-700 bg-white hover:bg-orange-50"
                 >
                   Get Started
@@ -144,7 +144,7 @@ export default function Home() {
             <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
               <div className="inline-flex rounded-md shadow">
                 <Link
-                  href="/auth/register"
+                  href="/auth/login"
                   className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
                   Get Started
@@ -163,7 +163,7 @@ export default function Home() {
         </div>
       </main>
 
-  // ...existing code...
+      {/* Existing code */}
     </div>
   );
 }

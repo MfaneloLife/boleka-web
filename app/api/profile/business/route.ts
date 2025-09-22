@@ -1,15 +1,28 @@
-import { getServerSession } from 'next-auth/next';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { adminAuth } from '@/src/lib/firebase-admin';
 import { userService, businessProfileService } from '@/src/lib/firebase-db';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user?.email) {
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No valid token provided' },
+        { status: 401 }
+      );
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
+    
+    // Verify the Firebase ID token
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const userEmail = decodedToken.email;
+
+    if (!userEmail) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Invalid token' },
         { status: 401 }
       );
     }
@@ -24,7 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userResult = await userService.getUserByEmail(session.user.email);
+    const userResult = await userService.getUserByEmail(userEmail);
 
     if (!userResult.success || !userResult.user) {
       return NextResponse.json(

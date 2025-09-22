@@ -5,7 +5,8 @@ import { getStorage } from 'firebase-admin/storage';
 
 const firebaseAdminConfig = {
   projectId: "bolekaweb",
-  storageBucket: "bolekaweb.firebasestorage.app",
+  // Use default Storage bucket domain
+  storageBucket: "bolekaweb.appspot.com",
   // Using Application Default Credentials for development
   // For production, you'll need to add your service account key
   ...(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY ? {

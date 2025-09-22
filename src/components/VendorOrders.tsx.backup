@@ -1,0 +1,463 @@
+import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { Order, OrderStatus, getStatusDisplay } from '../types/order';
+import { OrderService } from '../lib/order-service';
+import QRScanner from './QRScanner';
+import { CheckCircleIcon, XCircleIcon, ClockIcon, EyeIcon, QrCodeIcon } from '@heroicons/react/24/outline';
+
+// Helper function for currency formatting
+const formatCurrency = (amount: number): string => {
+  return `R${amount.toFixed(2)}`;
+};
+
+interface VendorOrdersProps {
+  vendorId: string;
+}
+
+const VendorOrders: React.FC<VendorOrdersProps> = ({ vendorId }) => {
+  const { data: session } = useSession();
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'scanner'>('pending');
+  const [approvalNotes, setApprovalNotes] = useState('');
+  const [declineReason, setDeclineReason] = useState('');
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+
+  useEffect(() => {
+    if (vendorId) {
+      loadOrders();
+    }
+  }, [vendorId]);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const [pending, all] = await Promise.all([
+        OrderService.getPendingApprovalOrders(vendorId),
+        OrderService.getVendorOrders(vendorId)
+      ]);
+      setPendingOrders(pending);
+      setAllOrders(all);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string) => {
+    try {
+      setActionLoading(orderId);
+      await OrderService.approveOrder(orderId, vendorId, approvalNotes);
+      setApprovalNotes('');
+      setShowApprovalModal(false);
+      setSelectedOrder(null);
+      await loadOrders();
+    } catch (error) {
+      console.error('Error approving order:', error);
+      alert('Failed to approve order. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeclineOrder = async (orderId: string) => {
+    try {
+      if (!declineReason.trim()) {
+        alert('Please provide a reason for declining the order.');
+        return;
+      }
+      
+      setActionLoading(orderId);
+      await OrderService.declineOrder(orderId, vendorId, declineReason);
+      setDeclineReason('');
+      setShowDeclineModal(false);
+      setSelectedOrder(null);
+      await loadOrders();
+    } catch (error) {
+      console.error('Error declining order:', error);
+      alert('Failed to decline order. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const getStatusBadgeColor = (status: OrderStatus) => {
+    switch (status) {
+      case OrderStatus.AWAITING_APPROVAL:
+        return 'bg-yellow-100 text-yellow-800';
+      case OrderStatus.AWAITING_PAYMENT:
+        return 'bg-blue-100 text-blue-800';
+      case OrderStatus.CASH_PAYMENT:
+        return 'bg-purple-100 text-purple-800';
+      case OrderStatus.PAYMENT_RECEIVED:
+        return 'bg-green-100 text-green-800';
+      case OrderStatus.COMPLETED:
+        return 'bg-gray-100 text-gray-800';
+      case OrderStatus.CANCELLED:
+        return 'bg-red-100 text-red-800';
+      case OrderStatus.EXPIRED:
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  const getExpiryStatus = (order: Order) => {
+    if (!order.expiresAt) return null;
+    
+    const expiryDate = order.expiresAt.toDate();
+    const now = new Date();
+    const hoursUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60));
+    
+    if (hoursUntilExpiry <= 0) {
+      return { text: 'Expired', color: 'text-red-600', urgent: true };
+    } else if (hoursUntilExpiry <= 24) {
+      return { text: `Expires in ${hoursUntilExpiry} hours`, color: 'text-orange-600', urgent: true };
+    } else {
+      const days = Math.ceil(hoursUntilExpiry / 24);
+      return { text: `Expires in ${days} days`, color: 'text-gray-600', urgent: false };
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'pending'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Pending Approval ({pendingOrders.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'all'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            All Orders ({allOrders.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('scanner')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'scanner'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            title="QR Code Scanner"
+          >
+            <QrCodeIcon className="h-4 w-4 inline mr-1" />
+            QR Scanner
+          </button>
+        </nav>
+      </div>
+
+      {/* Orders List */}
+      {(activeTab === 'pending' || activeTab === 'all') && (
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <ul className="divide-y divide-gray-200">
+            {(activeTab === 'pending' ? pendingOrders : allOrders).map((order) => {
+              const expiryStatus = getExpiryStatus(order);
+              
+              return (
+                <li key={order.id} className="px-6 py-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            Order #{order.id.slice(-8)}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Customer: {order.userName} ({order.userEmail})
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {order.items.length} item(s) • {formatCurrency(order.totalAmount)}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Created: {formatDate(order.createdAt)}
+                          </p>
+                          {expiryStatus && (
+                            <p className={`text-sm font-medium ${expiryStatus.color}`}>
+                              {expiryStatus.urgent && '⚠️ '}{expiryStatus.text}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center space-x-3">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(order.status)}`}>
+                            {getStatusDisplay(order.status)}
+                          </span>
+                          
+                          <button
+                            onClick={() => setSelectedOrder(order)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="View Order Details"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </button>
+                          
+                          {order.status === OrderStatus.AWAITING_APPROVAL && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setShowApprovalModal(true);
+                                }}
+                                disabled={actionLoading === order.id}
+                                className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:border-green-700 focus:shadow-outline-green active:bg-green-700 transition ease-in-out duration-150 disabled:opacity-50"
+                              >
+                                {actionLoading === order.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : (
+                                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                )}
+                                Approve
+                              </button>
+                              
+                              <button
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setShowDeclineModal(true);
+                                }}
+                                disabled={actionLoading === order.id}
+                                className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-700 transition ease-in-out duration-150 disabled:opacity-50"
+                              >
+                                {actionLoading === order.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : (
+                                  <XCircleIcon className="h-4 w-4 mr-1" />
+                                )}
+                                Decline
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          
+          {(activeTab === 'pending' ? pendingOrders : allOrders).length === 0 && (
+            <div className="text-center py-12">
+              <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                {activeTab === 'pending' ? 'No pending orders' : 'No orders yet'}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {activeTab === 'pending' 
+                  ? 'All orders have been processed.' 
+                  : 'Orders will appear here when customers place them.'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* QR Scanner Tab */}
+      {activeTab === 'scanner' && (
+        <QRScanner 
+          onOrderComplete={(orderId) => {
+            console.log('Order completed:', orderId);
+            loadOrders(); // Refresh orders list
+          }}
+        />
+      )}
+
+      {/* Order Details Modal */}
+      {selectedOrder && !showApprovalModal && !showDeclineModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Order Details #{selectedOrder.id.slice(-8)}
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-gray-900">Customer Information</h4>
+                  <p className="text-sm text-gray-600">Name: {selectedOrder.userName}</p>
+                  <p className="text-sm text-gray-600">Email: {selectedOrder.userEmail}</p>
+                  {selectedOrder.userPhone && (
+                    <p className="text-sm text-gray-600">Phone: {selectedOrder.userPhone}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900">Order Items</h4>
+                  <div className="space-y-2">
+                    {selectedOrder.items.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                        </div>
+                        <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900">Order Summary</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>{formatCurrency(selectedOrder.subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Platform Fee:</span>
+                      <span>{formatCurrency(selectedOrder.platformFee)}</span>
+                    </div>
+                    <div className="flex justify-between font-medium border-t pt-1">
+                      <span>Total:</span>
+                      <span>{formatCurrency(selectedOrder.totalAmount)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {selectedOrder.notes && (
+                  <div>
+                    <h4 className="font-medium text-gray-900">Customer Notes</h4>
+                    <p className="text-sm text-gray-600">{selectedOrder.notes}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approval Modal */}
+      {showApprovalModal && selectedOrder && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Approve Order #{selectedOrder.id.slice(-8)}
+              </h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Approval Notes (Optional)
+                </label>
+                <textarea
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Add any notes for the customer..."
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowApprovalModal(false);
+                    setApprovalNotes('');
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleApproveOrder(selectedOrder.id)}
+                  disabled={actionLoading === selectedOrder.id}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                >
+                  {actionLoading === selectedOrder.id ? 'Approving...' : 'Approve Order'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Decline Modal */}
+      {showDeclineModal && selectedOrder && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Decline Order #{selectedOrder.id.slice(-8)}
+              </h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Declining *
+                </label>
+                <textarea
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Please explain why you're declining this order..."
+                  required
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeclineModal(false);
+                    setDeclineReason('');
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeclineOrder(selectedOrder.id)}
+                  disabled={actionLoading === selectedOrder.id || !declineReason.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                >
+                  {actionLoading === selectedOrder.id ? 'Declining...' : 'Decline Order'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VendorOrders;

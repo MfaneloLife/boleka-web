@@ -14,67 +14,83 @@ interface RegisterFormProps {
 interface RegisterFormData {
   name: string;
   email: string;
-  password: string;
-  confirmPassword: string;
 }
 
-export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: RegisterFormProps) {
+export default function RegisterForm({ callbackUrl = '/dashboard/client' }: RegisterFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch,
   } = useForm<RegisterFormData>();
-
-  const password = watch('password');
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setError(null);
+      setSuccess(null);
+      setIsLoading(true);
       
-      // Create user via API (stores hashed password)
+      // Create user profile first (without password)
       const resp = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: data.name, email: data.email, password: data.password }),
+        body: JSON.stringify({ name: data.name, email: data.email }),
       });
+      
       if (!resp.ok) {
         const r = await resp.json().catch(() => ({}));
         throw new Error(r.error || 'Registration failed');
       }
-      // Sign in immediately via credentials and redirect to profile setup
-      const res = await nextAuthSignIn('credentials', {
-        redirect: false,
+
+      // Send passwordless email link
+      const result = await nextAuthSignIn('email', {
         email: data.email,
-        password: data.password,
+        redirect: false,
+        callbackUrl,
       });
-      if (!res) throw new Error('No response from auth');
-      if (res.error) {
-        setAuthError(res.error);
-        throw new Error(res.error);
+
+      if (result?.error) {
+        throw new Error('Failed to send verification email');
       }
-      // Always redirect new users to profile setup
-      router.push('/auth/profile-setup');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+
+      setSuccess('Check your email for a sign-in link!');
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setError(error.message || 'Registration failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSocialRegister = async (provider: 'google' | 'facebook') => {
     try {
+      setError(null);
+      setIsLoading(true);
+      
       const res = await nextAuthSignIn(provider, { 
         redirect: false,
-        callbackUrl: '/auth/profile-setup' // Always redirect social signups to profile setup
+        callbackUrl: '/dashboard/client' // Redirect social signups to client dashboard
       });
+      
+      if (res?.error) {
+        throw new Error(res.error);
+      }
+      
       if (res?.url) {
         router.push(res.url);
+      } else if (res?.ok) {
+        // Successful authentication without redirect URL
+        router.push('/dashboard/client');
       }
     } catch (err) {
+      console.error('Social registration error:', err);
       setError(err instanceof Error ? err.message : `Failed to sign up with ${provider}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -91,7 +107,8 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
         <button
           onClick={() => handleSocialRegister('google')}
           type="button"
-          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          disabled={isLoading}
+          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -117,7 +134,8 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
         <button
           onClick={() => handleSocialRegister('facebook')}
           type="button"
-          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"
+          disabled={isLoading}
+          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path
@@ -140,9 +158,15 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-        {(error || authError) && (
+        {error && (
           <div className="p-3 text-sm text-white bg-red-500 rounded">
-            {error || authError}
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 text-sm text-white bg-green-500 rounded">
+            {success}
           </div>
         )}
 
@@ -157,6 +181,7 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
               required: 'Name is required',
             })}
             className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            disabled={isLoading}
           />
           {errors.name && (
             <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -178,6 +203,7 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
               },
             })}
             className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            disabled={isLoading}
           />
           {errors.email && (
             <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -185,52 +211,17 @@ export default function RegisterForm({ callbackUrl = '/auth/profile-setup' }: Re
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            {...register('password', {
-              required: 'Password is required',
-              minLength: {
-                value: 8,
-                message: 'Password must be at least 8 characters',
-              },
-            })}
-            className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-            Confirm Password
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            {...register('confirmPassword', {
-              required: 'Please confirm your password',
-              validate: value => value === password || 'Passwords do not match',
-            })}
-            className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          />
-          {errors.confirmPassword && (
-            <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-          )}
-        </div>
-
-        <div>
           <Button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            disabled={isSubmitting || isLoading}
+            className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            {isSubmitting ? 'Creating account...' : 'Create Account'}
+            {isLoading ? 'Sending email...' : 'Send Sign-in Link'}
           </Button>
+        </div>
+
+        <div className="text-sm text-center text-gray-600">
+          <p>We'll send you a secure link to sign in without a password.</p>
         </div>
       </form>
 

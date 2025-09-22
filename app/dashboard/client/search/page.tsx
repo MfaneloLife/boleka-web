@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ItemCard from '@/components/ItemCard';
@@ -9,13 +8,13 @@ import SearchFilters from '@/components/search/SearchFilters';
 
 interface Item {
   id: string;
-  name: string;
+  title: string;
   description?: string;
-  dailyPrice: number;
+  price: number;
   images: string[];
   category: string;
   condition: string;
-  isAvailable: boolean;
+  status: 'available' | 'rented' | 'maintenance';
   ownerId: string;
   ownerLocation?: {
     province?: string;
@@ -37,7 +36,6 @@ interface Location {
 }
 
 export default function SearchPage() {
-  const { status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
@@ -47,30 +45,25 @@ export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    } else if (status === 'authenticated') {
-      // Fetch items, categories, and locations from Firebase
-      Promise.all([
-        fetch('/api/items').then(res => res.json()),
-        fetch('/api/categories').then(res => res.json()),
-        fetch('/api/locations').then(res => res.json())
-      ])
-        .then(([itemsResponse, categoriesData, locationsData]) => {
-          // Handle Firebase response structure
-          const itemsData = itemsResponse.items || [];
-          setItems(itemsData);
-          setFilteredItems(itemsData);
-          setCategories(categoriesData);
-          setLocations(locationsData);
-          setIsLoading(false);
-        })
-        .catch(err => {
-          console.error('Error fetching data:', err);
-          setIsLoading(false);
-        });
-    }
-  }, [status, router]);
+    // Public fetch of items, categories, and locations
+    Promise.all([
+      fetch('/api/items').then(res => res.json()),
+      fetch('/api/categories').then(res => res.json()),
+      fetch('/api/locations').then(res => res.json())
+    ])
+      .then(([itemsResponse, categoriesData, locationsData]) => {
+        const itemsData = itemsResponse.items || [];
+        setItems(itemsData);
+        setFilteredItems(itemsData);
+        setCategories(categoriesData);
+        setLocations(locationsData);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching data:', err);
+        setIsLoading(false);
+      });
+  }, [router]);
 
   const handleFilterChange = (filters: {
     category?: string;
@@ -99,24 +92,24 @@ export default function SearchPage() {
       });
     }
 
-    // Apply price filter (using dailyPrice instead of price)
+    // Apply price filter
     if (filters.minPrice !== undefined) {
-      filtered = filtered.filter(item => item.dailyPrice >= filters.minPrice!);
+      filtered = filtered.filter(item => item.price >= filters.minPrice!);
     }
 
     if (filters.maxPrice !== undefined) {
-      filtered = filtered.filter(item => item.dailyPrice <= filters.maxPrice!);
+      filtered = filtered.filter(item => item.price <= filters.maxPrice!);
     }
 
     // Only show available items
-    filtered = filtered.filter(item => item.isAvailable);
+    filtered = filtered.filter(item => item.status === 'available');
 
     // Apply search term if any
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         item =>
-          item.name.toLowerCase().includes(term) ||
+          item.title.toLowerCase().includes(term) ||
           (item.description && item.description.toLowerCase().includes(term)) ||
           item.category.toLowerCase().includes(term) ||
           item.condition.toLowerCase().includes(term) ||
@@ -133,7 +126,7 @@ export default function SearchPage() {
     handleFilterChange({});
   };
 
-  if (status === 'loading' || isLoading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
@@ -208,9 +201,9 @@ export default function SearchPage() {
                 <ItemCard
                   key={item.id}
                   id={item.id}
-                  name={item.name}
+                  name={item.title}
                   description={item.description || ''}
-                  price={item.dailyPrice}
+                  price={item.price}
                   images={item.images || []}
                   category={item.category}
                   location={item.ownerLocation ? 

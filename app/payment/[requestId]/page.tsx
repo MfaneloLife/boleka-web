@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import PaymentForm from '@/components/PaymentForm';
 import TermsAndConditions from '@/components/TermsAndConditions';
 import Loading from '@/components/Loading';
+import { auth } from '@/src/lib/firebase';
 
 export default function PaymentPage({ params }: { params: { requestId: string } }) {
   const { requestId } = params;
-  const { status } = useSession();
   const router = useRouter();
   const [request, setRequest] = useState<{
     id: string;
@@ -30,14 +29,17 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-      return;
-    }
-
-    const fetchRequest = async () => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+      const fetchRequest = async () => {
       try {
-        const response = await fetch(`/api/requests/${requestId}`);
+        const idToken = await user.getIdToken();
+        const response = await fetch(`/api/requests/${requestId}`, {
+          headers: { 'Authorization': `Bearer ${idToken}` },
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch request details');
@@ -51,18 +53,19 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
       } finally {
         setLoading(false);
       }
-    };
-
-    if (status === 'authenticated' && requestId) {
-      fetchRequest();
-    }
-  }, [requestId, router, status]);
+      };
+      if (requestId) {
+        fetchRequest();
+      }
+    });
+    return () => unsub();
+  }, [requestId, router]);
 
   const handleCancel = () => {
     router.back();
   };
 
-  if (loading || status === 'loading') {
+  if (loading) {
     return <Loading />;
   }
 

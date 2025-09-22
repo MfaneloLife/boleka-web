@@ -1,8 +1,6 @@
-import { getServerSession } from 'next-auth/next';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
+import { adminAuth, adminDb } from '@/src/lib/firebase-admin';
 import { getMessagesForRequest, sendMessage } from '@/lib/firebaseUtils';
-import { adminDb } from '@/src/lib/firebase-admin';
 
 // GET messages for a specific request
 export async function GET(
@@ -10,13 +8,20 @@ export async function GET(
   { params }: { params: { requestId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    // Verify Firebase ID token from Authorization header
+    const authHeader = request.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.substring('Bearer '.length)
+      : undefined;
 
-    if (!session || !session.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (!token) {
+      return NextResponse.json({ error: 'Missing Authorization token' }, { status: 401 });
+    }
+
+    const decoded = await adminAuth.verifyIdToken(token);
+    const userEmail = decoded.email;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Invalid token: missing email' }, { status: 401 });
     }
 
     const { requestId } = params;
@@ -33,9 +38,9 @@ export async function GET(
 
     const requestData = requestSnapshot.data();
 
-    // Get user info from Firebase
+    // Get user info from Firestore by email
     const usersSnapshot = await adminDb.collection('users')
-      .where('email', '==', session.user.email)
+      .where('email', '==', userEmail)
       .limit(1)
       .get();
 
@@ -46,11 +51,17 @@ export async function GET(
       );
     }
 
-    const user = usersSnapshot.docs[0];
-    const userData = user.data();
+  const user = usersSnapshot.docs[0];
+  const userData = user.data();
+  const userDocId = user.id;
 
     // Check if the user is part of this conversation
-    if (userData.id !== requestData?.requesterId && userData.id !== requestData?.ownerId) {
+    const isParticipant =
+      userDocId === requestData?.requesterId ||
+      userDocId === requestData?.ownerId ||
+      (Array.isArray(requestData?.participantIds) && requestData.participantIds.includes(userDocId));
+
+    if (!isParticipant) {
       return NextResponse.json(
         { error: 'You do not have permission to view these messages' },
         { status: 403 }
@@ -60,10 +71,48 @@ export async function GET(
     // Get messages from Firebase
     const messages = await getMessagesForRequest(requestId);
 
+    // Build request summary for UI
+    let itemSummary: any = { id: requestData?.itemId, title: requestData?.itemTitle, imageUrls: requestData?.itemImages || [], price: requestData?.itemPrice };
+    try {
+      if (requestData?.itemId) {
+        const itemDoc = await adminDb.collection('items').doc(String(requestData.itemId)).get();
+        if (itemDoc.exists) {
+          const item = itemDoc.data();
+          itemSummary = {
+            id: itemDoc.id,
+            title: item?.title,
+            imageUrls: item?.imageUrls || [],
+            price: item?.price,
+          };
+        }
+      }
+    } catch {}
+
+    const [requesterDoc, ownerDoc] = await Promise.all([
+      requestData?.requesterId ? adminDb.collection('users').doc(String(requestData.requesterId)).get() : null,
+      requestData?.ownerId ? adminDb.collection('users').doc(String(requestData.ownerId)).get() : null,
+    ]);
+
+    const requester = requesterDoc && requesterDoc.exists ? requesterDoc.data() : null;
+    const owner = ownerDoc && ownerDoc.exists ? ownerDoc.data() : null;
+
     return NextResponse.json({
       request: {
         id: requestSnapshot.id,
-        ...requestData
+        item: {
+          id: itemSummary?.id,
+          title: itemSummary?.title,
+          imageUrls: itemSummary?.imageUrls || [],
+          price: itemSummary?.price ?? 0,
+        },
+        requester: requester
+          ? { id: requestData?.requesterId, name: requester.name || 'User', image: requester.image || null }
+          : { id: requestData?.requesterId, name: 'User', image: null },
+        owner: owner
+          ? { id: requestData?.ownerId, name: owner.name || 'User', image: owner.image || null }
+          : { id: requestData?.ownerId, name: 'User', image: null },
+        status: requestData?.status || 'open',
+        createdAt: (requestData?.createdAt as any)?.toDate?.() || new Date(),
       },
       messages,
     });
@@ -82,13 +131,20 @@ export async function POST(
   { params }: { params: { requestId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    // Verify Firebase ID token from Authorization header
+    const authHeader = request.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.substring('Bearer '.length)
+      : undefined;
 
-    if (!session || !session.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (!token) {
+      return NextResponse.json({ error: 'Missing Authorization token' }, { status: 401 });
+    }
+
+    const decoded = await adminAuth.verifyIdToken(token);
+    const userEmail = decoded.email;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Invalid token: missing email' }, { status: 401 });
     }
 
     const { requestId } = params;
@@ -114,9 +170,9 @@ export async function POST(
 
     const requestData = requestSnapshot.data();
 
-    // Get user info from Firebase
+    // Get user info from Firestore by email
     const usersSnapshot = await adminDb.collection('users')
-      .where('email', '==', session.user.email)
+      .where('email', '==', userEmail)
       .limit(1)
       .get();
 
@@ -127,11 +183,17 @@ export async function POST(
       );
     }
 
-    const user = usersSnapshot.docs[0];
-    const userData = user.data();
+  const user = usersSnapshot.docs[0];
+  const userData = user.data();
+  const userDocId = user.id;
 
     // Check if the user is part of this conversation
-    if (userData.id !== requestData?.requesterId && userData.id !== requestData?.ownerId) {
+    const isParticipant =
+      userDocId === requestData?.requesterId ||
+      userDocId === requestData?.ownerId ||
+      (Array.isArray(requestData?.participantIds) && requestData.participantIds.includes(userDocId));
+
+    if (!isParticipant) {
       return NextResponse.json(
         { error: 'You do not have permission to send messages in this conversation' },
         { status: 403 }
@@ -141,7 +203,7 @@ export async function POST(
     // Create the message in Firebase
     const messageData = {
       content: content || '',
-      senderId: user.id,
+  senderId: userDocId,
       senderName: userData.name || 'User',
       senderImage: userData.image,
       requestId,

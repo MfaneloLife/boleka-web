@@ -30,7 +30,13 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
@@ -39,6 +45,9 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
 
   // Fetch messages when component mounts
   useEffect(() => {
+    // Only run on client side to prevent hydration mismatch
+    if (!isClient) return;
+    
     const fetchMessages = async () => {
       try {
         setIsLoading(true);
@@ -46,13 +55,14 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
         // const response = await fetch(`/api/messages/${requestId}`);
         // const data = await response.json();
         
-        // For now, we'll use mock data
+        // For now, we'll use mock data with stable timestamps
+        const baseTime = Date.now();
         const mockMessages: Message[] = [
           {
             id: '1',
             content: `Hi, I'm interested in your ${itemTitle}. Is it still available?`,
             senderId: session?.user?.id || 'user1',
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
+            createdAt: new Date(baseTime - 3600000).toISOString(),
             sender: {
               id: session?.user?.id || 'user1',
               name: session?.user?.name || 'You',
@@ -64,7 +74,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
             id: '2',
             content: `Yes, it's available. When would you like to pick it up?`,
             senderId: recipientId,
-            createdAt: new Date(Date.now() - 1800000).toISOString(),
+            createdAt: new Date(baseTime - 1800000).toISOString(),
             sender: {
               id: recipientId,
               name: recipientName,
@@ -91,7 +101,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
     const interval = setInterval(fetchMessages, 10000);
     
     return () => clearInterval(interval);
-  }, [requestId, recipientId, recipientName, session, itemTitle]);
+  }, [requestId, recipientId, recipientName, session, itemTitle, isClient]);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -116,15 +126,16 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
       // });
       
       // For now, we'll just add the message to the state
+      const messageId = `temp-${messages.length + 1}-${Math.random()}`;
       const newMsg: Message = {
-        id: `temp-${Date.now()}`,
+        id: messageId,
         content: newMessage,
-        senderId: session.user.id || 'user1',
+        senderId: session?.user?.id || 'user1',
         createdAt: new Date().toISOString(),
         sender: {
-          id: session.user.id || 'user1',
-          name: session.user.name || 'You',
-          image: session.user.image || null
+          id: session?.user?.id || 'user1',
+          name: session?.user?.name || 'You',
+          image: session?.user?.image || null
         },
         isCurrentUser: true
       };

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { signOut, useSession } from 'next-auth/react';
+import { useAuth } from '@/src/context/AuthContext';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import NotificationDropdown from '@/components/notifications/NotificationDropdown';
@@ -9,6 +9,7 @@ import {
   HomeIcon, 
   MagnifyingGlassIcon,
   UserCircleIcon,
+  UserIcon,
   ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
   BellIcon,
@@ -19,17 +20,24 @@ import {
   Bars3Icon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
+import { ShareIcon } from '@heroicons/react/24/outline';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { data: session } = useSession();
+  const { currentUser, logOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [profileType, setProfileType] = useState<'client' | 'business'>('client');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Determine profile type based on current path
   useEffect(() => {
@@ -54,9 +62,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const clientNavItems = [
     { name: 'Home', href: '/dashboard', icon: HomeIcon },
-    { name: 'Search Items', href: '/dashboard/client/search', icon: MagnifyingGlassIcon },
     { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'My Requests', href: '/dashboard/client/requests', icon: ClipboardDocumentListIcon },
+    { name: 'Profile', href: '/dashboard/client/profile', icon: UserIcon },
   ];
 
   const businessNavItems = [
@@ -75,6 +83,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       return pathname === '/dashboard';
     }
     return pathname?.startsWith(href);
+  };
+
+  const handleInvite = async () => {
+    try {
+      const url = typeof window !== 'undefined' ? window.location.origin : 'https://boleka.app';
+      const shareData = {
+        title: 'Boleka — Share and rent items',
+        text: "Join me on Boleka to find, share, and rent items easily!",
+        url,
+      };
+      if (navigator.share) {
+        await navigator.share(shareData as any);
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        alert('Invite link copied to clipboard');
+      }
+    } catch (e) {
+      console.error('Invite/share failed', e);
+    }
   };
 
   return (
@@ -129,6 +156,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               );
             })}
           </ul>
+
+          {/* Invite button */}
+          <div className="mt-6">
+            <button
+              onClick={handleInvite}
+              className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium rounded-lg transition-colors text-white bg-orange-600 hover:bg-orange-700"
+            >
+              <ShareIcon className="h-5 w-5 mr-2" />
+              Invite
+            </button>
+          </div>
         </nav>
 
         {/* Bottom section */}
@@ -151,7 +189,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             <div className="ml-3 flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {session?.user?.name || 'User'}
+                {isClient ? (currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User') : 'User'}
               </p>
               <p className="text-xs text-gray-500 capitalize">
                 {profileType} Profile
@@ -161,7 +199,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Sign out */}
           <button
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={async () => {
+              try {
+                await logOut();
+                router.push('/');
+              } catch (error) {
+                console.error('Error signing out:', error);
+              }
+            }}
             className="w-full flex items-center px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" />

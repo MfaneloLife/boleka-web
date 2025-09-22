@@ -148,3 +148,78 @@ export class ItemFirestoreService {
     return FirestoreService.deleteDocument("items", itemId);
   }
 }
+
+// Profile management services
+export class ProfileFirestoreService {
+  // Client Profile Management
+  static async createClientProfile(uid: string, profileData: any) {
+    const clientData = {
+      uid,
+      email: profileData.email || '',
+      name: profileData.name || '',
+      clientProvince: profileData.clientProvince || '',
+      clientCity: profileData.clientCity || '',
+      clientSuburb: profileData.clientSuburb || '',
+      cellPhone: profileData.cellPhone || '',
+      preferences: profileData.preferences || 'Everything',
+      profileImageUrl: profileData.profileImageUrl || '',
+    };
+    
+    return FirestoreService.updateDocument("clientProfiles", uid, clientData);
+  }
+
+  static async getClientProfile(uid: string) {
+    return FirestoreService.getDocument("clientProfiles", uid);
+  }
+
+  static async updateClientProfile(uid: string, updates: any) {
+    return FirestoreService.updateDocument("clientProfiles", uid, updates);
+  }
+
+  // Business Profile Management
+  static async createBusinessProfile(uid: string, profileData: any) {
+    const businessData = {
+      uid,
+      email: profileData.email || '',
+      businessName: profileData.businessName || '',
+      businessProvince: profileData.businessProvince || '',
+      businessCity: profileData.businessCity || '',
+      businessSuburb: profileData.businessSuburb || '',
+      businessType: profileData.businessType || '',
+      businessDescription: profileData.businessDescription || '',
+      businessPhone: profileData.businessPhone || '',
+      businessWebsite: profileData.businessWebsite || '',
+    };
+    
+    return FirestoreService.updateDocument("businessProfiles", uid, businessData);
+  }
+
+  static async getBusinessProfile(uid: string) {
+    return FirestoreService.getDocument("businessProfiles", uid);
+  }
+
+  static async updateBusinessProfile(uid: string, updates: any) {
+    return FirestoreService.updateDocument("businessProfiles", uid, updates);
+  }
+
+  // User Profile Management
+  static async createUserProfile(uid: string, userData: any) {
+    const userProfile = {
+      uid,
+      email: userData.email,
+      name: userData.name,
+      photoURL: userData.photoURL || '',
+      provider: userData.provider || 'email',
+    };
+    
+    return FirestoreService.updateDocument("users", uid, userProfile);
+  }
+
+  static async getUserProfile(uid: string) {
+    return FirestoreService.getDocument("users", uid);
+  }
+
+  static async updateUserProfile(uid: string, updates: any) {
+    return FirestoreService.updateDocument("users", uid, updates);
+  }
+}

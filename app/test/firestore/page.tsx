@@ -31,7 +31,7 @@ export default function FirestoreTestPage() {
         showMessage(`Error: ${result.error}`, true);
       }
     } catch (error) {
-      showMessage(`Error: ${error.message}`, true);
+      showMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, true);
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +55,7 @@ export default function FirestoreTestPage() {
         showMessage(`Error: ${result.error}`, true);
       }
     } catch (error) {
-      showMessage(`Error: ${error.message}`, true);
+      showMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, true);
     } finally {
       setIsLoading(false);
     }
@@ -65,14 +65,14 @@ export default function FirestoreTestPage() {
     setIsLoading(true);
     try {
       const result = await UserFirestoreService.getUsers();
-      if (result.success) {
+      if (result.success && result.data) {
         setUsers(result.data);
         showMessage(`Loaded ${result.data.length} users`);
       } else {
         showMessage(`Error loading users: ${result.error}`, true);
       }
     } catch (error) {
-      showMessage(`Error: ${error.message}`, true);
+      showMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, true);
     } finally {
       setIsLoading(false);
     }
@@ -82,14 +82,14 @@ export default function FirestoreTestPage() {
     setIsLoading(true);
     try {
       const result = await ItemFirestoreService.getItems();
-      if (result.success) {
+      if (result.success && result.data) {
         setItems(result.data);
         showMessage(`Loaded ${result.data.length} items`);
       } else {
         showMessage(`Error loading items: ${result.error}`, true);
       }
     } catch (error) {
-      showMessage(`Error: ${error.message}`, true);
+      showMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, true);
     } finally {
       setIsLoading(false);
     }

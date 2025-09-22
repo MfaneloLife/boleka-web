@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import AuthProvider from "@/src/components/AuthProvider";
+import Providers from "@/src/components/Providers";
+import ErrorBoundary from "@/src/components/ErrorBoundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +17,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Boleka - Peer-to-Peer Sharing Platform",
   description: "A platform for sharing and requesting items with dual profiles for clients and businesses",
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: 'cover',
+  },
 };
 
 export default function RootLayout({
@@ -26,7 +33,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+        <ErrorBoundary>
+          {/* Client-side providers (NextAuth + Firebase) */}
+          <Providers>{children}</Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );

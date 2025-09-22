@@ -6,10 +6,11 @@ export interface User {
   id: string;
   name?: string;
   email: string;
-  password?: string;
+  password?: string; // Legacy field, now optional for passwordless users
   firebaseUid?: string;
   image?: string;
   hasBusinessProfile: boolean;
+  authMethod?: string; // 'email', 'google', 'facebook' to track auth type
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,7 @@ export interface BusinessProfile {
   suburb: string;
   phone: string;
   access: string; // Delivery, Collection only, Both
+  quantity?: number; // Quantity of items business has
   website?: string;
   isVerified: boolean;
   // Banking details
@@ -45,7 +47,8 @@ export interface ClientProfile {
   city: string;
   suburb?: string;
   phone?: string;
-  preferences: string; // Everything, Tools, Equipment
+  preferences: string; // Everything, Tools, Equipment, Clothes, Gadgets, Accessories, Books
+  quantity?: number; // Quantity of items client wants
   createdAt: Date;
   updatedAt: Date;
 }
@@ -319,7 +322,7 @@ export class FirebaseDbService {
       
       // Get all items first
       const itemsData: Item[] = [];
-      querySnapshot.forEach((doc) => {
+      querySnapshot.forEach((doc: any) => {
         itemsData.push({ id: doc.id, ...doc.data() } as Item);
       });
 

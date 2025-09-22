@@ -10,7 +10,7 @@ export default function PaymentCancel() {
   useEffect(() => {
     // Redirect to dashboard after a delay
     const timeout = setTimeout(() => {
-      router.push('/dashboard');
+      router.push('/dashboard/client');
     }, 5000);
 
     return () => clearTimeout(timeout);
@@ -46,7 +46,7 @@ export default function PaymentCancel() {
           </Link>
           
           <Link 
-            href="/dashboard" 
+            href="/dashboard/client" 
             className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
           >
             Return to Dashboard

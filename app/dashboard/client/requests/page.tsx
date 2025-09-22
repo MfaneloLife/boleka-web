@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { auth } from '@/src/lib/firebase';
 
 interface Request {
   id: string;
@@ -26,23 +26,35 @@ interface Request {
 }
 
 export default function MyRequestsPage() {
-  const { data: session } = useSession();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'sent' | 'received'>('sent');
 
   useEffect(() => {
-    if (session?.user?.email) {
-      fetchRequests();
-    }
-  }, [session, activeTab]);
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        await fetchRequests();
+      } else {
+        setRequests([]);
+        setLoading(false);
+      }
+    });
+    return () => unsub();
+  }, [activeTab]);
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
+      const idToken = await currentUser.getIdToken();
       const response = await fetch(`/api/requests?type=${activeTab}`, {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
       });
 
@@ -100,7 +112,7 @@ export default function MyRequestsPage() {
     });
   };
 
-  if (!session?.user?.email) {
+  if (!auth.currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -112,7 +124,7 @@ export default function MyRequestsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Requests</h1>
         <p className="mt-2 text-gray-600">
@@ -122,7 +134,7 @@ export default function MyRequestsPage() {
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
+  <nav className="-mb-px flex flex-wrap gap-4 sm:space-x-8">
           <button
             onClick={() => setActiveTab('sent')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -205,11 +217,11 @@ export default function MyRequestsPage() {
           {requests.map((request) => (
             <div
               key={request.id}
-              className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow"
+              className="bg-white shadow-sm rounded-lg border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow"
             >
-              <div className="flex items-start space-x-4">
+              <div className="flex items-start gap-4 flex-col sm:flex-row">
                 {/* Item Image */}
-                <div className="flex-shrink-0 w-20 h-20 relative">
+                <div className="flex-shrink-0 w-20 h-20 relative self-start">
                   {request.itemImageUrls && request.itemImageUrls.length > 0 ? (
                     <Image
                       src={request.itemImageUrls[0]}
@@ -228,7 +240,7 @@ export default function MyRequestsPage() {
 
                 {/* Request Details */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 truncate">
                         {request.itemTitle}
@@ -252,7 +264,7 @@ export default function MyRequestsPage() {
                   </div>
 
                   {/* Request Info */}
-                  <div className="mt-4 flex items-center justify-between">
+                  <div className="mt-4 flex items-center justify-between gap-3">
                     <div className="text-sm text-gray-500">
                       {activeTab === 'sent' ? (
                         <span>Requested from: <span className="font-medium">{request.ownerName}</span></span>
@@ -266,7 +278,7 @@ export default function MyRequestsPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="mt-4 flex items-center space-x-3">
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
                     <Link
                       href={`/messages/${request.id}`}
                       className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

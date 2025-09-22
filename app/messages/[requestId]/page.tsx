@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import MessageBubble from '@/components/MessageBubble';
 import MessageInput from '@/components/MessageInput';
+import { auth } from '@/src/lib/firebase';
 
 interface Message {
   id: string;
@@ -44,18 +44,25 @@ interface Request {
 }
 
 export default function ConversationPage({ params }: { params: { requestId: string } }) {
-  const { data: session, status } = useSession();
   const router = useRouter();
   const [request, setRequest] = useState<Request | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const fetchConversation = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/messages/${params.requestId}`);
+      const user = auth.currentUser;
+      const idToken = await user?.getIdToken();
+      const response = await fetch(`/api/messages/${params.requestId}`, {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch conversation');
@@ -63,6 +70,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
 
       const data = await response.json();
       setMessages(data.messages || []);
+      setRequest(data.request || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -71,15 +79,21 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   };
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    } else if (status === 'authenticated') {
-      fetchConversation();
-    }
-  }, [status, router, params.requestId]);
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+      setUserEmail(user.email);
+      setAuthReady(true);
+      await fetchConversation();
+    });
+    return () => unsub();
+  }, [router, params.requestId]);
 
   const handleSendMessage = async (content: string, file?: File) => {
-    if ((!content.trim() && !file) || !session?.user?.email) return;
+    const user = auth.currentUser;
+    if ((!content.trim() && !file) || !user) return;
     
     try {
       // Prepare the payload
@@ -94,10 +108,12 @@ export default function ConversationPage({ params }: { params: { requestId: stri
         payload.imageType = file.type;
       }
       
+      const idToken = await user.getIdToken();
       const response = await fetch(`/api/messages/${params.requestId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify(payload),
       });
@@ -144,10 +160,10 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   }, [messages]);
 
   const getOtherParty = () => {
-    if (!session?.user?.email || !request) return null;
+    if (!userEmail || !request) return null;
     
     // Determine if the current user is the requester or the owner
-    const userIsRequester = request.requester.id === session.user.email;
+    const userIsRequester = request.requester.id === userEmail;
     
     // Return the other party's information
     return userIsRequester ? request.owner : request.requester;
@@ -164,7 +180,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
     });
   };
 
-  if (status === 'loading' || isLoading) {
+  if (!authReady || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -264,7 +280,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isCurrentUser={message.senderId === session?.user?.email}
+                  isCurrentUser={message.senderId === userEmail}
                 />
               ))}
             </div>

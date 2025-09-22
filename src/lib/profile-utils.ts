@@ -1,4 +1,4 @@
-import { FirebaseDbService } from './firebase-db';
+import { FirestoreService } from './firestore';
 
 export async function checkProfileCompletion(userId: string): Promise<{
   needsProfileSetup: boolean;
@@ -7,9 +7,13 @@ export async function checkProfileCompletion(userId: string): Promise<{
   profileComplete: boolean;
 }> {
   try {
-    // Get user data
-    const userResult = await FirebaseDbService.getUserById(userId);
-    if (!userResult.success || !userResult.user) {
+    // Check for user profile in Firestore
+    const userProfileResult = await FirestoreService.getDocuments('users', {
+      where: { field: 'uid', operator: '==', value: userId }
+    });
+
+    if (!userProfileResult.success || !userProfileResult.documents || userProfileResult.documents.length === 0) {
+      // No user profile found, needs profile setup
       return {
         needsProfileSetup: true,
         hasBusinessProfile: false,
@@ -18,28 +22,27 @@ export async function checkProfileCompletion(userId: string): Promise<{
       };
     }
 
-    // Check for client profile
-    const clientProfileResult = await FirebaseDbService.getClientProfileByUserId(userId);
+    // Check for client profile in Firestore
+    const clientProfileResult = await FirestoreService.getDocuments('clientProfiles', {
+      where: { field: 'uid', operator: '==', value: userId }
+    });
+
     const hasClientProfile = clientProfileResult.success && 
-      clientProfileResult.profile &&
-      clientProfileResult.profile.province &&
-      clientProfileResult.profile.city &&
-      clientProfileResult.profile.preferences;
+      clientProfileResult.documents && 
+      clientProfileResult.documents.length > 0;
 
-    // Check for business profile
-    const businessProfileResult = await FirebaseDbService.getBusinessProfileByUserId(userId);
+    // Check for business profile in Firestore
+    const businessProfileResult = await FirestoreService.getDocuments('businessProfiles', {
+      where: { field: 'uid', operator: '==', value: userId }
+    });
+
     const hasBusinessProfile = businessProfileResult.success && 
-      businessProfileResult.profile &&
-      businessProfileResult.profile.businessName &&
-      businessProfileResult.profile.province &&
-      businessProfileResult.profile.city &&
-      businessProfileResult.profile.suburb &&
-      businessProfileResult.profile.phone &&
-      businessProfileResult.profile.access;
+      businessProfileResult.documents && 
+      businessProfileResult.documents.length > 0;
 
-    // User needs profile setup if they don't have a complete profile
+    // User needs profile setup if they don't have any profile
     const needsProfileSetup = !hasClientProfile && !hasBusinessProfile;
-    const profileComplete = hasClientProfile || hasBusinessProfile;
+    const profileComplete = !!(hasClientProfile || hasBusinessProfile);
 
     return {
       needsProfileSetup,

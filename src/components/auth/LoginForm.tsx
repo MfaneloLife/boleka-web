@@ -11,60 +11,73 @@ interface LoginFormProps {
   callbackUrl?: string;
 }
 
-export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps) {
+interface LoginFormData {
+  email: string;
+}
+
+export default function LoginForm({ callbackUrl = '/dashboard/client' }: LoginFormProps) {
   const router = useRouter();
-  const [authError, setAuthError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<{ email: string; password: string }>();
+  } = useForm<LoginFormData>();
 
-  const onSubmit = async (data: { email: string; password: string }) => {
+  const onSubmit = async (data: LoginFormData) => {
     try {
       setError(null);
-      const res = await nextAuthSignIn('credentials', {
-        redirect: false,
+      setSuccess(null);
+      setIsLoading(true);
+
+      // Send passwordless email link
+      const result = await nextAuthSignIn('email', {
         email: data.email,
-        password: data.password,
+        redirect: false,
+        callbackUrl,
       });
-      if (!res) throw new Error('No response from auth');
-      if (res.error) {
-        setAuthError(res.error);
-        throw new Error(res.error);
+
+      if (result?.error) {
+        throw new Error('Failed to send verification email');
       }
-      
-      // Check profile completion after successful login
-      const profileCheckResponse = await fetch('/api/profile/check');
-      if (profileCheckResponse.ok) {
-        const { needsProfileSetup } = await profileCheckResponse.json();
-        if (needsProfileSetup) {
-          router.push('/auth/profile-setup');
-        } else {
-          router.push(callbackUrl);
-        }
-      } else {
-        // If profile check fails, redirect to profile setup to be safe
-        router.push('/auth/profile-setup');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
+
+      setSuccess('Check your email for a sign-in link!');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || 'Login failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     try {
+      setError(null);
+      setIsLoading(true);
+      
       const res = await nextAuthSignIn(provider, { 
         redirect: false,
-        callbackUrl: '/auth/profile-setup' // Always redirect social logins to profile setup first
+        callbackUrl: '/dashboard/client' // Redirect authenticated users to client dashboard
       });
+      
+      if (res?.error) {
+        throw new Error(res.error);
+      }
+      
       if (res?.url) {
         router.push(res.url);
+      } else if (res?.ok) {
+        // Successful authentication without redirect URL
+        router.push('/dashboard/client');
       }
     } catch (err) {
+      console.error('Social login error:', err);
       setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -81,7 +94,8 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
         <button
           onClick={() => handleSocialLogin('google')}
           type="button"
-          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          disabled={isLoading}
+          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -107,7 +121,8 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
         <button
           onClick={() => handleSocialLogin('facebook')}
           type="button"
-          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2]"
+          disabled={isLoading}
+          className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-white bg-[#1877F2] rounded-md hover:bg-[#166FE5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1877F2] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path
@@ -130,9 +145,15 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-        {(error || authError) && (
+        {error && (
           <div className="p-3 text-sm text-white bg-red-500 rounded">
-            {error || authError}
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 text-sm text-white bg-green-500 rounded">
+            {success}
           </div>
         )}
 
@@ -151,6 +172,7 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
               },
             })}
             className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            disabled={isLoading}
           />
           {errors.email && (
             <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -158,28 +180,17 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            {...register('password', { required: 'Password is required' })}
-            className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-          )}
-        </div>
-
-        <div>
           <Button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            disabled={isSubmitting || isLoading}
+            className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            {isSubmitting ? 'Logging in...' : 'Log in'}
+            {isLoading ? 'Sending email...' : 'Send Sign-in Link'}
           </Button>
+        </div>
+
+        <div className="text-sm text-center text-gray-600">
+          <p>We'll send you a secure link to sign in without a password.</p>
         </div>
       </form>
 
@@ -187,10 +198,10 @@ export default function LoginForm({ callbackUrl = '/dashboard' }: LoginFormProps
         <p className="text-sm text-gray-600">
           Don&apos;t have an account?{' '}
           <Link
-            href="/auth/register"
+            href="/auth/login"
             className="font-medium text-indigo-600 hover:text-indigo-500"
           >
-            Register
+            Create Account
           </Link>
         </p>
       </div>

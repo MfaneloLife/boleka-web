@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import RatingStars from '@/components/reviews/RatingStars';
 import SendMessageModal from '@/components/SendMessageModal';
+import { auth } from '@/src/lib/firebase';
 
 interface Item {
   id: string;
@@ -25,7 +25,6 @@ interface Item {
 }
 
 export default function ItemDetailsPage() {
-  const { data: session } = useSession();
   const params = useParams();
   const router = useRouter();
   const itemId = params.itemId as string;
@@ -75,16 +74,18 @@ export default function ItemDetailsPage() {
   }, [itemId]);
 
   const handleRequestItem = async () => {
-    if (!session) {
+    if (!auth.currentUser) {
       router.push('/auth/login');
       return;
     }
 
     try {
+      const idToken = await auth.currentUser.getIdToken();
       const response = await fetch('/api/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           itemId,
@@ -130,7 +131,7 @@ export default function ItemDetailsPage() {
     );
   }
 
-  const isOwner = session?.user && item.ownerId === session.user.id;
+  const isOwner = auth.currentUser && item.ownerId === auth.currentUser.uid;
   const images = item.imageUrls ? JSON.parse(item.imageUrls) : [];
 
   return (
@@ -231,7 +232,7 @@ export default function ItemDetailsPage() {
               <p className="mt-2 text-gray-600">{item.description}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Category</h3>
                 <p className="mt-1 text-sm text-gray-900">{item.category}</p>
@@ -242,7 +243,7 @@ export default function ItemDetailsPage() {
               </div>
             </div>
 
-            <div className="mt-8 space-x-4">
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
               {isOwner ? (
                 <Link
                   href={`/dashboard/business/items/${itemId}/edit`}

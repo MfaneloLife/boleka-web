@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/src/components/ui/Button';
+import { auth } from '@/src/lib/firebase';
 
 export default function NewItemPage() {
   const router = useRouter();
@@ -106,10 +107,12 @@ export default function NewItemPage() {
       };
 
       // Submit to API
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/items', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify(itemData),
       });
@@ -148,7 +151,7 @@ export default function NewItemPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-// ...existing code...
+              {/* Existing code */}
             </div>
               <div className="sm:col-span-4">
                 <label htmlFor="title" className="block text-sm font-medium text-gray-700">
@@ -326,6 +329,7 @@ export default function NewItemPage() {
                             type="button"
                             onClick={() => removeImage(index)}
                             className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                            aria-label={`Remove image ${index + 1}`}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

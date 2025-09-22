@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { getItemById, updateItem, deleteItem } from '@/src/lib/firebase-storage';
-import { adminDb } from '@/src/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/src/lib/firebase-admin';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
     const { id } = params;
     
     const item = await getItemById(id);
@@ -35,17 +27,21 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Verify Firebase ID token
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.substring('Bearer '.length)
+      : undefined;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const decoded = await adminAuth.verifyIdToken(token);
+    const email = decoded.email;
+    if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = params;
 
     // Get user from Firebase
     const usersSnapshot = await adminDb.collection('users')
-      .where('email', '==', session.user.email)
+      .where('email', '==', email)
       .limit(1)
       .get();
 
@@ -83,17 +79,21 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Verify Firebase ID token
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.substring('Bearer '.length)
+      : undefined;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const decoded = await adminAuth.verifyIdToken(token);
+    const email = decoded.email;
+    if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = params;
 
     // Get user from Firebase
     const usersSnapshot = await adminDb.collection('users')
-      .where('email', '==', session.user.email)
+      .where('email', '==', email)
       .limit(1)
       .get();
 

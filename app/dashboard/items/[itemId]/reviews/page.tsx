@@ -93,7 +93,7 @@ export default function ItemReviewsPage() {
           <p className="mt-2 text-sm text-red-700">{error || 'Item not found'}</p>
           <div className="mt-4">
             <Link
-              href="/dashboard"
+              href="/dashboard/client"
               className="text-sm font-medium text-red-600 hover:text-red-500"
             >
               &larr; Back to Dashboard
