@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/src/components/Providers";
@@ -17,12 +17,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Boleka - Peer-to-Peer Sharing Platform",
   description: "A platform for sharing and requesting items with dual profiles for clients and businesses",
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    viewportFit: 'cover',
-  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
