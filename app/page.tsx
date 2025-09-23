@@ -19,18 +19,12 @@ export default function Home() {
             <div className="flex items-center">
               <span className="text-white text-2xl font-bold">Boleka</span>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/auth/login" 
-                className="text-white hover:text-orange-100"
-              >
-                Login
-              </Link>
+            <div className="flex items-center">
               <Link 
                 href="/auth/login" 
                 className="bg-white text-orange-600 hover:bg-orange-50 px-4 py-2 rounded-md font-medium"
               >
-                Sign Up
+                Sign in
               </Link>
             </div>
           </div>
@@ -53,7 +47,7 @@ export default function Home() {
                   href="/auth/login"
                   className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-orange-700 bg-white hover:bg-orange-50"
                 >
-                  Get Started
+                  Sign in
                 </Link>
                 <Link
                   href="#how-it-works"
@@ -155,7 +149,7 @@ export default function Home() {
                   href="/auth/login"
                   className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
-                  Get Started
+                  Sign in
                 </Link>
               </div>
               <div className="ml-3 inline-flex rounded-md shadow">
@@ -163,7 +157,7 @@ export default function Home() {
                   href="/auth/login"
                   className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50"
                 >
-                  Log in
+                  Sign in
                 </Link>
               </div>
             </div>

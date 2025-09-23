@@ -88,7 +88,7 @@ export default function ProfileSetupPage() {
       <div className="w-full max-w-2xl p-8 space-y-8 bg-white rounded-lg shadow-md">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Set up your Business Profile</h1>
-          <p className="mt-2 text-gray-600">Create your business profile to list items, accept requests, and get paid. You can skip and do this later.</p>
+          <p className="mt-2 text-gray-600">Create your business profile to list items, accept requests, and get paid.</p>
         </div>
 
 
@@ -223,14 +223,6 @@ export default function ProfileSetupPage() {
             >
               {isSubmitting ? 'Setting up profile...' : 'Save Profile'}
             </Button>
-            
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard/client')}
-              className="w-full px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-            >
-              Skip for now
-            </button>
           </div>
         </form>
 

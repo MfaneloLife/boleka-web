@@ -42,7 +42,19 @@ export default function NewItemPage() {
     
     const newImages = Array.from(e.target.files);
     const remainingSlots = 2 - images.length;
-    const imagesToAdd = newImages.slice(0, remainingSlots);
+    // Filter images to comply with rules: image/* and <= 10MB
+    const filtered = newImages.filter((file) => {
+      if (!file.type.startsWith('image/')) {
+        setError('Only image files are allowed.');
+        return false;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Each image must be 10MB or smaller.');
+        return false;
+      }
+      return true;
+    });
+    const imagesToAdd = filtered.slice(0, remainingSlots);
     
     if (newImages.length > remainingSlots) {
       setError(`You can only upload a maximum of 2 images. ${newImages.length - remainingSlots} image(s) were not added.`);
@@ -107,7 +119,12 @@ export default function NewItemPage() {
       };
 
       // Submit to API
-      const idToken = await auth.currentUser?.getIdToken();
+      // Force refresh token to avoid using an expired one, and guard if user is not signed in
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be signed in to add an item. Please sign in and try again.');
+      }
+      const idToken = await user.getIdToken(true);
       const response = await fetch('/api/items', {
         method: 'POST',
         headers: {
@@ -118,8 +135,24 @@ export default function NewItemPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create item');
+        if (response.status === 403) {
+          // User lacks a business profile; send them to setup
+          router.push('/auth/profile-setup?mode=business');
+          return;
+        }
+        // Try JSON first; if not JSON, fall back to text for clearer debugging
+        let serverMessage = 'Failed to create item';
+        const contentType = response.headers.get('content-type') || '';
+        try {
+          if (contentType.includes('application/json')) {
+            const data = await response.json();
+            serverMessage = data.error || data.message || serverMessage;
+          } else {
+            const text = await response.text();
+            if (text) serverMessage = text;
+          }
+        } catch {}
+        throw new Error(serverMessage);
       }
 
       // Redirect to the items list page

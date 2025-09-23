@@ -12,9 +12,9 @@ import {
   updateDoc,
   DocumentReference,
 } from 'firebase/firestore';
-import { db } from './firebase';
-import { getDownloadURL, ref, uploadBytes, uploadString } from 'firebase/storage';
-import { storage, auth } from './firebase';
+// Use the unified Firebase client from src/lib to ensure consistent config/bucket
+import { db, storage, auth } from '@/src/lib/firebase';
+import { ref, uploadString, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Define message interface
 export interface FirebaseMessage {
