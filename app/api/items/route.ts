@@ -25,7 +25,23 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
       const decoded = await adminAuth.verifyIdToken(token);
-      ownerId = decoded.uid;
+      // Map Firebase Auth UID/email to the Firestore users doc id, which is used as items.ownerId
+      let userDocSnap = await adminDb.collection('users').doc(decoded.uid).get();
+      if (!userDocSnap.exists) {
+        const email = decoded.email;
+        if (!email) {
+          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+        const usersSnapshot = await adminDb.collection('users')
+          .where('email', '==', email)
+          .limit(1)
+          .get();
+        if (usersSnapshot.empty) {
+          return NextResponse.json({ items: [] }, { status: 200 });
+        }
+        userDocSnap = usersSnapshot.docs[0];
+      }
+      ownerId = userDocSnap.id;
     } else if (ownerIdParam) {
       ownerId = ownerIdParam;
     }
