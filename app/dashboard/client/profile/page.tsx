@@ -31,6 +31,7 @@ export default function ClientProfilePage() {
     phone: '',
     location: ''
   });
+  const [hasBusinessProfile, setHasBusinessProfile] = useState<boolean>(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -54,6 +55,15 @@ export default function ClientProfilePage() {
           phone: data.phone || '',
           location: data.location || ''
         });
+
+        // Also check if user has a business profile to hide CTA
+        const profileRes = await fetch('/api/profile', {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (profileRes.ok) {
+          const up = await profileRes.json();
+          setHasBusinessProfile(Boolean(up.hasBusinessProfile));
+        }
       } catch (err) {
         console.error('Error fetching profile:', err);
         setError('Failed to load profile');
@@ -146,6 +156,7 @@ export default function ClientProfilePage() {
                 type="email"
                 value={currentUser?.email || ''}
                 disabled
+                title="Email address"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
               />
               <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
@@ -163,6 +174,7 @@ export default function ClientProfilePage() {
                 value={formData.firstName}
                 onChange={handleInputChange}
                 required
+                placeholder="e.g., Thabo"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               />
             </div>
@@ -179,6 +191,7 @@ export default function ClientProfilePage() {
                 value={formData.lastName}
                 onChange={handleInputChange}
                 required
+                placeholder="e.g., Mokoena"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               />
             </div>
@@ -194,6 +207,7 @@ export default function ClientProfilePage() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
+                placeholder="e.g., 071 234 5678"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               />
             </div>
@@ -248,18 +262,31 @@ export default function ClientProfilePage() {
           </form>
 
           {/* Business Profile Option */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Want to become a business?</h3>
-            <p className="text-gray-600 mb-4">
-              Create a business profile to list items for rent and earn money on Boleka.
-            </p>
-            <button
-              onClick={() => router.push('/auth/profile-setup?mode=business')}
-              className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              Create Business Profile
-            </button>
-          </div>
+          {!hasBusinessProfile ? (
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Want to become a business?</h3>
+              <p className="text-gray-600 mb-4">
+                Create a business profile to list items for rent and earn money on Boleka.
+              </p>
+              <button
+                onClick={() => router.push('/auth/profile-setup?mode=business')}
+                className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                Create Business Profile
+              </button>
+            </div>
+          ) : (
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Business profile</h3>
+              <p className="text-gray-600 mb-4">You already have a business profile. You can edit it from your business dashboard.</p>
+              <button
+                onClick={() => router.push('/dashboard/business')}
+                className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Go to Business Dashboard
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </FirebaseProtectedRoute>

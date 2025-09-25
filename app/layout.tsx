@@ -17,6 +17,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Boleka - Peer-to-Peer Sharing Platform",
   description: "A platform for sharing and requesting items with dual profiles for clients and businesses",
+  // Provide a CSP header via meta as a baseline (adjust in middleware / headers for production)
+  // NOTE: style-src currently allows 'unsafe-inline' because Next.js injects critical CSS.
+  // To remove it: precompute hashes or use a nonce + no inline <style>. We already moved inline CSS out of /out.
+  other: {
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval'", // remove 'unsafe-eval' when not using turbopack dev
+      "style-src 'self' 'unsafe-inline'", // replace with hashed styles for strict mode
+      "img-src 'self' data: blob:",
+      "connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+      "font-src 'self' data:",
+      "frame-src 'self' https://www.payfast.co.za",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https://www.payfast.co.za"
+    ].join('; ')
+  }
 };
 
 export const viewport: Viewport = {

@@ -69,7 +69,9 @@ export interface Item {
 
 export interface Payment {
   id: string;
-  requestId: string;
+  // Linkage
+  orderId?: string; // When payment is for an Order flow
+  requestId?: string;
   amount: number;
   commissionAmount: number;
   merchantAmount: number;
@@ -98,6 +100,24 @@ export interface Payment {
     email: string;
   };
 }
+
+// Wallet / ledger types
+export interface WalletTransaction {
+  id: string;
+  userId: string; // merchant or client user depending on flow
+  type: string; // CREDIT_EARNED, DEBIT_PAYOUT, REFUND_CREDIT, DEBIT_SPEND, ADJUSTMENT
+  amount: number; // positive amounts; debits represented by type context
+  currency: string; // 'ZAR'
+  relatedPaymentId?: string;
+  relatedOrderId?: string;
+  relatedRequestId?: string;
+  metadata?: any; // arbitrary JSON
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Shared constants
+export const PLATFORM_CURRENCY = 'ZAR';
 
 // Database service class
 export class FirebaseDbService {
@@ -145,6 +165,21 @@ export class FirebaseDbService {
       return { success: true, user: userData };
     } catch (error: any) {
       console.error("Error getting user by ID:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getUserByFirebaseUid(firebaseUid: string): Promise<{ success: boolean; user?: User; error?: string }> {
+    try {
+      const querySnapshot = await adminDb.collection('users').where('firebaseUid', '==', firebaseUid).limit(1).get();
+      if (querySnapshot.empty) {
+        return { success: false, error: 'User not found' };
+      }
+      const userDoc = querySnapshot.docs[0];
+      const userData = { id: userDoc.id, ...userDoc.data() } as User;
+      return { success: true, user: userData };
+    } catch (error: any) {
+      console.error('Error getting user by firebaseUid:', error);
       return { success: false, error: error.message };
     }
   }
@@ -416,6 +451,67 @@ export class FirebaseDbService {
     }
   }
 
+  // Wallet transaction operations
+  static async addWalletTransaction(data: Omit<WalletTransaction, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
+    try {
+      const docRef = await adminDb.collection('walletTransactions').add({
+        ...data,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+      return { success: true, id: docRef.id };
+    } catch (error: any) {
+      console.error('Error adding wallet transaction:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async listWalletTransactions(userId: string, limit = 50): Promise<{ success: boolean; transactions?: WalletTransaction[]; error?: string }> {
+    try {
+      const snap = await adminDb.collection('walletTransactions')
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get();
+      const tx = snap.docs.map(d => ({ id: d.id, ...d.data() } as WalletTransaction));
+      return { success: true, transactions: tx };
+    } catch (error: any) {
+      console.error('Error listing wallet transactions:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getWalletBalance(userId: string): Promise<{ success: boolean; available: number; credit: number; error?: string }> {
+    try {
+      // Simple aggregation: credits - debits based on type naming
+      const snap = await adminDb.collection('walletTransactions')
+        .where('userId', '==', userId)
+        .get();
+      let credit = 0; // future loyalty / bonus credits could be separated
+      let available = 0;
+      snap.forEach(doc => {
+        const d = doc.data() as any;
+        const amt = d.amount || 0;
+        switch (d.type) {
+          case 'CREDIT_EARNED':
+          case 'REFUND_CREDIT':
+          case 'ADJUSTMENT_CREDIT':
+            available += amt; break;
+          case 'DEBIT_PAYOUT':
+          case 'DEBIT_SPEND':
+          case 'ADJUSTMENT_DEBIT':
+            available -= amt; break;
+          case 'CREDIT_BONUS':
+            credit += amt; break;
+        }
+      });
+      return { success: true, available, credit };
+    } catch (error: any) {
+      console.error('Error getting wallet balance:', error);
+      return { success: false, available: 0, credit: 0, error: error.message };
+    }
+  }
+
   static async getPaymentsByMerchant(merchantId: string): Promise<{ success: boolean; payments?: Payment[]; error?: string }> {
     try {
       // Get all completed/successful payments for this merchant
@@ -432,34 +528,39 @@ export class FirebaseDbService {
         
         // Get related request and item data for display
         try {
-          const requestDoc = await adminDb.collection('requests').doc(paymentData.requestId).get();
-          if (requestDoc.exists) {
-            const requestData = requestDoc.data();
-            
-            // Get item data
-            const itemDoc = await adminDb.collection('items').doc(requestData?.itemId).get();
-            if (itemDoc.exists) {
-              const itemData = itemDoc.data();
-              paymentData.request = {
-                id: requestDoc.id,
-                item: {
-                  id: itemDoc.id,
-                  name: itemData?.name || 'Unknown Item',
-                  title: itemData?.name || 'Unknown Item'
+          if (paymentData.requestId) {
+            const requestDoc = await adminDb.collection('requests').doc(paymentData.requestId).get();
+            if (requestDoc.exists) {
+              const requestData = requestDoc.data();
+              
+              // Get item data
+              const itemId = (requestData as any)?.itemId as string | undefined;
+              if (itemId) {
+                const itemDoc = await adminDb.collection('items').doc(itemId).get();
+                if (itemDoc.exists) {
+                  const itemData = itemDoc.data();
+                  paymentData.request = {
+                    id: requestDoc.id,
+                    item: {
+                      id: itemDoc.id,
+                      name: (itemData as any)?.name || 'Unknown Item',
+                      title: (itemData as any)?.name || 'Unknown Item'
+                    }
+                  };
                 }
-              };
+              }
             }
-            
-            // Get payer data
-            const payerDoc = await adminDb.collection('users').doc(paymentData.payerId).get();
-            if (payerDoc.exists) {
-              const payerData = payerDoc.data();
-              paymentData.payer = {
-                id: payerDoc.id,
-                name: payerData?.name || 'Unknown User',
-                email: payerData?.email || 'Unknown Email'
-              };
-            }
+          }
+          
+          // Get payer data regardless
+          const payerDoc = await adminDb.collection('users').doc(paymentData.payerId).get();
+          if (payerDoc.exists) {
+            const payerData = payerDoc.data();
+            paymentData.payer = {
+              id: payerDoc.id,
+              name: (payerData as any)?.name || 'Unknown User',
+              email: (payerData as any)?.email || 'Unknown Email'
+            };
           }
         } catch (relatedDataError) {
           console.error('Error fetching related payment data:', relatedDataError);
@@ -485,6 +586,37 @@ export class FirebaseDbService {
       return { success: true };
     } catch (error: any) {
       console.error("Error updating payment:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getPaymentByOrderId(orderId: string): Promise<{ success: boolean; payment?: Payment; error?: string }> {
+    try {
+      const snap = await adminDb
+        .collection('payments')
+        .where('orderId', '==', orderId)
+        .limit(1)
+        .get();
+      if (snap.empty) return { success: false, error: 'Payment not found' };
+      const doc = snap.docs[0];
+      return { success: true, payment: { id: doc.id, ...doc.data() } as Payment };
+    } catch (error: any) {
+      console.error('Error getting payment by orderId:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getPaymentsByRequestId(requestId: string): Promise<{ success: boolean; payments?: Payment[]; error?: string }> {
+    try {
+      const snap = await adminDb
+        .collection('payments')
+        .where('requestId', '==', requestId)
+        .get();
+      if (snap.empty) return { success: true, payments: [] };
+      const payments = snap.docs.map(d => ({ id: d.id, ...d.data() } as Payment));
+      return { success: true, payments };
+    } catch (error: any) {
+      console.error('Error getting payments by requestId:', error);
       return { success: false, error: error.message };
     }
   }

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { OrderService } from '@/src/lib/order-service';
+import { FirebaseDbService } from '@/src/lib/firebase-db';
 import { OrderStatus } from '@/src/types/order';
+import { adminDb } from '@/src/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,8 +14,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { qrData, vendorId } = body;
+  const body = await request.json();
+  const { qrData } = body;
 
     if (!qrData) {
       return NextResponse.json({ error: 'QR data is required' }, { status: 400 });
@@ -23,7 +26,7 @@ export async function POST(request: NextRequest) {
     try {
       // Parse QR data - should contain order ID and timestamp
       const qrDataParsed = JSON.parse(qrData);
-      const { orderId, timestamp, amount } = qrDataParsed;
+  const { orderId, timestamp } = qrDataParsed;
 
       if (!orderId || !timestamp) {
         return NextResponse.json({ error: 'Invalid QR code format' }, { status: 400 });
@@ -45,8 +48,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404 });
       }
 
-      // Verify vendor authorization
-      if (order.vendorId !== vendorId && order.vendorId !== session.user.email) {
+      // Derive vendor identity from session -> find user -> businessProfile (if needed) else use email matching fallback
+      // For now we match vendor by order.vendorId compared to stored vendorId (user id) or vendorEmail equal to session email.
+      // Load user doc by email
+      const userSnap = await adminDb.collection('users').where('email','==',session.user.email).limit(1).get();
+      const userDoc = userSnap.empty ? null : userSnap.docs[0];
+      const sessionUserId = userDoc?.id;
+      if (order.vendorId !== sessionUserId && order.vendorEmail !== session.user.email) {
         return NextResponse.json({ error: 'Unauthorized for this order' }, { status: 403 });
       }
 
@@ -57,14 +65,41 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
-      // Update order status to payment received using completeOrderWithQR
-      await OrderService.completeOrderWithQR(
-        qrData, 
-        session.user.email
-      );
+      // Use transaction: validate again + mark completed + clear QR fields (single-use)
+      const updatedOrder = await adminDb.runTransaction(async (tx)=>{
+        const ref = adminDb.collection('orders').doc(orderId);
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new Error('Order disappeared');
+        const current:any = snap.data();
+        if (current.status !== OrderStatus.CASH_PAYMENT) throw new Error('Order not in cash payment state');
+        if (current.qrCode !== qrData) throw new Error('Mismatched QR payload');
+        if (current.qrCodeExpiresAt && current.qrCodeExpiresAt.toDate() < new Date()) throw new Error('QR code expired');
+  tx.update(ref, { status: OrderStatus.PAYMENT_RECEIVED, updatedAt: new Date(), qrCode: FieldValue.delete(), qrCodeExpiresAt: FieldValue.delete() });
+        // status audit
+        const statusRef = adminDb.collection('orderStatusUpdates').doc();
+        tx.set(statusRef, { orderId, status: OrderStatus.PAYMENT_RECEIVED, notes: 'QR cash confirmation', updatedBy: sessionUserId || session.user.email, timestamp: new Date() });
+        return { id: ref.id, ...current, status: OrderStatus.PAYMENT_RECEIVED };
+      });
 
-      // Get updated order
-      const updatedOrder = await OrderService.getOrder(orderId);
+      // Attempt payout marking: deterministically mark the payment tied to this order as PAID (merchant payout)
+      try {
+        // 1) Primary: order-based payments
+        if (orderId) {
+          const paymentRes = await FirebaseDbService.getPaymentByOrderId(orderId);
+          if (paymentRes.success && paymentRes.payment && !paymentRes.payment.merchantPaid) {
+            await FirebaseDbService.updatePayment(paymentRes.payment.id, {
+              merchantPaid: true,
+              merchantPayoutDate: new Date(),
+              status: 'PAID',
+            });
+          }
+        }
+        
+        // 2) Optional fallback: if order has a linked requestId in your model (not present here), you could fetch by requestId
+        // Leaving a placeholder in case we later add order.requestId
+      } catch (e) {
+        console.error('Payout marking after QR failed (non-fatal):', e);
+      }
 
       return NextResponse.json({
         success: true,
@@ -84,7 +119,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify vendor authorization
-      if (order.vendorId !== vendorId && order.vendorId !== session.user.email) {
+      // Revalidate vendor identity for plain text order id path
+      const userSnap2 = await adminDb.collection('users').where('email','==',session.user.email).limit(1).get();
+      const sessionUserId2 = userSnap2.empty ? null : userSnap2.docs[0].id;
+      if (order.vendorId !== sessionUserId2 && order.vendorEmail !== session.user.email) {
         return NextResponse.json({ error: 'Unauthorized for this order' }, { status: 403 });
       }
 

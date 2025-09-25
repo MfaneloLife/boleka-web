@@ -53,6 +53,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
+      // Persist email for server fallbacks
+      try {
+        if (result.user?.email && typeof window !== 'undefined') {
+          localStorage.setItem('boleka_user_email', result.user.email);
+        }
+      } catch {}
       return result.user;
     } catch (error: unknown) {
       console.error("Login error:", error);
@@ -283,6 +289,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
+      // Persist email for server fallbacks
+      try {
+        if (result.user?.email && typeof window !== 'undefined') {
+          localStorage.setItem('boleka_user_email', result.user.email);
+        }
+      } catch {}
       return result.user;
     } catch (error: unknown) {
       console.error("Facebook sign-in error:", error);

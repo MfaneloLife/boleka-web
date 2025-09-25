@@ -74,6 +74,18 @@ export const authOptions: NextAuthOptions = {
       FacebookProvider({
         clientId: process.env.FACEBOOK_CLIENT_ID,
         clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+        authorization: {
+          params: { scope: 'public_profile,email' }
+        },
+        profile(profile) {
+          // Normalize to ensure email when provided by Facebook
+          return {
+            id: profile.id,
+            name: profile.name,
+            email: (profile as any).email ?? null,
+            image: (profile as any).picture?.data?.url ?? null,
+          } as any;
+        }
       })
     ] : []),
   ],
@@ -139,30 +151,6 @@ export const authOptions: NextAuthOptions = {
             const newUserRef = await adminDb.collection('users').add(newUserData);
             userId = newUserRef.id;
             
-            // Create basic client profile automatically
-            try {
-              await adminDb.collection('clientProfiles').add({
-                uid: userId,
-                email: user.email,
-                name: user.name || '',
-                firstName: user.name?.split(' ')[0] || '',
-                lastName: user.name?.split(' ').slice(1).join(' ') || '',
-                phone: '',
-                location: '',
-                clientProvince: '',
-                clientCity: '',
-                clientSuburb: '',
-                cellPhone: '',
-                preferences: 'Everything',
-                profileImageUrl: user.image || '',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              });
-              console.log('Created basic client profile for:', user.email);
-            } catch (profileError) {
-              console.error('Error creating client profile:', profileError);
-            }
-            
             console.log('Created new user:', user.email, 'Provider:', account.provider);
           } else {
             userId = usersSnapshot.docs[0].id;
@@ -188,6 +176,18 @@ export const authOptions: NextAuthOptions = {
       // Send properties to the client
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        
+        // Optionally fetch additional user data from Firebase
+        try {
+          const userDoc = await adminDb.collection('users').doc(token.id as string).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            session.user.profileCompleted = userData?.profileCompleted || false;
+            session.user.hasBusinessProfile = userData?.hasBusinessProfile || false;
+          }
+        } catch (error) {
+          console.error('Error fetching user data for session:', error);
+        }
       }
       return session;
     }

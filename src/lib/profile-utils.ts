@@ -12,7 +12,7 @@ export async function checkProfileCompletion(userId: string): Promise<{
       where: { field: 'uid', operator: '==', value: userId }
     });
 
-    if (!userProfileResult.success || !userProfileResult.documents || userProfileResult.documents.length === 0) {
+    if (!userProfileResult.success || !userProfileResult.data || userProfileResult.data.length === 0) {
       // No user profile found, needs profile setup
       return {
         needsProfileSetup: true,
@@ -27,18 +27,18 @@ export async function checkProfileCompletion(userId: string): Promise<{
       where: { field: 'uid', operator: '==', value: userId }
     });
 
-    const hasClientProfile = clientProfileResult.success && 
-      clientProfileResult.documents && 
-      clientProfileResult.documents.length > 0;
+    const hasClientProfile = clientProfileResult.success &&
+      Array.isArray(clientProfileResult.data) &&
+      clientProfileResult.data.length > 0;
 
     // Check for business profile in Firestore
     const businessProfileResult = await FirestoreService.getDocuments('businessProfiles', {
       where: { field: 'uid', operator: '==', value: userId }
     });
 
-    const hasBusinessProfile = businessProfileResult.success && 
-      businessProfileResult.documents && 
-      businessProfileResult.documents.length > 0;
+    const hasBusinessProfile = businessProfileResult.success &&
+      Array.isArray(businessProfileResult.data) &&
+      businessProfileResult.data.length > 0;
 
     // User needs profile setup if they don't have any profile
     const needsProfileSetup = !hasClientProfile && !hasBusinessProfile;

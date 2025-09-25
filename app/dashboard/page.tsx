@@ -214,78 +214,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Client Actions */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-8">
-          <div className="flex items-center mb-4">
-            <div className="p-3 bg-blue-600 rounded-lg">
-              <MagnifyingGlassIcon className="h-6 w-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 ml-4">Find Items to Rent</h3>
-          </div>
-          <p className="text-gray-600 mb-6">
-            Browse thousands of items available for rent in your area. From tools to equipment, find what you need.
-          </p>
-          <Link
-            href="/dashboard/client/search"
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-          >
-            Start Searching
-            <ArrowRightIcon className="h-5 w-5 ml-2" />
-          </Link>
-        </div>
-
-        {/* Business Actions */}
-        <div className="bg-gradient-to-br from-orange-50 to-red-100 rounded-2xl p-8">
-          <div className="flex items-center mb-4">
-            <div className="p-3 bg-orange-600 rounded-lg">
-              <PlusIcon className="h-6 w-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 ml-4">Rent Out Your Items</h3>
-          </div>
-          <p className="text-gray-600 mb-6">
-            Turn your unused items into income. List tools, equipment, or anything you're not using.
-          </p>
-          {hasBusinessProfile ? (
-            <Link
-              href="/dashboard/business/items"
-              className="inline-flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
-            >
-              Manage Items
-              <ArrowRightIcon className="h-5 w-5 ml-2" />
-            </Link>
-          ) : (
-            <Link
-              href="/auth/profile-setup?mode=business"
-              className="inline-flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
-            >
-              Setup Business Profile
-              <ArrowRightIcon className="h-5 w-5 ml-2" />
-            </Link>
-          )}
-        </div>
-
-        {/* ML Vision Actions */}
-        <div className="bg-gradient-to-br from-purple-50 to-pink-100 rounded-2xl p-8">
-          <div className="flex items-center mb-4">
-            <div className="p-3 bg-purple-600 rounded-lg">
-              <CubeIcon className="h-6 w-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 ml-4">ML Vision Scanner</h3>
-          </div>
-          <p className="text-gray-600 mb-6">
-            Scan barcodes, extract text, and analyze images with AI-powered tools for inventory management.
-          </p>
-          <Link
-            href="/ml-vision"
-            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
-          >
-            Open Scanner
-            <ArrowRightIcon className="h-5 w-5 ml-2" />
-          </Link>
-        </div>
-      </div>
+      {/* Action Cards removed as per request: moved to sidebar */}
 
       {/* Featured Items */}
       {featuredItems.length > 0 && (

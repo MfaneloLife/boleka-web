@@ -37,8 +37,17 @@ export class OrderService {
       const vendorId = items[0].vendorId;
       const vendorName = items[0].vendorName;
       
-      // TODO: Get vendor email from vendor profile
-      const vendorEmail = `${vendorId}@vendor.com`; // Placeholder
+      // Attempt vendor email lookup from users collection by vendorId
+      let vendorEmail: string | undefined;
+      try {
+        const vendorDoc = await getDoc(doc(db, 'users', vendorId));
+        if (vendorDoc.exists()) {
+          const vData: any = vendorDoc.data();
+            vendorEmail = vData.email;
+        }
+      } catch {
+        vendorEmail = undefined;
+      }
       
       const now = Timestamp.now();
       const expiresAt = new Timestamp(now.seconds + (30 * 24 * 60 * 60), now.nanoseconds); // 30 days from now
@@ -56,7 +65,7 @@ export class OrderService {
         paymentMethod,
         vendorId,
         vendorName,
-        vendorEmail,
+  vendorEmail: vendorEmail || '',
         createdAt: now,
         updatedAt: now,
         expiresAt,

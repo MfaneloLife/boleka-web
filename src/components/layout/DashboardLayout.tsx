@@ -18,7 +18,8 @@ import {
   CogIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { ShareIcon } from '@heroicons/react/24/outline';
 
@@ -70,10 +71,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const businessNavItems = [
     { name: 'Home', href: '/dashboard', icon: HomeIcon },
     { name: 'My Items', href: '/dashboard/business/items', icon: CubeIcon },
-    { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
+    { name: 'Add Item', href: '/dashboard/business/items/new', icon: PlusIcon },
     { name: 'Requests', href: '/dashboard/business/requests', icon: ClipboardDocumentListIcon },
+    { name: 'My Wallet', href: '/dashboard/business/wallet', icon: BanknotesIcon },
     { name: 'Notifications', href: '/dashboard/business/notifications', icon: BellIcon },
-    { name: 'Earnings', href: '/dashboard/business/earnings', icon: BanknotesIcon },
+    { name: 'Business Profile', href: '/dashboard/business/profile', icon: CogIcon },
   ];
 
   const navItems = profileType === 'client' ? clientNavItems : businessNavItems;
@@ -119,7 +121,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      } flex flex-col`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <Link href="/" className="flex items-center">
             <span className="text-2xl font-bold text-orange-600">Boleka</span>
@@ -134,7 +136,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-6 py-6">
+  <nav className="flex-1 overflow-y-auto px-6 py-6">
           <ul className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -170,7 +172,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         {/* Bottom section */}
-        <div className="border-t border-gray-200 p-6">
+  <div className="border-t border-gray-200 p-6">
           {/* Profile switcher */}
           <button
             onClick={toggleProfileType}

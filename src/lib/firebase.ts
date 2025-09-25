@@ -53,6 +53,7 @@ googleProvider.setCustomParameters({
 });
 
 const facebookProvider = new FacebookAuthProvider();
+facebookProvider.addScope('email');
 facebookProvider.setCustomParameters({
   'display': 'popup'
 });

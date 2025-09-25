@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Order, OrderStatus, PaymentMethod } from '../types/order';
 import { OrderService } from '../lib/order-service';
@@ -19,9 +19,54 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(order.paymentMethod);
   const [showPayFastForm, setShowPayFastForm] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletChecking, setWalletChecking] = useState(true);
+  const [walletAvailable, setWalletAvailable] = useState<number | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
+
+  // Fetch wallet summary to know if we can offer wallet payment
+  useEffect(() => {
+    const fetchWallet = async () => {
+      try {
+        setWalletChecking(true);
+        const res = await fetch('/api/wallet', { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('Failed to load wallet');
+        const data = await res.json();
+        const available = data?.summary?.available ?? data?.available ?? null;
+        setWalletAvailable(typeof available === 'number' ? available : null);
+      } catch (e: any) {
+        setWalletError(e.message || 'Wallet unavailable');
+      } finally {
+        setWalletChecking(false);
+      }
+    };
+    fetchWallet();
+  }, [order.id]);
+
+  const handleWalletPayment = async () => {
+    if (walletLoading) return; // double-click guard
+    if (!walletAvailable || walletAvailable < order.totalAmount) return;
+    try {
+      setWalletLoading(true);
+      const res = await fetch('/api/wallet/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Wallet payment failed');
+      // Notify parent (should trigger order refetch -> status PAYMENT_RECEIVED)
+      onPaymentComplete();
+    } catch (e: any) {
+      alert(e.message || 'Wallet payment failed');
+    } finally {
+      setWalletLoading(false);
+    }
+  };
 
   const handlePayFastPayment = async () => {
     try {
+      if (loading) return; // double-click guard
       setLoading(true);
       
       // Generate PayFast payment form
@@ -35,11 +80,15 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
         payment_method: 'cc,dc,eft',
         return_url: `${window.location.origin}/payment/success?orderId=${order.id}`,
         cancel_url: `${window.location.origin}/payment/cancel?orderId=${order.id}`,
-        notify_url: `${window.location.origin}/api/payment/payfast-notify`,
+  notify_url: `${window.location.origin}/api/payment/payfast-notify`,
         name_first: order.userName.split(' ')[0] || order.userName,
         name_last: order.userName.split(' ').slice(1).join(' ') || '',
-        custom_str1: order.id,
-        custom_str2: order.vendorId,
+  // custom_str1 -> orderId for deterministic mapping
+  // custom_str2 -> userId (payer) optional; we already have email
+  // custom_str3 -> vendorId (merchant)
+  custom_str1: order.id,
+  custom_str2: order.userId,
+  custom_str3: order.vendorId,
       };
 
       // Create form and submit to PayFast
@@ -73,17 +122,16 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
   const handleCashPayment = async () => {
     try {
       setLoading(true);
-      
-      // For cash payments, we just update the order status
-      // The vendor will handle the actual cash collection
-      await OrderService.markPaymentReceived(
-        order.id,
-        `cash_${Date.now()}`,
-        'Cash payment confirmed',
-        order.totalAmount,
-        session?.user?.id || 'user'
-      );
-      
+      // Call server to record cash payment and mark order as payment received
+      const res = await fetch('/api/payment/cash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to confirm cash payment');
+      }
       onPaymentComplete();
       
     } catch (error) {
@@ -270,6 +318,34 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
             <p className="text-sm text-gray-600">
               You will be redirected to PayFast to complete your payment of {formatCurrency(order.totalAmount)}.
             </p>
+            {/* Wallet Payment Option */}
+            {walletChecking ? (
+              <div className="text-xs text-gray-500">Checking wallet balance...</div>
+            ) : walletError ? (
+              <div className="text-xs text-red-500">{walletError}</div>
+            ) : walletAvailable !== null && walletAvailable >= order.totalAmount ? (
+              <button
+                onClick={handleWalletPayment}
+                disabled={walletLoading}
+                className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
+              >
+                {walletLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Paying...
+                  </>
+                ) : (
+                  <>
+                    <BanknotesIcon className="h-5 w-5 mr-2" />
+                    Pay with Wallet (Balance {formatCurrency(walletAvailable)})
+                  </>
+                )}
+              </button>
+            ) : walletAvailable !== null ? (
+              <div className="text-xs text-gray-500">
+                Wallet balance {formatCurrency(walletAvailable || 0)} insufficient for total {formatCurrency(order.totalAmount)}.
+              </div>
+            ) : null}
             <button
               onClick={handlePayFastPayment}
               disabled={loading}

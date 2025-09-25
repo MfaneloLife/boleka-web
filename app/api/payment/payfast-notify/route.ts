@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OrderService } from '../../../../src/lib/order-service';
+import { FirebaseDbService } from '@/src/lib/firebase-db';
 import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
@@ -18,7 +19,8 @@ export async function POST(request: NextRequest) {
       amount_fee: params.get('amount_fee'),
       amount_net: params.get('amount_net'),
       custom_str1: params.get('custom_str1'), // Order ID
-      custom_str2: params.get('custom_str2'), // Vendor ID
+      custom_str2: params.get('custom_str2'), // Payer userId (optional)
+      custom_str3: params.get('custom_str3'), // Vendor ID (merchant)
       name_first: params.get('name_first'),
       name_last: params.get('name_last'),
       email_address: params.get('email_address'),
@@ -52,8 +54,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const orderId = paymentData.custom_str1;
-    const paymentStatus = paymentData.payment_status;
+  const orderId = paymentData.custom_str1 as string | null;
+  const paymentStatus = paymentData.payment_status as string | null;
 
     if (!orderId) {
       console.error('No order ID in PayFast notification');
@@ -72,12 +74,56 @@ export async function POST(request: NextRequest) {
     // Handle payment status
     switch (paymentStatus) {
       case 'COMPLETE':
-        // Mark payment as received
+        // Compute amounts
+        const amount = parseFloat(paymentData.amount_gross || paymentData.amount_net || '0');
+        const commission = Math.round(amount * 0.08 * 100) / 100;
+        const merchantAmount = Math.round((amount - commission) * 100) / 100;
+
+        // Create or update a Payment record linked to this order
+        let paymentDocId: string | null = null;
+        try {
+          const existing = await FirebaseDbService.getPaymentByOrderId(orderId);
+          if (existing.success && existing.payment) {
+            paymentDocId = existing.payment.id;
+            await FirebaseDbService.updatePayment(existing.payment.id, {
+              status: 'COMPLETED',
+              transactionId: paymentData.pf_payment_id || paymentData.m_payment_id || 'unknown',
+              amount,
+              commissionAmount: commission,
+              merchantAmount,
+              paymentMethod: 'PAYFAST',
+              paymentDetails: JSON.stringify(paymentData),
+              merchantId: paymentData.custom_str3 || existing.payment.merchantId,
+              payerId: paymentData.custom_str2 || existing.payment.payerId,
+            });
+          } else {
+            const createRes = await FirebaseDbService.createPayment({
+              orderId,
+              amount,
+              commissionAmount: commission,
+              merchantAmount,
+              merchantPaid: false,
+              status: 'COMPLETED',
+              transactionId: paymentData.pf_payment_id || paymentData.m_payment_id || 'unknown',
+              paymentMethod: 'PAYFAST',
+              paymentDetails: JSON.stringify(paymentData),
+              payerId: (paymentData.custom_str2 as string) || order.userId,
+              merchantId: (paymentData.custom_str3 as string) || order.vendorId,
+            });
+            if (createRes.success && createRes.id) {
+              paymentDocId = createRes.id;
+            }
+          }
+        } catch (dbErr) {
+          console.error('Error creating/updating Payment record for order:', dbErr);
+        }
+
+        // Mark order payment as received, using the payments doc id as paymentId
         await OrderService.markPaymentReceived(
           orderId,
-          paymentData.pf_payment_id || paymentData.m_payment_id || 'unknown',
-          `PayFast payment ${paymentData.pf_payment_id}`,
-          parseFloat(paymentData.amount_gross || '0'),
+          paymentDocId || (paymentData.pf_payment_id || paymentData.m_payment_id || 'unknown'),
+          `PayFast payment ${paymentData.pf_payment_id || paymentData.m_payment_id}`,
+          amount,
           order.userId
         );
         break;

@@ -75,17 +75,7 @@ self.addEventListener('notificationclick', (event) => {
   let url = '/dashboard';
 
   // Determine URL based on action and notification type
-  if (action === 'view' && data.type === 'ml_vision_result') {
-    url = `/ml-vision/results?imageId=${data.imageId}`;
-  } else if (action === 'view_history') {
-    url = '/ml-vision/history';
-  } else if (action === 'scan_again') {
-    url = '/ml-vision/scanner';
-  } else if (data.type === 'ml_vision_result') {
-    url = '/ml-vision/results';
-  } else if (data.type === 'barcode_scanned') {
-    url = '/ml-vision/history';
-  }
+  // ML Vision feature removed; fall back to dashboard regardless of prior actions
 
   // Open the app or focus existing window
   event.waitUntil(
@@ -140,20 +130,7 @@ self.addEventListener('push', (event) => {
       console.log('SW: Push data:', data);
       
       // Custom handling for specific push types
-      if (data.type === 'ml_vision_complete') {
-        // Handle ML Vision completion notifications
-        const notificationTitle = '🔍 Analysis Complete';
-        const notificationOptions = {
-          body: `Your image analysis is ready with ${data.itemsFound} results`,
-          icon: '/icons/ml-vision-icon.png',
-          tag: 'ml-vision-complete',
-          data: data
-        };
-        
-        event.waitUntil(
-          self.registration.showNotification(notificationTitle, notificationOptions)
-        );
-      }
+       // ML Vision push types deprecated
     } catch (error) {
       console.error('SW: Error parsing push data:', error);
     }
@@ -165,18 +142,7 @@ self.addEventListener('install', (event) => {
   console.log('SW: Service worker installing...');
   
   event.waitUntil(
-    caches.open('ml-vision-cache-v1').then((cache) => {
-      return cache.addAll([
-        '/ml-vision/scanner',
-        '/ml-vision/history',
-        '/ml-vision/results',
-        '/icons/notification-icon.png',
-        '/icons/ml-vision-icon.png',
-        '/icons/barcode-icon.png',
-        '/icons/text-icon.png',
-        '/icons/labels-icon.png'
-      ]);
-    })
+    caches.open('boleka-static-v1').then((cache) => cache.addAll(['/icons/notification-icon.png']))
   );
 });
 
@@ -188,10 +154,8 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName.startsWith('ml-vision-cache-') && cacheName !== 'ml-vision-cache-v1') {
-            console.log('SW: Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
+          // Remove legacy ml-vision caches
+          if (cacheName.startsWith('ml-vision-cache-')) return caches.delete(cacheName);
         })
       );
     })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { ReminderService } from '@/src/lib/reminder-service';
+import { adminDb } from '@/src/lib/firebase-admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,19 +20,30 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit');
 
     if (type === 'pending') {
-      // Admin functionality - for now allow any authenticated user
-      // TODO: Implement proper role-based access control
+      // Restrict: only users with a business profile OR explicit admin flag
+      const userEmail = session.user.email;
+      const usersSnap = await adminDb.collection('users').where('email','==',userEmail).limit(1).get();
+      let userDoc = usersSnap.empty ? null : usersSnap.docs[0];
+      let isAdmin = false;
+      if (userDoc) {
+        const data:any = userDoc.data();
+        isAdmin = !!data.isAdmin;
+      }
+      let hasBusiness = false;
+      if (userDoc) {
+        const bizSnap = await adminDb.collection('businessProfiles').where('userId','==',userDoc.id).limit(1).get();
+        hasBusiness = !bizSnap.empty;
+      }
+      if (!isAdmin && !hasBusiness) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       const reminders = await ReminderService.getPendingReminders(
         limit ? parseInt(limit) : undefined
       );
-
-      return NextResponse.json({
-        reminders,
-        count: reminders.length
-      });
+      return NextResponse.json({ reminders, count: reminders.length });
     }
 
-    // Get user's reminders
+    // Get user's reminders (ownership enforced)
     const reminders = await ReminderService.getUserReminders(session.user.id);
 
     return NextResponse.json({

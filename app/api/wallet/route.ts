@@ -4,9 +4,13 @@ import { authOptions } from '@/lib/auth';
 import { adminAuth } from '@/src/lib/firebase-admin';
 import { FirebaseDbService } from '@/src/lib/firebase-db';
 
+/**
+ * Wallet summary endpoint
+ * Builds on payouts logic but returns additional balance segmentation.
+ * For now, credits (bolekaCredit) are placeholder (0) until a credit ledger is implemented.
+ */
 export async function GET(request: NextRequest) {
   try {
-    // Prefer Firebase ID token from Authorization header
     const authHeader = request.headers.get('authorization');
     let userEmail: string | null = null;
     let firebaseUid: string | null = null;
@@ -17,66 +21,80 @@ export async function GET(request: NextRequest) {
         userEmail = decoded.email ?? null;
         firebaseUid = decoded.uid ?? null;
       } catch (e) {
-        // fall back to next-auth session if token invalid
+        // ignore – will fall back
       }
     }
 
-    // Fallback: allow explicit user email header when token/session is not available
     if (!userEmail) {
       const headerEmail = request.headers.get('x-user-email');
-      if (headerEmail) {
-        userEmail = headerEmail;
-      }
+      if (headerEmail) userEmail = headerEmail;
     }
 
     if (!userEmail) {
       const session = await getServerSession(authOptions);
-      if (session?.user?.email) {
-        userEmail = session.user.email;
-      }
+      if (session?.user?.email) userEmail = session.user.email;
     }
 
     if (!userEmail && !firebaseUid) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user from Firebase by email or uid
-    type UserLookupResult = Awaited<ReturnType<typeof FirebaseDbService.getUserByEmail>>;
-    let userResult: UserLookupResult | null = null;
+    // Resolve user by email first, then by firebase UID fallback
+    let userResult;
     if (userEmail) {
       userResult = await FirebaseDbService.getUserByEmail(userEmail);
     }
     if ((!userResult || !userResult.success || !userResult.user) && firebaseUid) {
       userResult = await FirebaseDbService.getUserByFirebaseUid(firebaseUid);
     }
-    if (!userResult || !userResult.success || !userResult.user) {
+    if (!userResult?.success || !userResult.user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get business profile to check banking details
-  const businessProfileResult = await FirebaseDbService.getBusinessProfileByUserId(userResult.user.id);
+    const userId = userResult.user.id;
+
+    // Business profile (for banking details)
+    const businessProfileResult = await FirebaseDbService.getBusinessProfileByUserId(userId);
     if (!businessProfileResult.success || !businessProfileResult.profile) {
       return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
     }
 
-    // Get all successful payments for this merchant
-  const paymentsResult = await FirebaseDbService.getPaymentsByMerchant(userResult.user.id);
-    
+    // Payments for merchant
+    const paymentsResult = await FirebaseDbService.getPaymentsByMerchant(userId);
     if (!paymentsResult.success) {
       return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 });
     }
 
     const payments = paymentsResult.payments || [];
-    
-    // Calculate summary
+
+    // Basic payouts style summary
     const summary = {
       count: payments.length,
-      totalAmount: payments.reduce((sum, payment) => sum + payment.amount, 0),
-      totalCommission: payments.reduce((sum, payment) => sum + payment.commissionAmount, 0),
-      totalMerchantAmount: payments.reduce((sum, payment) => sum + payment.merchantAmount, 0)
+      totalAmount: payments.reduce((s, p) => s + p.amount, 0),
+      totalCommission: payments.reduce((s, p) => s + p.commissionAmount, 0),
+      totalMerchantAmount: payments.reduce((s, p) => s + p.merchantAmount, 0)
     };
 
-    // Extract banking details from business profile
+    // Wallet segmentation
+    const completedPayments = payments.filter(p => ['COMPLETED', 'PAID'].includes(p.status));
+    const pendingPayments = payments.filter(p => !['COMPLETED', 'PAID'].includes(p.status));
+
+    const paidOutTotal = completedPayments.filter(p => p.merchantPaid).reduce((s, p) => s + p.merchantAmount, 0);
+    const availableBalance = completedPayments.filter(p => !p.merchantPaid).reduce((s, p) => s + p.merchantAmount, 0);
+    const pendingBalance = pendingPayments.reduce((s, p) => s + p.merchantAmount, 0);
+    const completedSalesTotal = completedPayments.reduce((s, p) => s + p.merchantAmount, 0);
+    const creditBalance = 0; // Placeholder until credit ledger implemented
+    const totalBalance = availableBalance + creditBalance + pendingBalance + paidOutTotal;
+
+    const wallet = {
+      availableBalance,
+      creditBalance,
+      pendingBalance,
+      completedSalesTotal,
+      paidOutTotal,
+      totalBalance
+    };
+
     const bankingDetails = {
       bankName: businessProfileResult.profile.bankName || null,
       accountNumber: businessProfileResult.profile.accountNumber || null,
@@ -85,16 +103,9 @@ export async function GET(request: NextRequest) {
       accountHolderName: businessProfileResult.profile.accountHolderName || null
     };
 
-    return NextResponse.json({
-      payments,
-      summary,
-      bankingDetails
-    });
+    return NextResponse.json({ payments, summary, wallet, bankingDetails });
   } catch (error) {
-    console.error('Error fetching payouts:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch payouts' },
-      { status: 500 }
-    );
+    console.error('Error fetching wallet:', error);
+    return NextResponse.json({ error: 'Failed to fetch wallet' }, { status: 500 });
   }
 }
