@@ -1,59 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/src/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/src/lib/firebase-admin';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { FirebaseDbService } from '@/src/lib/firebase-db';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    // Check if user is authenticated
-    if (!session?.user) {
+    // Multi-strategy auth: Firebase Bearer token -> session -> explicit header (deprecated)
+    const authHeader = request.headers.get('authorization');
+    let email: string | null = null; let firebaseUid: string | null = null;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const decoded = await adminAuth.verifyIdToken(authHeader.substring(7));
+        email = decoded.email ?? null;
+        firebaseUid = decoded.uid ?? null;
+      } catch (e) {
+        // ignore and fall back
+      }
+    }
+    if (!email) {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.email) email = session.user.email;
+    }
+    if (!email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Find the user's email
-    const userEmail = session.user.email;
-    
-    if (!userEmail) {
-      return NextResponse.json({ error: 'User email not found' }, { status: 400 });
-    }
-    
-    // Find the user
-    const usersSnapshot = await adminDb.collection('users')
-      .where('email', '==', userEmail)
-      .limit(1)
-      .get();
-    
-    if (usersSnapshot.empty) {
+
+    // Resolve user via service for consistency (ensures we get user.id)
+    const userRes = await FirebaseDbService.getUserByEmail(email);
+    if (!userRes.success || !userRes.user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    
-    const userDoc = usersSnapshot.docs[0];
-    
-    // Find the user's business profile
-    const businessProfileSnapshot = await adminDb.collection('businessProfiles')
-      .where('userId', '==', userDoc.id)
+    const userId = userRes.user.id;
+
+    // Fetch business profile
+    const bpSnap = await adminDb.collection('businessProfiles')
+      .where('userId', '==', userId)
       .limit(1)
       .get();
-    
-    // Check if user has a business profile
-    if (businessProfileSnapshot.empty) {
+    if (bpSnap.empty) {
       return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
     }
-    
-    const businessProfileDoc = businessProfileSnapshot.docs[0];
-    const businessProfile = {
-      id: businessProfileDoc.id,
-      ...businessProfileDoc.data()
-    };
-    
-    // Return the business profile
-    return NextResponse.json(businessProfile, { status: 200 });
-    
+    const bpDoc = bpSnap.docs[0];
+    const profile = { id: bpDoc.id, ...bpDoc.data() };
+    return NextResponse.json(profile, { status: 200 });
   } catch (error) {
     console.error('Error fetching business profile:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Failed to fetch business profile',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });

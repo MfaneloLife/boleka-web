@@ -55,9 +55,8 @@ export async function GET(request: NextRequest) {
 
     // Business profile (for banking details)
     const businessProfileResult = await FirebaseDbService.getBusinessProfileByUserId(userId);
-    if (!businessProfileResult.success || !businessProfileResult.profile) {
-      return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
-    }
+    // Do not hard error if business profile missing; allow wallet to load with empty banking details
+    const hasBusinessProfile = !!(businessProfileResult.success && businessProfileResult.profile);
 
     // Payments for merchant
     const paymentsResult = await FirebaseDbService.getPaymentsByMerchant(userId);
@@ -95,15 +94,21 @@ export async function GET(request: NextRequest) {
       totalBalance
     };
 
-    const bankingDetails = {
-      bankName: businessProfileResult.profile.bankName || null,
-      accountNumber: businessProfileResult.profile.accountNumber || null,
-      accountType: businessProfileResult.profile.accountType || null,
-      branchCode: businessProfileResult.profile.branchCode || null,
-      accountHolderName: businessProfileResult.profile.accountHolderName || null
+    const bankingDetails = hasBusinessProfile ? {
+      bankName: businessProfileResult.profile!.bankName || null,
+      accountNumber: businessProfileResult.profile!.accountNumber || null,
+      accountType: businessProfileResult.profile!.accountType || null,
+      branchCode: businessProfileResult.profile!.branchCode || null,
+      accountHolderName: businessProfileResult.profile!.accountHolderName || null
+    } : {
+      bankName: null,
+      accountNumber: null,
+      accountType: null,
+      branchCode: null,
+      accountHolderName: null
     };
 
-    return NextResponse.json({ payments, summary, wallet, bankingDetails });
+    return NextResponse.json({ payments, summary, wallet, bankingDetails, hasBusinessProfile });
   } catch (error) {
     console.error('Error fetching wallet:', error);
     return NextResponse.json({ error: 'Failed to fetch wallet' }, { status: 500 });
