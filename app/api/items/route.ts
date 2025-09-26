@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { searchItems, getUserItems, createItem } from '@/src/lib/firebase-storage';
 import { logger } from '@/src/lib/logger';
 import { adminDb, adminAuth } from '@/src/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function GET(req: NextRequest) {
   try {
@@ -150,6 +151,13 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Optionally resolve client profile for linkage
+      let clientProfileId: string | null = null;
+      try {
+        const cps = await adminDb.collection('clientProfiles').where('userId', '==', userDocSnap.id).limit(1).get();
+        if (!cps.empty) clientProfileId = cps.docs[0].id;
+      } catch {}
+
       const doc = await adminDb.collection('items').add({
         title,
         description: body.description,
@@ -165,9 +173,23 @@ export async function POST(req: NextRequest) {
         tags: Array.isArray(body.tags) ? body.tags : [],
         specifications: body.specifications || {},
         images: Array.isArray(body.images) ? body.images : [],
+        clientProfileId: clientProfileId || null,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+
+      // Back-link item to client profile document (array of itemIds)
+      if (clientProfileId) {
+        try {
+          await adminDb.collection('clientProfiles').doc(clientProfileId).update({
+            itemIds: FieldValue.arrayUnion(doc.id),
+            updatedAt: new Date()
+          });
+          logger.debug('items.linkedToClientProfile', { itemId: doc.id, clientProfileId });
+        } catch (e) {
+          logger.warn('items.linkClientProfileFailed', { itemId: doc.id, clientProfileId });
+        }
+      }
 
       return NextResponse.json({ id: doc.id, message: 'Item created successfully', imagesUploaded: (Array.isArray(body.images) ? body.images.length : 0) }, { status: 201 });
     } else {
@@ -209,7 +231,28 @@ export async function POST(req: NextRequest) {
       }
       
       // Create item with images
+      // Resolve client profile for linkage
+      let clientProfileId: string | null = null;
+      try {
+        const cps = await adminDb.collection('clientProfiles').where('userId', '==', userDocSnap.id).limit(1).get();
+        if (!cps.empty) clientProfileId = cps.docs[0].id;
+      } catch {}
+
       const itemId = await createItem(itemData, images);
+
+      if (clientProfileId) {
+        try {
+          const itemRef = adminDb.collection('items').doc(itemId);
+          await itemRef.update({ clientProfileId, updatedAt: new Date() });
+          await adminDb.collection('clientProfiles').doc(clientProfileId).update({
+            itemIds: FieldValue.arrayUnion(itemId),
+            updatedAt: new Date()
+          });
+          logger.debug('items.linkedToClientProfile', { itemId, clientProfileId });
+        } catch (e) {
+          logger.warn('items.linkClientProfileFailed', { itemId, clientProfileId });
+        }
+      }
       
       return NextResponse.json({ 
         id: itemId, 
