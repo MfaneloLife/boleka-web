@@ -5,6 +5,7 @@ import { adminAuth } from '@/src/lib/firebase-admin';
 import { FirebaseDbService } from '@/src/lib/firebase-db';
 import { adminDb } from '@/src/lib/firebase-admin';
 import { OrderStatus } from '@/src/types/order';
+import { logger } from '@/src/lib/logger';
 
 /**
  * POST /api/wallet/pay
@@ -19,24 +20,25 @@ import { OrderStatus } from '@/src/types/order';
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
+  const authHeader = request.headers.get('authorization');
+  logger.debug('walletPay.start', { hasAuthHeader: !!authHeader });
     let userEmail: string | null = null; let firebaseUid: string | null = null;
     if (authHeader?.startsWith('Bearer ')) {
       try {
         const decoded = await adminAuth.verifyIdToken(authHeader.substring(7));
         userEmail = decoded.email ?? null; firebaseUid = decoded.uid ?? null;
-      } catch {/* ignore invalid token */}
+  } catch { logger.warn('walletPay.tokenDecodeFailed'); }
     }
     // Remove insecure x-user-email bypass: rely only on token or session
     if (!userEmail) {
       const session = await getServerSession(authOptions);
       if (session?.user?.email) userEmail = session.user.email;
     }
-    if (!userEmail && !firebaseUid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!userEmail && !firebaseUid) { logger.warn('walletPay.unauthorized'); return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
     let userResult; if (userEmail) userResult = await FirebaseDbService.getUserByEmail(userEmail);
     if ((!userResult || !userResult.success || !userResult.user) && firebaseUid) userResult = await FirebaseDbService.getUserByFirebaseUid(firebaseUid!);
-    if (!userResult?.success || !userResult.user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!userResult?.success || !userResult.user) { logger.warn('walletPay.userNotFound', { userEmail, firebaseUid }); return NextResponse.json({ error: 'User not found' }, { status: 404 }); }
     const payerUser = userResult.user;
 
   const body = await request.json().catch(() => null);
@@ -46,17 +48,16 @@ export async function POST(request: NextRequest) {
     // Load order doc (if exists) to find vendor & verify not already paid
     const orderRef = adminDb.collection('orders').doc(orderId);
     const orderSnap = await orderRef.get();
-    if (!orderSnap.exists) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  if (!orderSnap.exists) { logger.warn('walletPay.orderNotFound', { orderId }); return NextResponse.json({ error: 'Order not found' }, { status: 404 }); }
     const orderData = orderSnap.data() as any;
     if ([OrderStatus.PAYMENT_RECEIVED, OrderStatus.COMPLETED].includes(orderData.status)) {
-      return NextResponse.json({ success: true, message: 'Order already paid' });
+  logger.debug('walletPay.idempotentAlreadyPaid', { orderId });
+  return NextResponse.json({ success: true, message: 'Order already paid' });
     }
     const vendorId = orderData.vendorId;
     if (!vendorId) return NextResponse.json({ error: 'Order missing vendorId' }, { status: 400 });
     // Ensure payer owns the order
-    if (orderData.userId !== payerUser.id) {
-      return NextResponse.json({ error: 'Cannot pay for an order you do not own' }, { status: 403 });
-    }
+    if (orderData.userId !== payerUser.id) { logger.warn('walletPay.orderOwnershipMismatch', { orderId, payer: payerUser.id, orderOwner: orderData.userId }); return NextResponse.json({ error: 'Cannot pay for an order you do not own' }, { status: 403 }); }
 
     const orderSubtotal = orderData.subtotal;
     const orderPlatformFee = orderData.platformFee || 0;
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
       if (orderData.status !== OrderStatus.PAYMENT_RECEIVED) {
         await orderRef.update({ status: OrderStatus.PAYMENT_RECEIVED, updatedAt: new Date() });
       }
+      logger.debug('walletPay.idempotentDebitFound', { orderId });
       return NextResponse.json({ success: true, message: 'Already processed' });
     }
 
@@ -145,16 +147,17 @@ export async function POST(request: NextRequest) {
       return { success: true, remaining: available - orderTotal };
     });
 
-    if ((result as any).error) return NextResponse.json({ error: (result as any).error }, { status: 400 });
+  if ((result as any).error) { logger.warn('walletPay.insufficient', { orderId }); return NextResponse.json({ error: (result as any).error }, { status: 400 }); }
     // Adjust remaining calculation if we changed variable
     if ((result as any).success) {
       // Recompute remaining correctly (fix earlier return calculation using amount variable)
       const remaining = (result as any).remaining ?? null;
+      logger.debug('walletPay.success', { orderId, remaining });
       return NextResponse.json({ success: true, remaining });
     }
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Wallet pay error:', error);
+    logger.error('walletPay.error', { error: (error as any)?.message });
     return NextResponse.json({ error: 'Failed wallet payment' }, { status: 500 });
   }
 }

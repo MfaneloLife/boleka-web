@@ -3,6 +3,7 @@ import { adminDb, adminAuth } from '@/src/lib/firebase-admin';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { FirebaseDbService } from '@/src/lib/firebase-db';
+import { logger } from '@/src/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +15,10 @@ export async function GET(request: NextRequest) {
         const decoded = await adminAuth.verifyIdToken(authHeader.substring(7));
         email = decoded.email ?? null;
         firebaseUid = decoded.uid ?? null;
+        logger.debug('bizProfile.decoded', { firebaseUid, hasEmail: !!email });
       } catch (e) {
         // ignore and fall back
+        logger.warn('bizProfile.tokenDecodeFailed');
       }
     }
     if (!email) {
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
     // Resolve user via service for consistency (ensures we get user.id)
     const userRes = await FirebaseDbService.getUserByEmail(email);
     if (!userRes.success || !userRes.user) {
+      logger.warn('bizProfile.userNotFound', { email });
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     const userId = userRes.user.id;
@@ -39,13 +43,15 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .get();
     if (bpSnap.empty) {
+      logger.debug('bizProfile.missing', { userId });
       return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
     }
     const bpDoc = bpSnap.docs[0];
     const profile = { id: bpDoc.id, ...bpDoc.data() };
+    logger.debug('bizProfile.success', { profileId: profile.id });
     return NextResponse.json(profile, { status: 200 });
   } catch (error) {
-    console.error('Error fetching business profile:', error);
+    logger.error('bizProfile.error', { error: (error as any)?.message });
     return NextResponse.json({
       error: 'Failed to fetch business profile',
       details: error instanceof Error ? error.message : 'Unknown error'

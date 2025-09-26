@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchItems, getUserItems, createItem } from '@/src/lib/firebase-storage';
+import { logger } from '@/src/lib/logger';
 import { adminDb, adminAuth } from '@/src/lib/firebase-admin';
 
 export async function GET(req: NextRequest) {
   try {
-    // Parse query parameters
+  // Parse query parameters
     const url = new URL(req.url);
     const category = url.searchParams.get('category');
     const location = url.searchParams.get('location');
@@ -24,24 +25,37 @@ export async function GET(req: NextRequest) {
       if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      const decoded = await adminAuth.verifyIdToken(token);
-      // Map Firebase Auth UID/email to the Firestore users doc id, which is used as items.ownerId
-      let userDocSnap = await adminDb.collection('users').doc(decoded.uid).get();
-      if (!userDocSnap.exists) {
-        const email = decoded.email;
-        if (!email) {
-          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  const decoded = await adminAuth.verifyIdToken(token);
+  logger.debug('items.meTokenDecoded', { uid: decoded.uid, emailKnown: !!decoded.email });
+      // Resolve user by firebaseUid first (firebaseUid field), fallback to email mapping, fallback to direct doc id usage
+      let resolvedUserId: string | null = null;
+      // Try firestore users where firebaseUid == decoded.uid
+      const uidSnap = await adminDb.collection('users').where('firebaseUid', '==', decoded.uid).limit(1).get();
+      if (!uidSnap.empty) {
+        resolvedUserId = uidSnap.docs[0].id;
+      } else {
+        // fallback: try email
+        if (decoded.email) {
+          const emailSnap = await adminDb.collection('users').where('email', '==', decoded.email).limit(1).get();
+          if (!emailSnap.empty) {
+            resolvedUserId = emailSnap.docs[0].id;
+            // backfill firebaseUid if missing
+            try { await emailSnap.docs[0].ref.update({ firebaseUid: decoded.uid }); } catch {}
+          }
         }
-        const usersSnapshot = await adminDb.collection('users')
-          .where('email', '==', email)
-          .limit(1)
-          .get();
-        if (usersSnapshot.empty) {
-          return NextResponse.json({ items: [] }, { status: 200 });
-        }
-        userDocSnap = usersSnapshot.docs[0];
       }
-      ownerId = userDocSnap.id;
+      // As a last resort check if a doc whose id == decoded.uid exists (older creation pattern)
+      if (!resolvedUserId) {
+        const directDoc = await adminDb.collection('users').doc(decoded.uid).get();
+        if (directDoc.exists) {
+          resolvedUserId = directDoc.id;
+          try { await directDoc.ref.update({ firebaseUid: decoded.uid }); } catch {}
+        }
+      }
+      if (!resolvedUserId) {
+        return NextResponse.json({ items: [] }, { status: 200 });
+      }
+      ownerId = resolvedUserId;
     } else if (ownerIdParam) {
       ownerId = ownerIdParam;
     }
@@ -49,6 +63,7 @@ export async function GET(req: NextRequest) {
     // If requesting user's own items
     if (ownerId) {
       const items = await getUserItems(ownerId);
+      logger.debug('items.userItems', { ownerId, count: items.length });
       return NextResponse.json({ items });
     }
     
@@ -73,9 +88,10 @@ export async function GET(req: NextRequest) {
     // Search items
     const items = await searchItems(searchTerm, filters);
     
+    logger.debug('items.search', { count: items.length, category: filters.category, location: filters.location });
     return NextResponse.json({ items });
   } catch (error) {
-    console.error('Error fetching items:', error);
+    logger.error('items.error', { error: (error as any)?.message });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

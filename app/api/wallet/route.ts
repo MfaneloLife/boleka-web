@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { adminAuth } from '@/src/lib/firebase-admin';
 import { FirebaseDbService } from '@/src/lib/firebase-db';
+import { logger } from '@/src/lib/logger';
 
 /**
  * Wallet summary endpoint
@@ -11,7 +12,8 @@ import { FirebaseDbService } from '@/src/lib/firebase-db';
  */
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
+  const authHeader = request.headers.get('authorization');
+  logger.debug('wallet.start', { hasAuthHeader: !!authHeader });
     let userEmail: string | null = null;
     let firebaseUid: string | null = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -20,8 +22,10 @@ export async function GET(request: NextRequest) {
         const decoded = await adminAuth.verifyIdToken(idToken);
         userEmail = decoded.email ?? null;
         firebaseUid = decoded.uid ?? null;
+        logger.debug('wallet.tokenDecoded', { firebaseUid, userEmailKnown: !!userEmail });
       } catch (e) {
         // ignore – will fall back
+        logger.warn('wallet.tokenDecodeFailed');
       }
     }
 
@@ -33,9 +37,11 @@ export async function GET(request: NextRequest) {
     if (!userEmail) {
       const session = await getServerSession(authOptions);
       if (session?.user?.email) userEmail = session.user.email;
+      logger.debug('wallet.sessionLookup', { sessionFound: !!session, userEmailFound: !!userEmail });
     }
 
     if (!userEmail && !firebaseUid) {
+      logger.warn('wallet.unauthorized');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -48,10 +54,15 @@ export async function GET(request: NextRequest) {
       userResult = await FirebaseDbService.getUserByFirebaseUid(firebaseUid);
     }
     if (!userResult?.success || !userResult.user) {
+      logger.warn('wallet.userNotFound', { userEmail, firebaseUid });
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const userId = userResult.user.id;
+    // Backfill firebaseUid on legacy user records for future direct lookups
+    if (firebaseUid && !userResult.user.firebaseUid) {
+      try { await FirebaseDbService.updateUser(userId, { firebaseUid }); logger.info('wallet.backfillFirebaseUid', { userId }); } catch { /* ignore */ }
+    }
 
     // Business profile (for banking details)
     const businessProfileResult = await FirebaseDbService.getBusinessProfileByUserId(userId);
@@ -60,11 +71,7 @@ export async function GET(request: NextRequest) {
 
     // Payments for merchant
     const paymentsResult = await FirebaseDbService.getPaymentsByMerchant(userId);
-    if (!paymentsResult.success) {
-      return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 });
-    }
-
-    const payments = paymentsResult.payments || [];
+    const payments = paymentsResult.success ? (paymentsResult.payments || []) : [];
 
     // Basic payouts style summary
     const summary = {
@@ -108,9 +115,10 @@ export async function GET(request: NextRequest) {
       accountHolderName: null
     };
 
+    logger.debug('wallet.success', { paymentCount: payments.length, hasBusinessProfile });
     return NextResponse.json({ payments, summary, wallet, bankingDetails, hasBusinessProfile });
   } catch (error) {
-    console.error('Error fetching wallet:', error);
+    logger.error('wallet.error', { error: (error as any)?.message });
     return NextResponse.json({ error: 'Failed to fetch wallet' }, { status: 500 });
   }
 }
