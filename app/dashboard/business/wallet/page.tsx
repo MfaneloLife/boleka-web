@@ -41,6 +41,7 @@ type WalletResponse = {
   summary: any;
   wallet: WalletData;
   bankingDetails: BankingDetails;
+  hasBusinessProfile?: boolean; // newly returned by API
 };
 
 type WalletTransaction = {
@@ -158,7 +159,33 @@ export default function WalletPage() {
     </div>
   );
 
-  if (data && !isBankingComplete(data.bankingDetails)) {
+  // Distinguish between: (1) no business profile yet, (2) business profile exists but missing banking details
+  if (data && !data.hasBusinessProfile) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="border border-amber-300 rounded-lg overflow-hidden">
+          <div className="bg-amber-50 px-4 py-3 border-b border-amber-300">
+            <h2 className="text-xl font-semibold text-amber-700">Create Your Business Profile</h2>
+            <p className="text-sm text-gray-600">Set up a business profile to start earning and unlock banking details & payouts.</p>
+          </div>
+          <div className="bg-white px-4 py-4 space-y-4">
+            <p className="text-gray-700">You currently only have a client account. To receive payouts, list items, and view enhanced wallet analytics you need a business profile.</p>
+            <ul className="list-disc pl-6 text-sm text-gray-600 space-y-1">
+              <li>Choose a business name & service area</li>
+              <li>Add a contact number for renters</li>
+              <li>Later: add banking details for withdrawals</li>
+            </ul>
+            <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2">
+              <button onClick={() => router.push('/auth/profile-setup')} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Create Business Profile</button>
+              <button onClick={fetchWallet} className="px-4 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200">Refresh</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data && data.hasBusinessProfile && !isBankingComplete(data.bankingDetails)) {
     return (
       <div className="max-w-4xl mx-auto p-4">
         <div className="border border-red-300 rounded-lg overflow-hidden">
@@ -168,7 +195,8 @@ export default function WalletPage() {
           </div>
           <div className="bg-white px-4 py-3">
             <p className="mb-4">Provide your banking details so we can process payouts of your available wallet balance.</p>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+              <button onClick={() => router.push('/dashboard/business/profile')} className="px-4 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200">Edit Business Profile</button>
               <button onClick={() => router.push('/dashboard/business/banking-details')} className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700">Add Banking Details</button>
             </div>
           </div>
