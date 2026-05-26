@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { authOptions } from '../../../auth/[...nextauth]/route';
 import { RentalAgreementService } from '@/src/lib/rental-agreement-service';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { agreementId: string } }
+  { params }: { params: Promise<{ agreementId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.userId) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { agreementId } = await params;
     const body = await request.json();
     const { signature } = body;
 
@@ -20,27 +20,24 @@ export async function POST(
       return NextResponse.json({ error: 'Signature is required' }, { status: 400 });
     }
 
-    // Get agreement to check permissions
-    const agreement = await RentalAgreementService.getAgreement(params.agreementId);
+    const agreement = await RentalAgreementService.getAgreement(agreementId);
     
     if (!agreement) {
       return NextResponse.json({ error: 'Agreement not found' }, { status: 404 });
     }
 
-    // Check if user can sign this agreement
-    if (!RentalAgreementService.canSignAgreement(agreement, session.userId)) {
+    if (agreement.renterId !== userId && agreement.ownerId !== userId) {
       return NextResponse.json({ error: 'Cannot sign this agreement' }, { status: 403 });
     }
 
-    // Get client IP and user agent for signature verification
     const forwardedFor = request.headers.get('x-forwarded-for');
     const realIp = request.headers.get('x-real-ip');
     const ipAddress = forwardedFor?.split(',')[0] || realIp || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     await RentalAgreementService.signAgreement(
-      params.agreementId,
-      session.userId,
+      agreementId,
+      userId,
       signature.trim(),
       ipAddress,
       userAgent

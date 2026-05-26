@@ -4,9 +4,9 @@ import { RewardsService } from '@/src/lib/rewards-service';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const { userId } = await auth();
     
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user owns this discount
-    if (discount.userId !== session.userId) {
+    if (discount.userId !== userId) {
       return NextResponse.json(
         { 
           valid: false,
@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate discount amount
-    const { calculateDiscountAmount } = await import('@/src/types/rewards');
-    const discountAmount = calculateDiscountAmount(discount, orderAmount);
+    const discountAmount = discount.type === 'percentage' 
+      ? (orderAmount * discount.value / 100)
+      : discount.value;
 
     return NextResponse.json({
       valid: true,
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
         type: discount.type,
         value: discount.value,
         discountAmount,
-        validUntil: discount.validUntil.toDate().toISOString(),
+        validUntil: discount.validUntil instanceof Date ? discount.validUntil.toISOString() : discount.validUntil,
         minimumOrderAmount: discount.minimumOrderAmount
       }
     });
@@ -82,9 +83,9 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const { userId } = await auth();
     
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }

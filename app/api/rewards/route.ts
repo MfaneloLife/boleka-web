@@ -4,9 +4,9 @@ import { RewardsService } from '@/src/lib/rewards-service';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const { userId } = await auth();
     
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       case 'history': {
         const limit = searchParams.get('limit');
         const history = await RewardsService.getPointsHistory(
-          session.userId, 
+          userId, 
           limit ? parseInt(limit) : undefined
         );
         
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       case 'discounts': {
         const includeUsed = searchParams.get('includeUsed') === 'true';
         const discounts = await RewardsService.getUserDiscounts(
-          session.userId, 
+          userId, 
           includeUsed
         );
         
@@ -44,20 +44,17 @@ export async function GET(request: NextRequest) {
       }
 
       case 'leaderboard': {
-        // Public leaderboard
         const limit = searchParams.get('limit');
         const leaderboard = await RewardsService.getLeaderboard(
           limit ? parseInt(limit) : undefined
         );
         
-        // Remove sensitive information
-        const publicLeaderboard = leaderboard.map((user, index) => ({
+        const publicLeaderboard = leaderboard.map((user: any, index: number) => ({
           rank: index + 1,
           tier: user.tier,
           totalPoints: user.totalPoints,
           reliabilityScore: user.reliabilityScore,
           onTimeReturns: user.onTimeReturns,
-          // Don't expose user ID or other sensitive data
           anonymizedId: `User${user.userId.slice(-4)}`
         }));
         
@@ -67,12 +64,10 @@ export async function GET(request: NextRequest) {
       }
 
       default: {
-        // Get user rewards summary
-        const rewards = await RewardsService.getUserRewards(session.userId);
+        const rewards = await RewardsService.getUserRewards(userId);
         
         if (!rewards) {
-          // Initialize if not exists
-          const newRewards = await RewardsService.initializeUserRewards(session.userId);
+          const newRewards = await RewardsService.initializeUserRewards(userId);
           return NextResponse.json({ rewards: newRewards });
         }
         
@@ -91,9 +86,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const { userId } = await auth();
     
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -107,7 +102,6 @@ export async function POST(request: NextRequest) {
       case 'award_points': {
         const { points, reason, metadata } = data;
         
-        // Validate input
         if (!points || points <= 0) {
           return NextResponse.json(
             { error: 'Invalid points amount' },
@@ -122,18 +116,15 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // For manual point awards, only admins should be able to do this
         if (reason === 'manual_award' || reason === 'bonus_points') {
-          if (!session.role || !['admin', 'moderator'].includes(session.role)) {
-            return NextResponse.json(
-              { error: 'Insufficient permissions' },
-              { status: 403 }
-            );
-          }
+          return NextResponse.json(
+            { error: 'Insufficient permissions' },
+            { status: 403 }
+          );
         }
 
         const transaction = await RewardsService.awardPoints(
-          data.userId || session.userId,
+          data.userId || userId,
           points,
           reason,
           metadata
@@ -156,9 +147,8 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Award points for on-time return (5 points)
         const transaction = await RewardsService.awardPoints(
-          session.userId,
+          userId,
           5,
           'on_time_return',
           { orderId }
@@ -182,7 +172,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        await RewardsService.recordLateReturn(session.userId, orderId);
+        await RewardsService.recordLateReturn(userId, orderId);
 
         return NextResponse.json({
           success: true,
@@ -193,7 +183,6 @@ export async function POST(request: NextRequest) {
       case 'redeem_discount': {
         const { pointsCost, discountPercentage, validDays } = data;
         
-        // Validate input
         if (!pointsCost || pointsCost < 15) {
           return NextResponse.json(
             { error: 'Minimum 15 points required for discount' },
@@ -208,12 +197,11 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Calculate valid until date
         const validUntil = new Date();
         validUntil.setDate(validUntil.getDate() + (validDays || 30));
 
         const discount = await RewardsService.createDiscount(
-          session.userId,
+          userId,
           pointsCost,
           discountPercentage,
           validUntil
