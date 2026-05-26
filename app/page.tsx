@@ -7,6 +7,7 @@ import TabNav from "@/src/components/landing/TabNav";
 import CategoryPills from "@/src/components/landing/CategoryPills";
 import CategoryGrid from "@/src/components/landing/CategoryGrid";
 import HeroBanner from "@/src/components/landing/HeroBanner";
+import PromoCarousel from "@/src/components/landing/PromoCarousel";
 import BrandsSection from "@/src/components/landing/BrandsSection";
 import ShopsTab from "@/src/components/landing/ShopsTab";
 import FavouritesTab from "@/src/components/landing/FavouritesTab";
@@ -27,7 +28,7 @@ export default function Home() {
       {activeTab === "discover" && (
         <>
           <CategoryPills />
-          <HeroBanner />
+          <PromoCarousel />
           <CategoryGrid />
           <BrandsSection />
         </>
