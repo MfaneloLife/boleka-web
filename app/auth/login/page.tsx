@@ -9,19 +9,13 @@ export default function LoginPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <button className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100">
-              <span className="sr-only">Open menu</span>
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 7h16M4 12h16M4 17h16" />
-              </svg>
-            </button>
-            <span className="text-xl font-semibold tracking-tight text-slate-900">BOLEKA</span>
+            <Link href="/" className="text-xl font-semibold tracking-tight text-slate-900">BOLEKA</Link>
           </div>
           <Link
             href="/auth/signup"
             className="rounded-full border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 shadow-sm transition hover:bg-orange-50"
           >
-            Sign up / Login
+            Sign Up
           </Link>
         </div>
       </header>
@@ -43,14 +37,14 @@ export default function LoginPage() {
                 Mobile friendly UI
               </span>
               <span className="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700">
-                Firebase + R2 image uploads supported
+                Secure payments via PayFast
               </span>
             </div>
           </div>
         </section>
 
         <section className="rounded-3xl bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-xl font-semibold text-slate-900">Sign in to your account</h2>
               <p className="text-sm text-slate-500">Use your existing account or create one with Clerk.</p>

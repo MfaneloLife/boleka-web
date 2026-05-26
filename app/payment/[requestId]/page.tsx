@@ -29,7 +29,7 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
-      router.push('/auth/sign-in');
+      router.push('/auth/login');
       return;
     }
 
@@ -69,7 +69,7 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
 
   if (error || !request) {
     return (
-      <div className="container mx-auto max-w-md py-12">
+      <div className="container mx-auto max-w-md px-4 py-12">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
           <p className="text-gray-700">{error || 'Request not found'}</p>
@@ -85,8 +85,8 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
   }
 
   return (
-    <div className="container mx-auto max-w-md py-12">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+    <div className="container mx-auto max-w-md px-4 py-12">
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">
         {showPaymentForm ? 'Complete Your Payment' : 'Review Terms and Conditions'}
       </h1>
       {showPaymentForm ? (

@@ -73,7 +73,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
-      window.location.href = '/auth/sign-in';
+      window.location.href = '/auth/login';
       return;
     }
 
@@ -171,7 +171,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
       {error && (
-        <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-md">
+        <div className="m-4 p-4 text-sm text-red-700 bg-red-100 rounded-md">
           {error}
         </div>
       )}
@@ -198,15 +198,15 @@ export default function ConversationPage({ params }: { params: { requestId: stri
               </div>
             )}
           </div>
-          <div className="ml-3 flex-1">
-            <div className="text-sm font-medium text-gray-900">
+          <div className="ml-3 flex-1 min-w-0">
+            <div className="text-sm font-medium text-gray-900 truncate">
               {otherParty?.name || 'User'}
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 truncate">
               {request.item.title}
             </div>
           </div>
-          <div className="bg-gray-100 px-3 py-1 rounded-full text-sm">
+          <div className="bg-gray-100 px-3 py-1 rounded-full text-sm flex-shrink-0 ml-2">
             Status: <span className="font-medium capitalize">{request.status}</span>
           </div>
         </div>
@@ -235,15 +235,15 @@ export default function ConversationPage({ params }: { params: { requestId: stri
                   )}
                 </div>
                 
-                <div className="ml-4 flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">{request.item.title}</h3>
+                <div className="ml-4 flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">{request.item.title}</h3>
                   <p className="text-sm text-gray-500">Price: R{request.item.price.toFixed(2)}</p>
                   <p className="text-sm text-gray-500">Request created: {formatDate(request.createdAt)}</p>
                 </div>
                 
                 <Link
-                  href={`/dashboard/client/items/${request.item.id}`}
-                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                  href={`/dashboard`}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex-shrink-0 ml-2"
                 >
                   View Item
                 </Link>

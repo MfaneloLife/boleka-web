@@ -50,7 +50,7 @@ export default function MessagesPage() {
     if (!isLoaded) return;
 
     if (!isSignedIn) {
-      window.location.href = '/auth/sign-in';
+      window.location.href = '/auth/login';
       return;
     }
 
@@ -101,11 +101,11 @@ export default function MessagesPage() {
   return (
     <div>
       <div className="px-4 py-5 sm:px-6">
-        <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
         <p className="mt-1 max-w-2xl text-sm text-gray-500">
           Use messages to communicate with other Boleka users about item requests, availability, and coordination.
         </p>
-        <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-md">
+        <div className="mt-3 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-md">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -128,12 +128,12 @@ export default function MessagesPage() {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-md">
+        <div className="mx-4 sm:mx-6 mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-md">
           {error}
         </div>
       )}
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg mx-4 sm:mx-6">
         {conversations.length > 0 ? (
           <ul className="divide-y divide-gray-200">
             {conversations.map((conversation) => {
@@ -148,7 +148,7 @@ export default function MessagesPage() {
                   >
                     <div className="px-4 py-4 sm:px-6">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center">
+                        <div className="flex items-center min-w-0 flex-1">
                           <div className="flex-shrink-0 h-10 w-10 relative">
                             {otherParty?.image ? (
                               <Image
@@ -164,17 +164,17 @@ export default function MessagesPage() {
                               </div>
                             )}
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-indigo-600">
+                          <div className="ml-4 min-w-0">
+                            <div className="text-sm font-medium text-indigo-600 truncate">
                               {conversation.item.title}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 truncate">
                               {otherParty?.name || 'User'}
                             </div>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-xs text-gray-500">
+                        <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
                             {lastMessage ? formatDate(lastMessage.createdAt) : formatDate(conversation.updatedAt)}
                           </span>
                           <span className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
@@ -207,22 +207,13 @@ export default function MessagesPage() {
             </p>
             <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href="/dashboard/client/search"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                href="/dashboard"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 Browse Items
-              </Link>
-              <Link
-                href="/dashboard/business/items/new"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                List an Item
               </Link>
             </div>
           </div>

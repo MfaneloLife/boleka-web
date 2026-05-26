@@ -78,7 +78,7 @@ export default function ItemDetailsPage() {
   const handleRequestItem = async () => {
     if (!isLoaded) return;
     if (!user) {
-      window.location.href = '/auth/sign-in';
+      window.location.href = '/auth/login';
       return;
     }
 
@@ -98,7 +98,7 @@ export default function ItemDetailsPage() {
         throw new Error(data.error || 'Failed to create request');
       }
 
-      router.push('/dashboard/client/requests');
+      router.push('/messages');
     } catch (err: unknown) {
       console.error('Error creating request:', err);
     }
@@ -120,10 +120,10 @@ export default function ItemDetailsPage() {
           <p className="mt-2 text-sm text-red-700">{error || 'Item not found'}</p>
           <div className="mt-4">
             <Link
-              href="/dashboard/client/search"
+              href="/dashboard"
               className="text-sm font-medium text-red-600 hover:text-red-500"
             >
-              &larr; Back to Search
+              &larr; Back to Dashboard
             </Link>
           </div>
         </div>
@@ -135,13 +135,13 @@ export default function ItemDetailsPage() {
   const images = item.imageUrls ? JSON.parse(item.imageUrls) : [];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-10">
       <div className="mb-6">
         <Link
-          href="/dashboard/client/search"
+          href="/dashboard"
           className="inline-flex items-center text-sm text-orange-600 hover:text-orange-500"
         >
-          &larr; Back to Search
+          &larr; Back to Dashboard
         </Link>
       </div>
 
@@ -149,7 +149,7 @@ export default function ItemDetailsPage() {
         <div className="md:flex">
           {/* Image Gallery */}
           <div className="md:w-1/2">
-            <div className="relative h-80 w-full">
+            <div className="relative h-64 sm:h-80 w-full">
               {images.length > 0 ? (
                 <Image
                   src={images[0]}
@@ -166,7 +166,7 @@ export default function ItemDetailsPage() {
             {images.length > 1 && (
               <div className="flex overflow-x-auto p-2 space-x-2">
                 {images.slice(1).map((image: string, index: number) => (
-                  <div key={index} className="w-24 h-24 flex-shrink-0 relative">
+                  <div key={index} className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 relative">
                     <Image
                       src={image}
                       alt={`${item.title} - image ${index + 2}`}
@@ -180,10 +180,10 @@ export default function ItemDetailsPage() {
           </div>
 
           {/* Item Details */}
-          <div className="md:w-1/2 p-6">
-            <div className="flex justify-between items-start">
+          <div className="md:w-1/2 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{item.title}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{item.title}</h1>
                 <div className="flex items-center mt-2">
                   {averageRating ? (
                     <div className="flex items-center">
@@ -199,7 +199,7 @@ export default function ItemDetailsPage() {
                   )}
                 </div>
               </div>
-              <p className="text-2xl font-bold text-orange-600">${item.price}/day</p>
+              <p className="text-xl sm:text-2xl font-bold text-orange-600">R{item.price}/day</p>
             </div>
 
             <div className="mt-4">
@@ -229,7 +229,7 @@ export default function ItemDetailsPage() {
 
             <div className="mt-6">
               <h3 className="text-lg font-medium text-gray-900">Description</h3>
-              <p className="mt-2 text-gray-600">{item.description}</p>
+              <p className="mt-2 text-gray-600 text-sm sm:text-base">{item.description}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
@@ -243,11 +243,11 @@ export default function ItemDetailsPage() {
               </div>
             </div>
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3">
               {isOwner ? (
                 <Link
                   href={`/dashboard/business/items/${itemId}/edit`}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 w-full sm:w-auto"
                 >
                   Edit Item
                 </Link>
@@ -255,13 +255,13 @@ export default function ItemDetailsPage() {
                 <>
                   <button
                     onClick={handleRequestItem}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 w-full sm:w-auto"
                   >
                     Request Item
                   </button>
                   <button
                     onClick={() => setIsMessageModalOpen(true)}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 w-full sm:w-auto"
                   >
                     Contact Owner
                   </button>
@@ -272,7 +272,7 @@ export default function ItemDetailsPage() {
         </div>
 
         {/* Reviews Preview Section */}
-        <div className="px-6 py-4 border-t border-gray-200">
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">
               Reviews
