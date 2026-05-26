@@ -1,89 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
-import { FirebaseDbService } from '@/src/lib/firebase-db';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
+import { getRequestById, createPaymentRecord } from '@/lib/neon-db';
 import { generatePaymentFormData, type PaymentData } from '@/lib/payfast';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the user session
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get request body
     const body = await request.json();
-    const { requestId, amount, itemName, itemDescription } = body;
+    const { requestId, amount, itemName, itemDescription } = body as {
+      requestId?: string;
+      amount?: number;
+      itemName?: string;
+      itemDescription?: string;
+    };
 
-    // Validate required fields
-    if (!requestId || !amount || !itemName) {
+    if (!requestId || amount === undefined || !itemName) {
       return NextResponse.json(
         { error: 'Missing required fields: requestId, amount, itemName' },
         { status: 400 }
       );
     }
 
-    // Get user from Firebase
-    const userResult = await FirebaseDbService.getUserByEmail(session.user.email);
-    if (!userResult.success || !userResult.user) {
+    const userId = session.userId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get the request details to find the merchant
-    const requestQuery = await FirebaseDbService.getRequestById(requestId);
-    if (!requestQuery.success || !requestQuery.request) {
+    const requestData = await getRequestById(requestId);
+    if (!requestData) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    const requestData = requestQuery.request;
-
-    // Calculate commission and merchant amounts
-    const commissionRate = 0.08; // 8% commission
-    const commissionAmount = Math.round(amount * commissionRate * 100) / 100;
-    const merchantAmount = Math.round((amount - commissionAmount) * 100) / 100;
-
-    // Create payment record in Firebase
-    const paymentResult = await FirebaseDbService.createPayment({
+    const payment = await createPaymentRecord({
       requestId,
       amount,
-      commissionAmount,
-      merchantAmount,
-      merchantPaid: false,
-      status: 'PENDING',
-      paymentMethod: 'PAYFAST',
-      payerId: userResult.user.id,
-      merchantId: requestData.ownerId
+      payerId: user.id,
+      method: 'PAYFAST',
     });
 
-    if (!paymentResult.success) {
-      return NextResponse.json({ error: 'Failed to create payment record' }, { status: 500 });
-    }
-
-    // Prepare PayFast payment data
     const paymentData: PaymentData = {
-      amount: amount,
-      itemName: itemName,
+      amount,
+      itemName,
       itemDescription: itemDescription || `Payment for ${itemName}`,
-      firstName: userResult.user.name?.split(' ')[0] || 'Customer',
-      lastName: userResult.user.name?.split(' ').slice(1).join(' ') || '',
-      email: userResult.user.email,
-      customStr1: paymentResult.id, // Payment ID for tracking
-      customStr2: requestId, // Request ID
-      customStr3: requestData.ownerId, // Merchant ID
+      firstName: user.name?.split(' ')[0] || 'Customer',
+      lastName: user.name?.split(' ').slice(1).join(' ') || '',
+      email: user.email ?? '',
+      customStr1: payment.id,
+      customStr2: requestId,
+      customStr3: requestData.owner.id,
     };
 
-    // Generate PayFast form data with signature
     const payFastData = generatePaymentFormData(paymentData);
 
     return NextResponse.json({
-      paymentId: paymentResult.id,
+      paymentId: payment.id,
       payFastData,
-      payFastUrl: process.env.NODE_ENV === 'production' 
-        ? 'https://www.payfast.co.za/eng/process'
-        : 'https://sandbox.payfast.co.za/eng/process'
+      payFastUrl:
+        process.env.NODE_ENV === 'production'
+          ? 'https://www.payfast.co.za/eng/process'
+          : 'https://sandbox.payfast.co.za/eng/process',
     });
-
   } catch (error) {
     console.error('Error creating payment:', error);
     return NextResponse.json(

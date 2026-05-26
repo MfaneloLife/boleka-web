@@ -1,15 +1,17 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import PaymentForm from '@/components/PaymentForm';
 import TermsAndConditions from '@/components/TermsAndConditions';
 import Loading from '@/components/Loading';
-import { auth } from '@/src/lib/firebase';
 
 export default function PaymentPage({ params }: { params: { requestId: string } }) {
   const { requestId } = params;
   const router = useRouter();
+  const { user, isLoaded, isSignedIn } = useUser();
+
   const [request, setRequest] = useState<{
     id: string;
     status: string;
@@ -19,32 +21,25 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
       title: string;
       price: number;
     };
-    owner: {
-      id: string;
-      name: string;
-    };
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        router.push('/auth/login');
-        return;
-      }
-      const fetchRequest = async () => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      router.push('/auth/sign-in');
+      return;
+    }
+
+    const fetchRequest = async () => {
       try {
-        const idToken = await user.getIdToken();
-        const response = await fetch(`/api/requests/${requestId}`, {
-          headers: { 'Authorization': `Bearer ${idToken}` },
-        });
-        
+        setLoading(true);
+        const response = await fetch(`/api/requests/${requestId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch request details');
         }
-        
         const data = await response.json();
         setRequest(data);
       } catch (error) {
@@ -53,20 +48,23 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
       } finally {
         setLoading(false);
       }
-      };
-      if (requestId) {
-        fetchRequest();
-      }
-    });
-    return () => unsub();
-  }, [requestId, router]);
+    };
+
+    if (requestId) {
+      fetchRequest();
+    }
+  }, [requestId, router, isLoaded, isSignedIn]);
 
   const handleCancel = () => {
     router.back();
   };
 
-  if (loading) {
+  if (!isLoaded || loading) {
     return <Loading />;
+  }
+
+  if (!isSignedIn) {
+    return null;
   }
 
   if (error || !request) {
@@ -91,7 +89,6 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {showPaymentForm ? 'Complete Your Payment' : 'Review Terms and Conditions'}
       </h1>
-      
       {showPaymentForm ? (
         <PaymentForm
           requestId={requestId}

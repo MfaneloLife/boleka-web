@@ -1,0 +1,339 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User Model (Managed via Clerk authentication)
+// Clerk handles auth & sessions. This model extends Clerk's user data.
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  phone         String?
+
+  // Boleka-specific fields
+  profileCompleted  Boolean   @default(false)
+  hasBusinessProfile Boolean @default(false)
+  role              String?   // 'user', 'owner', 'admin'
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  items     Item[]
+  bookings  Booking[]
+  reviews   Review[]
+  rentalAgreements RentalAgreement[]
+  rewards   UserRewards?
+  requestsSent    Request[]    @relation("RequesterRequests")
+  requestsReceived Request[]   @relation("OwnerRequests")
+  messagesSent    Message[]    @relation("SenderMessages")
+  paymentsMade    Payment[]    @relation("PayerPayments")
+}
+
+// Item model with delivery logic
+model Item {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String
+  condition   String
+
+  // New fields as per requirements
+  quantity    Int      @default(1)
+  lat         Float?
+  lng         Float?
+  address     String?
+
+  // Item type: SELLING, RENTING, or BOTH
+  itemType    ItemType @default(BOTH)
+
+  // Rental/Selling pricing
+  price       Float    // Price per unit (for selling) or per day (for renting)
+  rentalPrice Float?   // Optional separate rental price if both types
+
+  // Delivery logic fields
+  allowCollection Boolean @default(true)
+  allowDelivery   Boolean @default(true)
+  deliveryFee     Float   @default(0)
+
+  // Status
+  isActive    Boolean  @default(true)
+  userId      String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  user        User     @relation(fields: [userId], references: [id])
+  bookings    Booking[]
+  reviews     Review[]
+  rentalAgreements RentalAgreement[]
+  images      ItemImage[]
+  requests    Request[]
+
+  @@index([userId])
+}
+
+// Item type enum: SELLING, RENTING, or BOTH
+enum ItemType {
+  SELLING
+  RENTING
+  BOTH
+}
+
+// Item images stored in R2 (Cloudflare) with URL in Neon
+// Maximum 6 images per item
+model ItemImage {
+  id        String   @id @default(cuid())
+
+  // R2 storage URL (stored from Cloudflare R2)
+  url       String
+
+  // Image order (0-5 for max 6 images)
+  order     Int      @default(0)
+
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([itemId, order]) // Ensure unique order per item
+  @@index([itemId])
+}
+
+// Booking model with status enum
+model Booking {
+  id        String   @id @default(cuid())
+
+  // Booking details
+  userId    String
+  itemId    String
+
+  // Status field with enum as per requirements
+  status    BookingStatus @default(PENDING)
+
+  // Rental/Purchase period
+  startDate DateTime
+  endDate   DateTime?
+
+  // Financial details
+  totalPrice Float
+  platformFee Float @default(0)
+  deliveryFee Float @default(0)
+
+  // Payout split tracking (5% platform commission)
+  platformCommission Float @default(0)
+  vendorPayoutAmount Float @default(0)
+  commissionPaid     Boolean @default(false)
+
+  // Delivery/Collection preferences
+  deliveryMethod String? // 'collection' | 'delivery'
+
+  // QR Code for completion/payout release
+  qrCode         String?   @db.Text
+  qrCodeExpiresAt DateTime?
+  qrCodeScannedAt DateTime?
+
+  // Return tracking for rentals
+  returnStatus String @default("NOT_RETURNED") // 'NOT_RETURNED', 'RETURNED'
+  returnedAt   DateTime?
+
+  // Additional details
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id])
+  item      Item     @relation(fields: [itemId], references: [id])
+
+  @@index([userId])
+  @@index([itemId])
+}
+
+// Booking status enum as per requirements
+enum BookingStatus {
+  PENDING
+  PAID
+  FROZEN
+  COMPLETED
+  CANCELLED
+}
+
+// Review model
+model Review {
+  id        String   @id @default(cuid())
+
+  rating    Int      // 1-5 stars
+  comment   String?
+  reviewType String   // 'renter_to_owner' | 'owner_to_renter'
+
+  userId    String
+  itemId    String
+  bookingId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id])
+  item      Item     @relation(fields: [itemId], references: [id])
+
+  @@index([userId])
+  @@index([itemId])
+}
+
+// Rental Agreement model
+model RentalAgreement {
+  id                String   @id @default(cuid())
+  agreementNumber   String   @unique
+
+  userId            String
+  itemId            String
+  bookingId         String?
+
+  status            String   @default("draft") // 'draft', 'pending_signatures', 'signed', 'active', 'completed', 'terminated'
+
+  // Dates
+  startDate         DateTime
+  endDate           DateTime
+
+  // Financial
+  dailyRate         Float
+  totalAmount       Float
+  securityDeposit   Float    @default(0)
+  platformFee       Float    @default(0)
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  signedAt          DateTime?
+  terminatedAt      DateTime?
+  terminationReason String?
+
+  // Relationships
+  user              User     @relation(fields: [userId], references: [id])
+  item              Item     @relation(fields: [itemId], references: [id])
+
+  @@index([userId])
+  @@index([itemId])
+}
+
+// User Rewards model
+model UserRewards {
+  id                String   @id @default(cuid())
+
+  userId            String   @unique
+
+  // Points System
+  totalPoints       Int      @default(0)
+  availablePoints   Int      @default(0)
+  redeemedPoints    Int      @default(0)
+  pendingPoints     Int      @default(0)
+  usedPoints        Int      @default(0)
+
+  // Streaks and Performance
+  onTimeReturnStreak Int     @default(0)
+  maxStreak         Int      @default(0)
+  totalRentals      Int      @default(0)
+  onTimeReturns     Int      @default(0)
+  lateReturns       Int      @default(0)
+  reliabilityScore  Float    @default(0)
+
+  // Reward Level
+  rewardLevel       String   @default("Bronze") // 'Bronze', 'Silver', 'Gold', 'Platinum'
+  tier              String   @default("Bronze")
+  pointsToNextLevel Int      @default(0)
+
+  // Discounts
+  totalSavings      Float    @default(0)
+  discountsUsed     Int      @default(0)
+  discountsEarned   Int      @default(0)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Request {
+  id          String        @id @default(cuid())
+  itemId      String
+  requesterId String
+  ownerId     String
+  status      RequestStatus @default(PENDING)
+  startDate   DateTime?
+  endDate     DateTime?
+  totalPrice  Float?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  item      Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  requester User    @relation("RequesterRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  owner     User    @relation("OwnerRequests", fields: [ownerId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  payments  Payment[]
+
+  @@index([itemId])
+  @@index([requesterId])
+  @@index([ownerId])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  PAID
+  CANCELLED
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  requestId  String
+  senderId   String
+  content    String
+  imageUrl   String?
+  createdAt  DateTime @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  sender  User    @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([senderId])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  requestId  String
+  payerId    String
+  amount     Float
+  status     String   @default("PENDING")
+  method     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  payer   User    @relation("PayerPayments", fields: [payerId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([payerId])
+}

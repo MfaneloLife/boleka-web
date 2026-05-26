@@ -34,7 +34,7 @@ interface QuickStats {
 export default function DashboardPage() {
   const router = useRouter();
   const [hasBusinessProfile, setHasBusinessProfile] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
   const [featuredItems, setFeaturedItems] = useState<Item[]>([]);

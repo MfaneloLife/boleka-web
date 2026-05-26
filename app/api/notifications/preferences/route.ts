@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { ReminderService } from '@/src/lib/reminder-service';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
-    const preferences = await ReminderService.getUserPreferences(session.user.id);
+    const preferences = await ReminderService.getUserPreferences(session.userId);
 
     if (!preferences) {
       // Return default preferences
@@ -65,9 +64,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -172,7 +171,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    await ReminderService.updateUserPreferences(session.user.id, preferences);
+    await ReminderService.updateUserPreferences(session.userId, preferences);
 
     return NextResponse.json({
       success: true,

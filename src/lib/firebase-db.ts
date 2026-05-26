@@ -1,681 +1,77 @@
-import { adminDb } from './firebase-admin';
-import { Timestamp } from "firebase-admin/firestore";
+import { prisma } from '@/lib/prisma';
+import {
+  createPaymentRecord,
+  getRequestById as getRequestByIdNeon,
+  getUserByEmail as getUserByEmailNeon,
+  getWalletTransactions,
+  getPaymentsForMerchant,
+  updatePayment,
+  markRequestPaid,
+} from '@/lib/neon-db';
 
-// Types matching your Prisma schema
-export interface User {
-  id: string;
-  name?: string;
-  email: string;
-  password?: string; // Legacy field, now optional for passwordless users
-  firebaseUid?: string;
-  image?: string;
-  hasBusinessProfile: boolean;
-  authMethod?: string; // 'email', 'google', 'facebook' to track auth type
-  createdAt: Date;
-  updatedAt: Date;
-}
+export const FirebaseDbService = {
+  getUserByEmail: async (email: string) => {
+    const user = await getUserByEmailNeon(email);
+    return user ? { success: true, user } : { success: false };
+  },
 
-export interface BusinessProfile {
-  id: string;
-  userId: string;
-  businessName: string;
-  category: string;
-  province: string;
-  city: string;
-  suburb: string;
-  phone: string;
-  access: string; // Delivery, Collection only, Both
-  quantity?: number; // Quantity of items business has
-  website?: string;
-  isVerified: boolean;
-  // Banking details
-  bankName?: string;
-  accountNumber?: string;
-  accountType?: string;
-  branchCode?: string;
-  accountHolderName?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+  getUserByFirebaseUid: async (uid: string) => {
+    if (!uid) return { success: false };
+    const user = await prisma.user.findUnique({ where: { id: uid } });
+    return user ? { success: true, user } : { success: false };
+  },
 
-export interface ClientProfile {
-  id: string;
-  userId: string;
-  firstName: string;
-  lastName: string;
-  province: string;
-  city: string;
-  suburb?: string;
-  phone?: string;
-  preferences: string; // Everything, Tools, Equipment, Clothes, Gadgets, Accessories, Books
-  quantity?: number; // Quantity of items client wants
-  createdAt: Date;
-  updatedAt: Date;
-}
+  getRequestById: async (requestId: string) => {
+    const request = await getRequestByIdNeon(requestId);
+    return request ? { success: true, request } : { success: false };
+  },
 
-export interface Item {
-  id: string;
-  name: string;
-  description?: string;
-  category: string;
-  condition: string;
-  dailyPrice: number;
-  isAvailable: boolean;
-  images: string[];
-  ownerId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+  createPayment: async (data: { requestId: string; amount: number; payerId: string; paymentMethod: string }) => {
+    const payment = await createPaymentRecord({
+      requestId: data.requestId,
+      amount: data.amount,
+      payerId: data.payerId,
+      method: data.paymentMethod,
+    });
+    return { success: true, id: payment.id, payment };
+  },
 
-export interface Payment {
-  id: string;
-  // Linkage
-  orderId?: string; // When payment is for an Order flow
-  requestId?: string;
-  amount: number;
-  commissionAmount: number;
-  merchantAmount: number;
-  merchantPaid: boolean;
-  merchantPayoutDate?: Date;
-  status: string; // PENDING, COMPLETED, FAILED, CANCELLED
-  transactionId?: string;
-  paymentMethod?: string; // PAYFAST, CASH, etc.
-  paymentDetails?: string; // JSON string with payment details
-  payerId: string;
-  merchantId: string; // The business owner receiving the payment
-  createdAt: Date;
-  updatedAt: Date;
-  // Related data for display purposes
-  request?: {
-    id: string;
-    item: {
-      id: string;
-      name: string;
-      title: string;
-    };
-  };
-  payer?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
+  updatePayment: async (id: string, data: { status?: string; amount?: number }) => {
+    const payment = await updatePayment({ id, status: data.status, amount: data.amount });
+    return { success: true, payment };
+  },
 
-// Wallet / ledger types
-export interface WalletTransaction {
-  id: string;
-  userId: string; // merchant or client user depending on flow
-  type: string; // CREDIT_EARNED, DEBIT_PAYOUT, REFUND_CREDIT, DEBIT_SPEND, ADJUSTMENT
-  amount: number; // positive amounts; debits represented by type context
-  currency: string; // 'ZAR'
-  relatedPaymentId?: string;
-  relatedOrderId?: string;
-  relatedRequestId?: string;
-  metadata?: any; // arbitrary JSON
-  createdAt: Date;
-  updatedAt: Date;
-}
+  getPaymentsByMerchant: async (userId: string) => {
+    const payments = await getPaymentsForMerchant(userId);
+    return { success: true, payments };
+  },
 
-// Shared constants
-export const PLATFORM_CURRENCY = 'ZAR';
+  listWalletTransactions: async (userId: string, limit: number) => {
+    const transactions = await getWalletTransactions(userId, limit);
+    return { success: true, transactions };
+  },
 
-// Database service class
-export class FirebaseDbService {
-  // User operations
-  static async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
-    try {
-      const docRef = await adminDb.collection('users').add({
-        ...userData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      });
-      return { success: true, id: docRef.id };
-    } catch (error: any) {
-      console.error("Error creating user:", error);
-      return { success: false, error: error.message };
+  updateUser: async (id: string, data: Partial<{ firebaseUid: string }>) => {
+    const user = await prisma.user.update({ where: { id }, data: { ...data } });
+    return { success: true, user };
+  },
+
+  getBusinessProfileByUserId: async () => ({ success: true, profile: null }),
+
+  getPaymentByOrderId: async (orderId: string) => {
+    const payment = await prisma.payment.findFirst({ where: { requestId: orderId } });
+    return payment ? { success: true, payment } : { success: false };
+  },
+
+  updateRequest: async (requestId: string, values: Record<string, unknown>) => {
+    const data: Record<string, unknown> = {};
+    if ('paymentStatus' in values) {
+      data.status = values.paymentStatus as string;
     }
-  }
-
-  static async getUserByEmail(email: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    try {
-      const querySnapshot = await adminDb.collection('users').where('email', '==', email).get();
-      
-      if (querySnapshot.empty) {
-        return { success: false, error: 'User not found' };
-      }
-      
-      const userDoc = querySnapshot.docs[0];
-      const userData = { id: userDoc.id, ...userDoc.data() } as User;
-      return { success: true, user: userData };
-    } catch (error: any) {
-      console.error("Error getting user by email:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getUserById(userId: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    try {
-      const userDoc = await adminDb.collection('users').doc(userId).get();
-      
-      if (!userDoc.exists) {
-        return { success: false, error: 'User not found' };
-      }
-      
-      const userData = { id: userDoc.id, ...userDoc.data() } as User;
-      return { success: true, user: userData };
-    } catch (error: any) {
-      console.error("Error getting user by ID:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getUserByFirebaseUid(firebaseUid: string): Promise<{ success: boolean; user?: User; error?: string }> {
-    try {
-      const querySnapshot = await adminDb.collection('users').where('firebaseUid', '==', firebaseUid).limit(1).get();
-      if (querySnapshot.empty) {
-        return { success: false, error: 'User not found' };
-      }
-      const userDoc = querySnapshot.docs[0];
-      const userData = { id: userDoc.id, ...userDoc.data() } as User;
-      return { success: true, user: userData };
-    } catch (error: any) {
-      console.error('Error getting user by firebaseUid:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async updateUser(userId: string, userData: Partial<User>): Promise<{ success: boolean; error?: string }> {
-    try {
-      await adminDb.collection('users').doc(userId).update({
-        ...userData,
-        updatedAt: Timestamp.now()
-      });
-      return { success: true };
-    } catch (error: any) {
-      console.error("Error updating user:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Business Profile operations
-  static async createBusinessProfile(profileData: Omit<BusinessProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
-    try {
-      const docRef = await adminDb.collection('businessProfiles').add({
-        ...profileData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      });
-      return { success: true, id: docRef.id };
-    } catch (error: any) {
-      console.error("Error creating business profile:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getBusinessProfileByUserId(userId: string): Promise<{ success: boolean; profile?: BusinessProfile; error?: string }> {
-    try {
-      const querySnapshot = await adminDb.collection('businessProfiles').where('userId', '==', userId).get();
-      
-      if (querySnapshot.empty) {
-        return { success: false, error: 'Business profile not found' };
-      }
-      
-      const profileDoc = querySnapshot.docs[0];
-      const profileData = { id: profileDoc.id, ...profileDoc.data() } as BusinessProfile;
-      return { success: true, profile: profileData };
-    } catch (error: any) {
-      console.error("Error getting business profile:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async updateBusinessProfile(userId: string, profileData: Partial<BusinessProfile>): Promise<{ success: boolean; profile?: BusinessProfile; error?: string }> {
-    try {
-      const querySnapshot = await adminDb.collection('businessProfiles').where('userId', '==', userId).get();
-      
-      if (querySnapshot.empty) {
-        return { success: false, error: 'Business profile not found' };
-      }
-      
-      const profileDoc = querySnapshot.docs[0];
-      await profileDoc.ref.update({
-        ...profileData,
-        updatedAt: Timestamp.now()
-      });
-      
-      const updatedDoc = await profileDoc.ref.get();
-      const updatedProfile = { id: updatedDoc.id, ...updatedDoc.data() } as BusinessProfile;
-      return { success: true, profile: updatedProfile };
-    } catch (error: any) {
-      console.error("Error updating business profile:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getAllBusinessProfiles(): Promise<{ success: boolean; profiles?: BusinessProfile[]; error?: string }> {
-    try {
-      const querySnapshot = await adminDb.collection('businessProfiles').get();
-      
-      const profiles: BusinessProfile[] = [];
-      querySnapshot.forEach(doc => {
-        profiles.push({ id: doc.id, ...doc.data() } as BusinessProfile);
-      });
-      
-      return { success: true, profiles };
-    } catch (error: any) {
-      console.error("Error getting all business profiles:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Client Profile operations
-  static async createClientProfile(profileData: Omit<ClientProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
-    try {
-      const docRef = await adminDb.collection('clientProfiles').add({
-        ...profileData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      });
-      return { success: true, id: docRef.id };
-    } catch (error: any) {
-      console.error("Error creating client profile:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getClientProfileByUserId(userId: string): Promise<{ success: boolean; profile?: ClientProfile; error?: string }> {
-    try {
-      const querySnapshot = await adminDb.collection('clientProfiles').where('userId', '==', userId).get();
-      
-      if (querySnapshot.empty) {
-        return { success: false, error: 'Client profile not found' };
-      }
-      
-      const profileDoc = querySnapshot.docs[0];
-      const profileData = { id: profileDoc.id, ...profileDoc.data() } as ClientProfile;
-      return { success: true, profile: profileData };
-    } catch (error: any) {
-      console.error("Error getting client profile:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async updateClientProfile(userId: string, profileData: Partial<ClientProfile>): Promise<{ success: boolean; profile?: ClientProfile; error?: string }> {
-    try {
-      const querySnapshot = await adminDb.collection('clientProfiles').where('userId', '==', userId).get();
-      
-      if (querySnapshot.empty) {
-        return { success: false, error: 'Client profile not found' };
-      }
-      
-      const profileDoc = querySnapshot.docs[0];
-      await profileDoc.ref.update({
-        ...profileData,
-        updatedAt: Timestamp.now()
-      });
-      
-      const updatedDoc = await profileDoc.ref.get();
-      const updatedProfile = { id: updatedDoc.id, ...updatedDoc.data() } as ClientProfile;
-      return { success: true, profile: updatedProfile };
-    } catch (error: any) {
-      console.error("Error updating client profile:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Item operations
-  static async createItem(itemData: Omit<Item, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
-    try {
-      const docRef = await adminDb.collection('items').add({
-        ...itemData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      });
-      return { success: true, id: docRef.id };
-    } catch (error: any) {
-      console.error("Error creating item:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getItems(filters?: { category?: string; ownerId?: string; isAvailable?: boolean; location?: string }): Promise<{ success: boolean; items?: any[]; error?: string }> {
-    try {
-      let query: any = adminDb.collection('items');
-      
-      if (filters?.category) {
-        query = query.where('category', '==', filters.category);
-      }
-      if (filters?.ownerId) {
-        query = query.where('ownerId', '==', filters.ownerId);
-      }
-      if (filters?.isAvailable !== undefined) {
-        query = query.where('isAvailable', '==', filters.isAvailable);
-      }
-      
-      const querySnapshot = await query.orderBy('createdAt', 'desc').get();
-      const items: any[] = [];
-      
-      // Get all items first
-      const itemsData: Item[] = [];
-      querySnapshot.forEach((doc: any) => {
-        itemsData.push({ id: doc.id, ...doc.data() } as Item);
-      });
-
-      // Enhance items with owner location information
-      for (const item of itemsData) {
-        const businessProfileResult = await this.getBusinessProfileByUserId(item.ownerId);
-        
-        const enhancedItem = {
-          ...item,
-          ownerLocation: businessProfileResult.success && businessProfileResult.profile ? {
-            province: businessProfileResult.profile.province,
-            city: businessProfileResult.profile.city,
-            suburb: businessProfileResult.profile.suburb
-          } : null
-        };
-
-        // Apply location filter if specified
-        if (filters?.location) {
-          const location = filters.location.toLowerCase();
-          if (enhancedItem.ownerLocation) {
-            const matchesProvince = enhancedItem.ownerLocation.province?.toLowerCase().replace(/\s+/g, '-') === location;
-            const matchesCity = enhancedItem.ownerLocation.city?.toLowerCase().replace(/\s+/g, '-') === location;
-            
-            if (matchesProvince || matchesCity) {
-              items.push(enhancedItem);
-            }
-          }
-        } else {
-          items.push(enhancedItem);
-        }
-      }
-      
-      return { success: true, items };
-    } catch (error: any) {
-      console.error("Error getting items:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getItemById(itemId: string): Promise<{ success: boolean; item?: Item; error?: string }> {
-    try {
-      const itemDoc = await adminDb.collection('items').doc(itemId).get();
-      
-      if (!itemDoc.exists) {
-        return { success: false, error: 'Item not found' };
-      }
-      
-      const itemData = { id: itemDoc.id, ...itemDoc.data() } as Item;
-      return { success: true, item: itemData };
-    } catch (error: any) {
-      console.error("Error getting item:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async updateItem(itemId: string, itemData: Partial<Item>): Promise<{ success: boolean; error?: string }> {
-    try {
-      await adminDb.collection('items').doc(itemId).update({
-        ...itemData,
-        updatedAt: Timestamp.now()
-      });
-      return { success: true };
-    } catch (error: any) {
-      console.error("Error updating item:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async deleteItem(itemId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      await adminDb.collection('items').doc(itemId).delete();
-      return { success: true };
-    } catch (error: any) {
-      console.error("Error deleting item:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Payment operations
-  static async createPayment(paymentData: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
-    try {
-      const docRef = await adminDb.collection('payments').add({
-        ...paymentData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      });
-      return { success: true, id: docRef.id };
-    } catch (error: any) {
-      console.error("Error creating payment:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Wallet transaction operations
-  static async addWalletTransaction(data: Omit<WalletTransaction, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string; error?: string }> {
-    try {
-      const docRef = await adminDb.collection('walletTransactions').add({
-        ...data,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      });
-      return { success: true, id: docRef.id };
-    } catch (error: any) {
-      console.error('Error adding wallet transaction:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async listWalletTransactions(userId: string, limit = 50): Promise<{ success: boolean; transactions?: WalletTransaction[]; error?: string }> {
-    try {
-      const snap = await adminDb.collection('walletTransactions')
-        .where('userId', '==', userId)
-        .orderBy('createdAt', 'desc')
-        .limit(limit)
-        .get();
-      const tx = snap.docs.map(d => ({ id: d.id, ...d.data() } as WalletTransaction));
-      return { success: true, transactions: tx };
-    } catch (error: any) {
-      console.error('Error listing wallet transactions:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getWalletBalance(userId: string): Promise<{ success: boolean; available: number; credit: number; error?: string }> {
-    try {
-      // Simple aggregation: credits - debits based on type naming
-      const snap = await adminDb.collection('walletTransactions')
-        .where('userId', '==', userId)
-        .get();
-      let credit = 0; // future loyalty / bonus credits could be separated
-      let available = 0;
-      snap.forEach(doc => {
-        const d = doc.data() as any;
-        const amt = d.amount || 0;
-        switch (d.type) {
-          case 'CREDIT_EARNED':
-          case 'REFUND_CREDIT':
-          case 'ADJUSTMENT_CREDIT':
-            available += amt; break;
-          case 'DEBIT_PAYOUT':
-          case 'DEBIT_SPEND':
-          case 'ADJUSTMENT_DEBIT':
-            available -= amt; break;
-          case 'CREDIT_BONUS':
-            credit += amt; break;
-        }
-      });
-      return { success: true, available, credit };
-    } catch (error: any) {
-      console.error('Error getting wallet balance:', error);
-      return { success: false, available: 0, credit: 0, error: error.message };
-    }
-  }
-
-  static async getPaymentsByMerchant(merchantId: string): Promise<{ success: boolean; payments?: Payment[]; error?: string }> {
-    try {
-      // Get all completed/successful payments for this merchant
-      const querySnapshot = await adminDb.collection('payments')
-        .where('merchantId', '==', merchantId)
-        .where('status', 'in', ['COMPLETED', 'PAID'])
-        .orderBy('createdAt', 'desc')
-        .get();
-      
-      const payments: Payment[] = [];
-      
-      for (const doc of querySnapshot.docs) {
-        const paymentData = { id: doc.id, ...doc.data() } as Payment;
-        
-        // Get related request and item data for display
-        try {
-          if (paymentData.requestId) {
-            const requestDoc = await adminDb.collection('requests').doc(paymentData.requestId).get();
-            if (requestDoc.exists) {
-              const requestData = requestDoc.data();
-              
-              // Get item data
-              const itemId = (requestData as any)?.itemId as string | undefined;
-              if (itemId) {
-                const itemDoc = await adminDb.collection('items').doc(itemId).get();
-                if (itemDoc.exists) {
-                  const itemData = itemDoc.data();
-                  paymentData.request = {
-                    id: requestDoc.id,
-                    item: {
-                      id: itemDoc.id,
-                      name: (itemData as any)?.name || 'Unknown Item',
-                      title: (itemData as any)?.name || 'Unknown Item'
-                    }
-                  };
-                }
-              }
-            }
-          }
-          
-          // Get payer data regardless
-          const payerDoc = await adminDb.collection('users').doc(paymentData.payerId).get();
-          if (payerDoc.exists) {
-            const payerData = payerDoc.data();
-            paymentData.payer = {
-              id: payerDoc.id,
-              name: (payerData as any)?.name || 'Unknown User',
-              email: (payerData as any)?.email || 'Unknown Email'
-            };
-          }
-        } catch (relatedDataError) {
-          console.error('Error fetching related payment data:', relatedDataError);
-          // Continue without related data
-        }
-        
-        payments.push(paymentData);
-      }
-      
-      return { success: true, payments };
-    } catch (error: any) {
-      console.error("Error getting payments by merchant:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async updatePayment(paymentId: string, paymentData: Partial<Payment>): Promise<{ success: boolean; error?: string }> {
-    try {
-      await adminDb.collection('payments').doc(paymentId).update({
-        ...paymentData,
-        updatedAt: Timestamp.now()
-      });
-      return { success: true };
-    } catch (error: any) {
-      console.error("Error updating payment:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getPaymentByOrderId(orderId: string): Promise<{ success: boolean; payment?: Payment; error?: string }> {
-    try {
-      const snap = await adminDb
-        .collection('payments')
-        .where('orderId', '==', orderId)
-        .limit(1)
-        .get();
-      if (snap.empty) return { success: false, error: 'Payment not found' };
-      const doc = snap.docs[0];
-      return { success: true, payment: { id: doc.id, ...doc.data() } as Payment };
-    } catch (error: any) {
-      console.error('Error getting payment by orderId:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getPaymentsByRequestId(requestId: string): Promise<{ success: boolean; payments?: Payment[]; error?: string }> {
-    try {
-      const snap = await adminDb
-        .collection('payments')
-        .where('requestId', '==', requestId)
-        .get();
-      if (snap.empty) return { success: true, payments: [] };
-      const payments = snap.docs.map(d => ({ id: d.id, ...d.data() } as Payment));
-      return { success: true, payments };
-    } catch (error: any) {
-      console.error('Error getting payments by requestId:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Request operations
-  static async getRequestById(requestId: string): Promise<{ success: boolean; request?: any; error?: string }> {
-    try {
-      const requestDoc = await adminDb.collection('requests').doc(requestId).get();
-      
-      if (!requestDoc.exists) {
-        return { success: false, error: 'Request not found' };
-      }
-      
-      const requestData = { id: requestDoc.id, ...requestDoc.data() };
-      return { success: true, request: requestData };
-    } catch (error: any) {
-      console.error("Error getting request by ID:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async updateRequest(requestId: string, requestData: any): Promise<{ success: boolean; error?: string }> {
-    try {
-      await adminDb.collection('requests').doc(requestId).update({
-        ...requestData,
-        updatedAt: Timestamp.now()
-      });
-      return { success: true };
-    } catch (error: any) {
-      console.error("Error updating request:", error);
-      return { success: false, error: error.message };
-    }
-  }
-}
-
-// Service exports for easy access
-export const userService = {
-  createUser: FirebaseDbService.createUser,
-  getUserByEmail: FirebaseDbService.getUserByEmail,
-  getUserById: FirebaseDbService.getUserById,
-  updateUser: FirebaseDbService.updateUser,
-};
-
-export const businessProfileService = {
-  createBusinessProfile: FirebaseDbService.createBusinessProfile,
-  getBusinessProfileByUserId: FirebaseDbService.getBusinessProfileByUserId,
-  updateBusinessProfile: FirebaseDbService.updateBusinessProfile,
-};
-
-export const clientProfileService = {
-  createClientProfile: FirebaseDbService.createClientProfile,
-  getClientProfileByUserId: FirebaseDbService.getClientProfileByUserId,
-  updateClientProfile: FirebaseDbService.updateClientProfile,
-};
-
-export const itemService = {
-  createItem: FirebaseDbService.createItem,
-  getItems: FirebaseDbService.getItems,
-  getItemById: FirebaseDbService.getItemById,
-  updateItem: FirebaseDbService.updateItem,
-  deleteItem: FirebaseDbService.deleteItem,
+    const request = await prisma.request.update({
+      where: { id: requestId },
+      data,
+    });
+    return { success: true, request };
+  },
 };

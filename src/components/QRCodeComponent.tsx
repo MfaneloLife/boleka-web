@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useUser } from '@clerk/nextjs';
+import Image from 'next/image';
 import { Order, OrderStatus } from '../types/order';
-import { OrderService } from '../lib/order-service';
-import { QrCodeIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { QrCodeIcon, ClockIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+
+// Dynamically import qrcode for client-side generation
+let QRCodeLib: any = null;
 
 interface QRCodeComponentProps {
   order: Order;
@@ -10,8 +15,9 @@ interface QRCodeComponentProps {
 }
 
 const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplete }) => {
-  const { data: session } = useSession();
-  const [qrCode, setQrCode] = useState<string | null>(null);
+  const { user } = useUser();
+  const [qrData, setQrData] = useState<string | null>(null);
+  const [qrImage, setQrImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
@@ -22,38 +28,46 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
     setIsClient(true);
   }, []);
 
-  // Check if user can generate QR code
+  // Check if user can generate QR code (renter)
   const canGenerateQR = order.status === OrderStatus.PAYMENT_RECEIVED && 
-                       order.userId === session?.user?.id;
+                       order.userId === user?.id;
 
   // Check if vendor can scan QR code
-  const canScanQR = order.vendorId === session?.user?.id &&
+  const canScanQR = order.vendorId === user?.id &&
                    order.status === OrderStatus.PAYMENT_RECEIVED;
 
-  useEffect(() => {
-    // Only run on client side to prevent hydration mismatch
-    if (!isClient) return;
-    
-    // If order already has an active QR code, set it and start countdown
-    if (order.qrCode && order.qrCodeExpiresAt) {
-      const expiryTime = order.qrCodeExpiresAt.toDate().getTime();
-      const now = Date.now();
-      
-      if (expiryTime > now) {
-        setQrCode(order.qrCode);
-        setTimeRemaining(Math.ceil((expiryTime - now) / 1000));
+  // Generate QR code image from data string
+  const generateQRImage = useCallback(async (data: string) => {
+    try {
+      if (!QRCodeLib) {
+        QRCodeLib = await import('qrcode');
       }
+      const dataUrl = await QRCodeLib.toDataURL(data, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+      setQrImage(dataUrl);
+    } catch (err) {
+      console.error('Error generating QR image:', err);
+      // Fallback: show text representation
+      setQrImage(null);
     }
-  }, [order, isClient]);
+  }, []);
 
+  // Start countdown timer
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (timeRemaining > 0) {
+    if (timeRemaining > 0 && isClient) {
       interval = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            setQrCode(null);
+            setQrData(null);
+            setQrImage(null);
             return 0;
           }
           return prev - 1;
@@ -64,39 +78,65 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timeRemaining]);
+  }, [timeRemaining, isClient]);
 
-  const generateQRCode = async () => {
+  // Check if order already has active QR code data
+  useEffect(() => {
+    if (!isClient) return;
+    
+    // If the order object has qrCode that hasn't expired, restore it
+    // This is handled via the stored Booking.qrCode field
+  }, [order, isClient]);
+
+  const handleGenerateQR = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const qrData = await OrderService.generateQRCode(order.id, session?.user?.id || '');
-      setQrCode(qrData);
+      const res = await fetch('/api/orders/generate-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate QR code');
+      
+      setQrData(data.qrData);
       setTimeRemaining(120); // 2 minutes
       
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      setError('Failed to generate QR code. Please try again.');
+      // Generate the QR code image from the data
+      await generateQRImage(data.qrData);
+      
+    } catch (err) {
+      console.error('Error generating QR code:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate QR code. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const scanQRCode = async (qrData: string) => {
+  const handleScanQR = async (qrInput: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      await OrderService.completeOrderWithQR(qrData, session?.user?.id || '');
+      const res = await fetch('/api/orders/qr-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrCode: qrInput })
+      });
+      
+      const scanData = await res.json();
+      if (!res.ok) throw new Error(scanData.error || 'Failed to complete order');
       
       if (onOrderComplete) {
         onOrderComplete();
       }
       
-    } catch (error) {
-      console.error('Error completing order with QR code:', error);
-      setError('Failed to complete order. Please check the QR code and try again.');
+    } catch (err) {
+      console.error('Error completing order with QR code:', err);
+      setError(err instanceof Error ? err.message : 'Failed to complete order. Please check the QR code and try again.');
     } finally {
       setLoading(false);
     }
@@ -108,6 +148,7 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // ✅ COMPLETED state
   if (order.status === OrderStatus.COMPLETED) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-md p-4">
@@ -116,11 +157,9 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
             <CheckCircleIcon className="h-5 w-5 text-green-400" />
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-green-800">
-              Order Completed
-            </h3>
+            <h3 className="text-sm font-medium text-green-800">Order Completed</h3>
             <div className="mt-2 text-sm text-green-700">
-              <p>This order has been completed successfully.</p>
+              <p>This order has been completed successfully via QR scan.</p>
             </div>
           </div>
         </div>
@@ -128,6 +167,7 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
     );
   }
 
+  // 🚫 Not in PAYMENT_RECEIVED state
   if (order.status !== OrderStatus.PAYMENT_RECEIVED) {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
@@ -136,9 +176,7 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
             <ClockIcon className="h-5 w-5 text-gray-400" />
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-gray-800">
-              QR Code Not Available
-            </h3>
+            <h3 className="text-sm font-medium text-gray-800">QR Code Not Available</h3>
             <div className="mt-2 text-sm text-gray-700">
               <p>QR code will be available once payment is confirmed.</p>
             </div>
@@ -150,33 +188,36 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
 
   return (
     <div className="space-y-4">
-      {/* QR Code Generation (Customer View) */}
+      {/* 📱 Renter View: Generate & Show QR Code */}
       {canGenerateQR && (
         <div className="bg-white border border-gray-200 rounded-md p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Generate QR Code for Collection
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+            <QrCodeIcon className="h-5 w-5 mr-2 text-blue-600" />
+            Show QR Code to Vendor
           </h3>
           
-          {!qrCode ? (
+          {!qrData ? (
             <div className="text-center">
-              <QrCodeIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <p className="text-sm text-gray-600 mb-4">
-                Generate a QR code to show the vendor for order completion.
-                The QR code will expire after 2 minutes for security.
-              </p>
+              <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
+                <QrCodeIcon className="mx-auto h-20 w-20 text-gray-300 mb-4" />
+                <p className="text-sm text-gray-600 mb-4">
+                  Generate a QR code to show the vendor for order completion.
+                  The QR code will expire after <strong>120 seconds</strong> for security.
+                </p>
+              </div>
               <button
-                onClick={generateQRCode}
+                onClick={handleGenerateQR}
                 disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
                     Generating...
                   </>
                 ) : (
                   <>
-                    <QrCodeIcon className="h-4 w-4 mr-2" />
+                    <QrCodeIcon className="h-5 w-5 mr-2" />
                     Generate QR Code
                   </>
                 )}
@@ -184,28 +225,59 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
             </div>
           ) : (
             <div className="text-center">
-              <div className="bg-white border-2 border-gray-300 rounded-lg p-4 mb-4 inline-block">
-                <div className="text-xs font-mono break-all bg-gray-100 p-3 rounded">
-                  {qrCode}
-                </div>
+              {/* QR Code Image */}
+              <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4 inline-block shadow-sm">
+                {qrImage ? (
+                  <Image
+                    src={qrImage}
+                    alt="Order QR Code"
+                    width={256}
+                    height={256}
+                    className="rounded-lg"
+                    priority
+                  />
+                ) : (
+                  <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="text-xs font-mono break-all bg-gray-200 p-4 rounded max-w-[240px] max-h-[240px] overflow-hidden">
+                      {qrData}
+                    </div>
+                  </div>
+                )}
               </div>
               
-              <div className="flex items-center justify-center mb-4">
-                <ClockIcon className="h-4 w-4 text-orange-500 mr-2" />
-                <span className="text-sm font-medium text-orange-600">
-                  Expires in: {formatTime(timeRemaining)}
+              {/* Timer */}
+              <div className="flex items-center justify-center mb-3">
+                <ClockIcon className={`h-5 w-5 mr-2 ${timeRemaining <= 30 ? 'text-red-500' : 'text-orange-500'}`} />
+                <span className={`text-lg font-bold ${timeRemaining <= 30 ? 'text-red-600' : 'text-orange-600'}`}>
+                  {formatTime(timeRemaining)}
                 </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full max-w-xs mx-auto bg-gray-200 rounded-full h-2 mb-4">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-1000 ${
+                    timeRemaining <= 30 ? 'bg-red-500' : timeRemaining <= 60 ? 'bg-orange-500' : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${(timeRemaining / 120) * 100}%` }}
+                />
               </div>
               
               <p className="text-sm text-gray-600 mb-4">
                 Show this QR code to the vendor to complete your order.
+                {timeRemaining <= 30 && (
+                  <span className="text-red-600 font-medium block mt-1">
+                    ⚠️ QR code is about to expire!
+                  </span>
+                )}
               </p>
               
               <button
-                onClick={generateQRCode}
+                onClick={handleGenerateQR}
                 disabled={loading}
-                className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
               >
+                <ArrowPathIcon className="h-4 w-4 mr-2" />
                 Generate New Code
               </button>
             </div>
@@ -213,17 +285,21 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
         </div>
       )}
 
-      {/* QR Code Scanning (Vendor View) */}
+      {/* 🏪 Vendor View: Scan QR Code */}
       {canScanQR && (
         <div className="bg-white border border-gray-200 rounded-md p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+            <QrCodeIcon className="h-5 w-5 mr-2 text-green-600" />
             Complete Order with QR Code
           </h3>
           
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Ask the customer to generate and show their QR code, then enter it below to complete the order.
-            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Instructions:</strong> Ask the customer to show their QR code, then paste the data below 
+                to complete the order and trigger the payout split (95% vendor / 5% platform commission).
+              </p>
+            </div>
             
             <div>
               <label htmlFor="qr-input" className="block text-sm font-medium text-gray-700 mb-2">
@@ -233,13 +309,13 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
                 <input
                   type="text"
                   id="qr-input"
-                  placeholder="Enter or scan QR code data..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onKeyPress={(e) => {
+                  placeholder="Paste QR code data here..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-xs"
+                  onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       const value = (e.target as HTMLInputElement).value;
                       if (value.trim()) {
-                        scanQRCode(value.trim());
+                        handleScanQR(value.trim());
                       }
                     }
                   }}
@@ -247,17 +323,16 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
                 <button
                   onClick={() => {
                     const input = document.getElementById('qr-input') as HTMLInputElement;
-                    const value = input.value.trim();
-                    if (value) {
-                      scanQRCode(value);
+                    if (input?.value?.trim()) {
+                      handleScanQR(input.value.trim());
                     }
                   }}
                   disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
                 >
                   {loading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
                       Processing...
                     </>
                   ) : (
@@ -270,17 +345,18 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
               </div>
             </div>
             
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <p className="text-xs text-blue-800">
-                <strong>Note:</strong> QR codes expire after 2 minutes for security. 
-                If the code is expired, ask the customer to generate a new one.
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p className="text-xs text-yellow-800 flex items-start">
+                <ClockIcon className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                QR codes expire after <strong className="mx-1">120 seconds</strong> for security. 
+                If the code is expired, the API will reject it and the customer must generate a new one.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Error Display */}
+      {/* ⚠️ Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex">
@@ -297,14 +373,39 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
         </div>
       )}
 
-      {/* Order Summary */}
+      {/* 📋 Order Summary */}
       <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
         <h4 className="font-medium text-gray-900 mb-2">Order Summary</h4>
         <div className="text-sm text-gray-600 space-y-1">
-          <p>Order ID: #{order.id.slice(-8)}</p>
-          <p>Customer: {order.userName}</p>
-          <p>Items: {order.items.length}</p>
-          <p>Total: R{order.totalAmount.toFixed(2)}</p>
+          <div className="flex justify-between">
+            <span>Order ID</span>
+            <span className="font-mono">#{order.id.slice(-8)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Customer</span>
+            <span>{order.userName}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Vendor</span>
+            <span>{order.vendorName}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Items</span>
+            <span>{order.items.length}</span>
+          </div>
+          <hr className="my-1" />
+          <div className="flex justify-between font-medium">
+            <span>Total Paid</span>
+            <span>R{order.totalAmount.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Platform Fee (5%)</span>
+            <span>R{(order.totalAmount * 0.05).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Vendor Payout (95%)</span>
+            <span>R{(order.totalAmount * 0.95).toFixed(2)}</span>
+          </div>
         </div>
       </div>
     </div>

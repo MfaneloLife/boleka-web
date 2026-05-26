@@ -11,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/src/lib/firebase';
+import { useUser, useClerk } from '@clerk/nextjs';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -19,27 +19,19 @@ function classNames(...classes: string[]) {
 
 export default function AuthButton() {
   const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const clerk = useClerk();
   const [isClient, setIsClient] = useState(false);
-  const [user, setUser] = useState<{ name?: string | null; email?: string | null; image?: string | null } | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
-  // Prevent hydration mismatch
   useEffect(() => {
     setIsClient(true);
-    const unsub = auth.onAuthStateChanged((u) => {
-      if (u) {
-        setUser({ name: u.displayName, email: u.email, image: u.photoURL });
-      } else {
-        setUser(null);
-      }
-    });
-    return () => unsub();
   }, []);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
-      await auth.signOut();
+      await clerk.signOut();
       router.push('/');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -52,11 +44,7 @@ export default function AuthButton() {
     return null;
   }
 
-  if (!isClient) {
-    return null;
-  }
-
-  if (user === undefined) {
+  if (!isLoaded) {
     return (
       <div className="flex items-center space-x-4">
         <div className="animate-pulse bg-gray-200 h-8 w-20 rounded"></div>
@@ -64,24 +52,28 @@ export default function AuthButton() {
     );
   }
 
-  if (!user) {
+  if (!isSignedIn) {
     return (
       <div className="flex items-center space-x-4">
-        <Link
-          href="/auth/login"
+        <button
+          onClick={() => clerk.openSignIn()}
           className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
         >
           Sign In
-        </Link>
-        <Link
-          href="/auth/login"
+        </button>
+        <button
+          onClick={() => clerk.openSignUp()}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
         >
           Get Started
-        </Link>
+        </button>
       </div>
     );
   }
+
+  const displayName = user?.fullName || user?.firstName || (user?.primaryEmailAddress?.emailAddress?.split('@')[0]) || 'User';
+  const userImage = user?.imageUrl;
+  const userEmail = user?.primaryEmailAddress?.emailAddress;
 
   return (
     <div className="flex items-center space-x-4">
@@ -90,17 +82,17 @@ export default function AuthButton() {
         <div>
           <Menu.Button className="flex items-center space-x-2 text-sm rounded-full bg-gray-100 p-1 text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
             <span className="sr-only">Open user menu</span>
-            {user.image ? (
+            {userImage ? (
               <img
                 className="h-8 w-8 rounded-full"
-                src={String(user.image)}
-                alt={String(user.name || 'User avatar')}
+                src={userImage}
+                alt={displayName || 'User avatar'}
               />
             ) : (
               <UserCircleIcon className="h-8 w-8 text-gray-400" />
             )}
             <span className="hidden md:block text-sm font-medium text-gray-700">
-              {String(user?.name || (user?.email ? user.email.split('@')[0] : 'User'))}
+              {displayName}
             </span>
             <ChevronDownIcon className="h-4 w-4 text-gray-400" />
           </Menu.Button>
@@ -118,10 +110,10 @@ export default function AuthButton() {
           <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
             <div className="px-4 py-2 border-b border-gray-100">
               <p className="text-sm text-gray-700 font-medium">
-                {String(user?.name || 'User')}
+                {displayName}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {String(user?.email || '')}
+                {userEmail || ''}
               </p>
             </div>
 

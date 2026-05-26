@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
-
 export interface Review {
   id: string;
   reviewerId: string;
@@ -18,8 +16,8 @@ export interface Review {
   isVerified: boolean; // Only verified after completed transaction
   reportCount: number;
   isHidden: boolean; // Hidden due to reports/moderation
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface UserRating {

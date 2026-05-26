@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { Order, OrderStatus, getOrderStatusDisplay } from '../types/order';
 import { OrderService } from '../lib/order-service';
 import QRCodeComponent from './QRCodeComponent';
@@ -7,7 +7,7 @@ import PaymentFlow from './PaymentFlow';
 import { ClockIcon, EyeIcon, CreditCardIcon, QrCodeIcon } from '@heroicons/react/24/outline';
 
 const ClientOrders: React.FC = () => {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,15 +19,15 @@ const ClientOrders: React.FC = () => {
   };
 
   useEffect(() => {
-    if (session?.user?.id) {
+    if (user?.id) {
       loadOrders();
     }
-  }, [session]);
+  }, [user]);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const userOrders = await OrderService.getUserOrders(session?.user?.id || '');
+      const userOrders = await OrderService.getUserOrders(user?.id || '');
       setOrders(userOrders);
     } catch (error) {
       console.error('Error loading orders:', error);

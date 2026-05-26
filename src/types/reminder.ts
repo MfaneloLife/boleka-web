@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
-
 export interface ReminderSchedule {
   id: string;
   agreementId: string;
@@ -12,7 +10,7 @@ export interface ReminderSchedule {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   
   // Timing
-  scheduledFor: Timestamp;
+  scheduledFor: Date;
   daysBeforeReturn: number; // 3, 1, 0, or negative for overdue
   
   // Content
@@ -22,14 +20,14 @@ export interface ReminderSchedule {
   
   // Item Details
   itemTitle: string;
-  returnDate: Timestamp;
+  returnDate: Date;
   returnLocation: string;
   returnTime?: string;
   
   // Status
   status: 'scheduled' | 'sent' | 'delivered' | 'failed' | 'cancelled';
-  sentAt?: Timestamp;
-  deliveredAt?: Timestamp;
+  sentAt?: Date;
+  deliveredAt?: Date;
   errorMessage?: string;
   retryCount: number;
   maxRetries: number;
@@ -47,8 +45,8 @@ export interface ReminderSchedule {
   preferredTime: string; // "09:00" format
   
   // Metadata
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface NotificationTemplate {
@@ -87,8 +85,8 @@ export interface NotificationTemplate {
   // Status
   isActive: boolean;
   version: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface UserNotificationPreferences {

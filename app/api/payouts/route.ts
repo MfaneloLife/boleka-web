@@ -1,100 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { adminAuth } from '@/src/lib/firebase-admin';
-import { FirebaseDbService } from '@/src/lib/firebase-db';
+import { auth } from '@clerk/nextjs/server';
+import { getPaymentsForMerchant } from '@/lib/neon-db';
 
 export async function GET(request: NextRequest) {
   try {
-    // Prefer Firebase ID token from Authorization header
-    const authHeader = request.headers.get('authorization');
-    let userEmail: string | null = null;
-    let firebaseUid: string | null = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      try {
-        const idToken = authHeader.substring('Bearer '.length);
-        const decoded = await adminAuth.verifyIdToken(idToken);
-        userEmail = decoded.email ?? null;
-        firebaseUid = decoded.uid ?? null;
-      } catch (e) {
-        // fall back to next-auth session if token invalid
-      }
-    }
-
-    // Fallback: allow explicit user email header when token/session is not available
-    if (!userEmail) {
-      const headerEmail = request.headers.get('x-user-email');
-      if (headerEmail) {
-        userEmail = headerEmail;
-      }
-    }
-
-    if (!userEmail) {
-      const session = await getServerSession(authOptions);
-      if (session?.user?.email) {
-        userEmail = session.user.email;
-      }
-    }
-
-    if (!userEmail && !firebaseUid) {
+    const session = await auth();
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user from Firebase by email or uid
-    type UserLookupResult = Awaited<ReturnType<typeof FirebaseDbService.getUserByEmail>>;
-    let userResult: UserLookupResult | null = null;
-    if (userEmail) {
-      userResult = await FirebaseDbService.getUserByEmail(userEmail);
-    }
-    if ((!userResult || !userResult.success || !userResult.user) && firebaseUid) {
-      userResult = await FirebaseDbService.getUserByFirebaseUid(firebaseUid);
-    }
-    if (!userResult || !userResult.success || !userResult.user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Get business profile to check banking details
-  const businessProfileResult = await FirebaseDbService.getBusinessProfileByUserId(userResult.user.id);
-    if (!businessProfileResult.success || !businessProfileResult.profile) {
-      return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
-    }
-
-    // Get all successful payments for this merchant
-  const paymentsResult = await FirebaseDbService.getPaymentsByMerchant(userResult.user.id);
-    
-    if (!paymentsResult.success) {
-      return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 });
-    }
-
-    const payments = paymentsResult.payments || [];
-    
-    // Calculate summary
+    const payments = await getPaymentsForMerchant(session.userId);
     const summary = {
       count: payments.length,
       totalAmount: payments.reduce((sum, payment) => sum + payment.amount, 0),
-      totalCommission: payments.reduce((sum, payment) => sum + payment.commissionAmount, 0),
-      totalMerchantAmount: payments.reduce((sum, payment) => sum + payment.merchantAmount, 0)
     };
 
-    // Extract banking details from business profile
-    const bankingDetails = {
-      bankName: businessProfileResult.profile.bankName || null,
-      accountNumber: businessProfileResult.profile.accountNumber || null,
-      accountType: businessProfileResult.profile.accountType || null,
-      branchCode: businessProfileResult.profile.branchCode || null,
-      accountHolderName: businessProfileResult.profile.accountHolderName || null
-    };
-
-    return NextResponse.json({
-      payments,
-      summary,
-      bankingDetails
-    });
+    return NextResponse.json({ payments, summary });
   } catch (error) {
     console.error('Error fetching payouts:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch payouts' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch payouts' }, { status: 500 });
   }
 }

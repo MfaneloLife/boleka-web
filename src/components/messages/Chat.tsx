@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { Button } from '@/src/components/ui/Button';
 import { format } from 'date-fns';
 
@@ -26,7 +26,7 @@ interface ChatProps {
 }
 
 export default function Chat({ requestId, recipientId, recipientName, itemTitle }: ChatProps) {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -61,11 +61,11 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
           {
             id: '1',
             content: `Hi, I'm interested in your ${itemTitle}. Is it still available?`,
-            senderId: session?.user?.id || 'user1',
+            senderId: user?.id || 'user1',
             createdAt: new Date(baseTime - 3600000).toISOString(),
             sender: {
-              id: session?.user?.id || 'user1',
-              name: session?.user?.name || 'You',
+              id: user?.id || 'user1',
+              name: user?.fullName || user?.firstName || 'You',
               image: null
             },
             isCurrentUser: true
@@ -101,7 +101,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
     const interval = setInterval(fetchMessages, 10000);
     
     return () => clearInterval(interval);
-  }, [requestId, recipientId, recipientName, session, itemTitle, isClient]);
+  }, [requestId, recipientId, recipientName, user, itemTitle, isClient]);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newMessage.trim() || !session?.user) return;
+    if (!newMessage.trim() || !user) return;
     
     try {
       // In a real app, this would be an API call
@@ -130,12 +130,12 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
       const newMsg: Message = {
         id: messageId,
         content: newMessage,
-        senderId: session?.user?.id || 'user1',
+        senderId: user?.id || 'user1',
         createdAt: new Date().toISOString(),
         sender: {
-          id: session?.user?.id || 'user1',
-          name: session?.user?.name || 'You',
-          image: session?.user?.image || null
+          id: user?.id || 'user1',
+          name: user?.fullName || user?.firstName || 'You',
+          image: user?.imageUrl || null
         },
         isCurrentUser: true
       };
@@ -174,11 +174,11 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
           messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.senderId === session?.user?.id ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.senderId === user?.id ? 'justify-end' : 'justify-start'}`}
             >
               <div
                 className={`max-w-[70%] px-4 py-2 rounded-lg ${
-                  message.senderId === session?.user?.id
+                  message.senderId === user?.id
                     ? 'bg-indigo-600 text-white rounded-br-none'
                     : 'bg-gray-200 text-gray-900 rounded-bl-none'
                 }`}
@@ -186,7 +186,7 @@ export default function Chat({ requestId, recipientId, recipientName, itemTitle 
                 <div className="text-sm">{message.content}</div>
                 <div
                   className={`text-xs mt-1 ${
-                    message.senderId === session?.user?.id ? 'text-indigo-200' : 'text-gray-500'
+                    message.senderId === user?.id ? 'text-indigo-200' : 'text-gray-500'
                   }`}
                 >
                   {formatTime(message.createdAt)}

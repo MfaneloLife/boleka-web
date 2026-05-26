@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { auth } from '@clerk/nextjs/server';
 import { RewardsService } from '@/src/lib/rewards-service';
 
 export async function GET(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       case 'history': {
         const limit = searchParams.get('limit');
         const history = await RewardsService.getPointsHistory(
-          session.user.id, 
+          session.userId, 
           limit ? parseInt(limit) : undefined
         );
         
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       case 'discounts': {
         const includeUsed = searchParams.get('includeUsed') === 'true';
         const discounts = await RewardsService.getUserDiscounts(
-          session.user.id, 
+          session.userId, 
           includeUsed
         );
         
@@ -68,11 +68,11 @@ export async function GET(request: NextRequest) {
 
       default: {
         // Get user rewards summary
-        const rewards = await RewardsService.getUserRewards(session.user.id);
+        const rewards = await RewardsService.getUserRewards(session.userId);
         
         if (!rewards) {
           // Initialize if not exists
-          const newRewards = await RewardsService.initializeUserRewards(session.user.id);
+          const newRewards = await RewardsService.initializeUserRewards(session.userId);
           return NextResponse.json({ rewards: newRewards });
         }
         
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
         // For manual point awards, only admins should be able to do this
         if (reason === 'manual_award' || reason === 'bonus_points') {
-          if (!session.user.role || !['admin', 'moderator'].includes(session.user.role)) {
+          if (!session.role || !['admin', 'moderator'].includes(session.role)) {
             return NextResponse.json(
               { error: 'Insufficient permissions' },
               { status: 403 }
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         }
 
         const transaction = await RewardsService.awardPoints(
-          data.userId || session.user.id,
+          data.userId || session.userId,
           points,
           reason,
           metadata
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
 
         // Award points for on-time return (5 points)
         const transaction = await RewardsService.awardPoints(
-          session.user.id,
+          session.userId,
           5,
           'on_time_return',
           { orderId }
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        await RewardsService.recordLateReturn(session.user.id, orderId);
+        await RewardsService.recordLateReturn(session.userId, orderId);
 
         return NextResponse.json({
           success: true,
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
         validUntil.setDate(validUntil.getDate() + (validDays || 30));
 
         const discount = await RewardsService.createDiscount(
-          session.user.id,
+          session.userId,
           pointsCost,
           discountPercentage,
           validUntil

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import Button from '@/components/Button';
-import { auth } from '@/src/lib/firebase';
 
 interface SendMessageModalProps {
   itemId: string;
@@ -15,6 +15,7 @@ interface SendMessageModalProps {
 }
 
 export default function SendMessageModal({ itemId, onClose, ownerId, isOpen, recipientId, recipientName }: SendMessageModalProps) {
+  const { user } = useUser();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,19 +32,17 @@ export default function SendMessageModal({ itemId, onClose, ownerId, isOpen, rec
     try {
       setIsLoading(true);
       setError(null);
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
+      
+      if (!user) {
         setError('You need to be signed in to send a message.');
         return;
       }
-      const idToken = await currentUser.getIdToken();
       
       // Create a new request
       const requestResponse = await fetch('/api/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           itemId,

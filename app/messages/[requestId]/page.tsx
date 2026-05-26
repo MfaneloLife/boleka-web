@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import MessageBubble from '@/components/MessageBubble';
 import MessageInput from '@/components/MessageInput';
-import { auth } from '@/src/lib/firebase';
+import { useUser } from '@clerk/nextjs';
 
 interface Message {
   id: string;
@@ -45,25 +45,17 @@ interface Request {
 
 export default function ConversationPage({ params }: { params: { requestId: string } }) {
   const router = useRouter();
+  const { user, isLoaded, isSignedIn } = useUser();
   const [request, setRequest] = useState<Request | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const fetchConversation = async () => {
     try {
       setIsLoading(true);
-      const user = auth.currentUser;
-      const idToken = await user?.getIdToken();
-      const response = await fetch(`/api/messages/${params.requestId}`, {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-      
+      const response = await fetch(`/api/messages/${params.requestId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch conversation');
       }
@@ -79,41 +71,33 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   };
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        router.push('/auth/login');
-        return;
-      }
-      setUserEmail(user.email);
-      setAuthReady(true);
-      await fetchConversation();
-    });
-    return () => unsub();
-  }, [router, params.requestId]);
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      window.location.href = '/auth/sign-in';
+      return;
+    }
+
+    fetchConversation();
+  }, [isLoaded, isSignedIn, params.requestId]);
 
   const handleSendMessage = async (content: string, file?: File) => {
-    const user = auth.currentUser;
     if ((!content.trim() && !file) || !user) return;
-    
+
     try {
-      // Prepare the payload
       const payload: { content: string; imageBase64?: string; imageType?: string } = {
         content: content.trim()
       };
       
-      // If there's a file, convert it to base64
       if (file) {
         const base64 = await fileToBase64(file);
         payload.imageBase64 = base64;
         payload.imageType = file.type;
       }
       
-      const idToken = await user.getIdToken();
       const response = await fetch(`/api/messages/${params.requestId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify(payload),
       });
@@ -124,8 +108,6 @@ export default function ConversationPage({ params }: { params: { requestId: stri
       
       const newMessage = await response.json();
       setMessages((prevMessages) => [...prevMessages, newMessage]);
-      
-      // Scroll to bottom after sending message
       scrollToBottom();
     } catch (err) {
       console.error('Error sending message:', err);
@@ -133,14 +115,12 @@ export default function ConversationPage({ params }: { params: { requestId: stri
     }
   };
 
-  // Helper function to convert File to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
           const base64 = reader.result.split(',')[1];
           resolve(base64);
         } else {
@@ -160,12 +140,8 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   }, [messages]);
 
   const getOtherParty = () => {
-    if (!userEmail || !request) return null;
-    
-    // Determine if the current user is the requester or the owner
-    const userIsRequester = request.requester.id === userEmail;
-    
-    // Return the other party's information
+    if (!user || !request) return null;
+    const userIsRequester = request.requester.id === user.id;
     return userIsRequester ? request.owner : request.requester;
   };
 
@@ -180,12 +156,16 @@ export default function ConversationPage({ params }: { params: { requestId: stri
     });
   };
 
-  if (!authReady || isLoading) {
+  if (!isLoaded || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
+  }
+
+  if (!isSignedIn) {
+    return null;
   }
 
   return (
@@ -203,7 +183,6 @@ export default function ConversationPage({ params }: { params: { requestId: stri
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Link>
-          
           <div className="flex-shrink-0 h-10 w-10 relative">
             {otherParty?.image ? (
               <Image
@@ -219,7 +198,6 @@ export default function ConversationPage({ params }: { params: { requestId: stri
               </div>
             )}
           </div>
-          
           <div className="ml-3 flex-1">
             <div className="text-sm font-medium text-gray-900">
               {otherParty?.name || 'User'}
@@ -228,7 +206,6 @@ export default function ConversationPage({ params }: { params: { requestId: stri
               {request.item.title}
             </div>
           </div>
-          
           <div className="bg-gray-100 px-3 py-1 rounded-full text-sm">
             Status: <span className="font-medium capitalize">{request.status}</span>
           </div>
@@ -280,7 +257,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isCurrentUser={message.senderId === userEmail}
+                  isCurrentUser={message.senderId === user?.id}
                 />
               ))}
             </div>

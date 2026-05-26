@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { auth } from '@clerk/nextjs/server';
 import { RentalAgreementService } from '@/src/lib/rental-agreement-service';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId') || session.user.id;
+    const userId = searchParams.get('userId') || session.userId;
     const role = searchParams.get('role') as 'owner' | 'renter' | 'both' || 'both';
 
     const agreements = await RentalAgreementService.getUserAgreements(userId, role);
@@ -27,8 +26,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

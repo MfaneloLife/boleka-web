@@ -13,6 +13,7 @@ interface ItemCardProps {
   images: string[];
   category: string;
   location: string;
+  quantity?: number;
 }
 
 export default function ItemCard({
@@ -23,6 +24,7 @@ export default function ItemCard({
   images,
   category,
   location,
+  quantity,
 }: ItemCardProps) {
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState(0);
@@ -73,6 +75,13 @@ export default function ItemCard({
           ) : (
             <div className="w-full h-full bg-gray-200 flex items-center justify-center">
               <span className="text-gray-500">No image</span>
+            </div>
+          )}
+          {typeof quantity === 'number' && (
+            <div className="absolute top-3 right-3">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${quantity === 0 ? 'bg-red-600 text-white' : 'bg-green-100 text-green-800'}`}>
+                {quantity === 0 ? 'Out of stock' : `${quantity} available`}
+              </span>
             </div>
           )}
         </div>

@@ -1,10 +1,9 @@
-import { Timestamp } from 'firebase/firestore';
-
 export enum OrderStatus {
   AWAITING_APPROVAL = 'awaiting_approval',
   AWAITING_PAYMENT = 'awaiting_payment', 
   CASH_PAYMENT = 'cash_payment',
   PAYMENT_RECEIVED = 'payment_received',
+  FROZEN = 'frozen',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
   EXPIRED = 'expired'
@@ -51,12 +50,17 @@ export interface Order {
   vendorEmail: string;
   
   // Timestamps
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  approvedAt?: Timestamp;
-  paymentDueAt?: Timestamp; // 7 days after approval for online payments
-  expiresAt?: Timestamp; // 30 days after creation for approval
-  completedAt?: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
+  approvedAt?: Date;
+  paymentDueAt?: Date; // 7 days after approval for online payments
+  expiresAt?: Date; // 30 days after creation for approval
+  returnWindowHours?: number; // Vendor-configured return window
+  lateFeePerDay?: number; // Vendor-configured late fee per day
+  returnDueAt?: Date;
+  completedAt?: Date;
+  lateFeeAmount?: number;
+  returnedAt?: Date;
   
   // Payment details
   paymentId?: string;
@@ -64,9 +68,16 @@ export interface Order {
   paymentAmount?: number;
   paymentStatus?: 'pending' | 'completed' | 'failed' | 'cancelled';
   
-  // QR Code for completion
+  // QR Code for completion and payout release
   qrCode?: string;
-  qrCodeExpiresAt?: Timestamp; // 120 seconds after generation
+  qrCodeExpiresAt?: Date; // 120 seconds after generation
+  qrCodeGeneratedAt?: Date;
+  
+  // Payout freeze/release tracking
+  payoutFrozen?: boolean;
+  payoutReleasedAt?: Date;
+  vendorPayoutAmount?: number;
+  platformCommission?: number;
   
   // Additional fields
   notes?: string;
@@ -79,7 +90,7 @@ export interface OrderStatusUpdate {
   status: OrderStatus;
   notes?: string;
   updatedBy: string;
-  timestamp: Timestamp;
+  timestamp: Date;
 }
 
 // Helper function to calculate order totals
@@ -91,6 +102,18 @@ export function calculateOrderTotals(items: OrderItem[]) {
   return {
     subtotal,
     platformFee,
+    totalAmount
+  };
+}
+
+// Helper function to calculate payout split (5% platform commission on total)
+export function calculatePayoutSplit(totalAmount: number) {
+  const platformCommission = totalAmount * 0.05; // 5% platform commission on total payment
+  const vendorPayoutAmount = totalAmount - platformCommission;
+  
+  return {
+    platformCommission,
+    vendorPayoutAmount,
     totalAmount
   };
 }

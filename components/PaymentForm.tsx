@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import Button from '@/components/Button';
 
 interface PaymentFormProps {
@@ -17,14 +17,14 @@ export default function PaymentForm({
   itemName, 
   onCancel 
 }: PaymentFormProps) {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string> | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   const handlePay = async () => {
-    if (!session?.user?.email) {
+    if (!user) {
       setError('You need to be logged in to make a payment');
       return;
     }

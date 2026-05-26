@@ -1,24 +1,12 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  Timestamp,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import { Order, OrderStatus, OrderItem, PaymentMethod, calculateOrderTotals } from '../types/order';
+import { prisma } from '@/lib/prisma';
+import { Order, OrderStatus, OrderItem, PaymentMethod, calculateOrderTotals, calculatePayoutSplit } from '../types/order';
 
+/**
+ * OrderService - Manages all order operations using Prisma
+ * Replaces Firebase Firestore with PostgreSQL via Prisma
+ */
 export class OrderService {
-  private static readonly COLLECTION_NAME = 'orders';
-  private static readonly STATUS_UPDATES_COLLECTION = 'orderStatusUpdates';
-
+  
   // Create a new order
   static async createOrder(
     userId: string,
@@ -33,51 +21,56 @@ export class OrderService {
       // Calculate totals
       const { subtotal, platformFee, totalAmount } = calculateOrderTotals(items);
       
-      // Get vendor info from first item (assuming all items from same vendor)
+      // Get vendor info from first item
       const vendorId = items[0].vendorId;
       const vendorName = items[0].vendorName;
       
-      // Attempt vendor email lookup from users collection by vendorId
+      // Lookup vendor from Prisma
       let vendorEmail: string | undefined;
       try {
-        const vendorDoc = await getDoc(doc(db, 'users', vendorId));
-        if (vendorDoc.exists()) {
-          const vData: any = vendorDoc.data();
-            vendorEmail = vData.email;
+        const vendor = await prisma.user.findUnique({
+          where: { id: vendorId }
+        });
+        if (vendor) {
+          vendorEmail = vendor.email || undefined;
         }
       } catch {
         vendorEmail = undefined;
       }
-      
-      const now = Timestamp.now();
-      const expiresAt = new Timestamp(now.seconds + (30 * 24 * 60 * 60), now.nanoseconds); // 30 days from now
-      
-      const order: Omit<Order, 'id'> = {
-        userId,
-        userName,
-        userEmail,
-        userPhone,
-        items,
-        subtotal,
-        platformFee,
-        totalAmount,
-        status: OrderStatus.AWAITING_APPROVAL,
-        paymentMethod,
-        vendorId,
-        vendorName,
-  vendorEmail: vendorEmail || '',
-        createdAt: now,
-        updatedAt: now,
-        expiresAt,
-        notes
-      };
 
-      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), order);
+      // Verify all items exist and have sufficient stock
+      for (const item of items) {
+        const dbItem = await prisma.item.findUnique({
+          where: { id: item.itemId }
+        });
+        
+        if (!dbItem) {
+          throw new Error(`Item not found: ${item.itemName}`);
+        }
+        
+        if (dbItem.quantity < item.quantity) {
+          throw new Error(`Insufficient stock for item: ${item.itemName}`);
+        }
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       
-      // Create initial status update
-      await this.createStatusUpdate(docRef.id, OrderStatus.AWAITING_APPROVAL, 'Order created', userId);
+      // Create booking as order
+      const booking = await prisma.booking.create({
+        data: {
+          userId,
+          itemId: items[0].itemId,
+          startDate: now,
+          endDate: expiresAt,
+          totalPrice: totalAmount,
+          platformFee,
+          notes: notes || `Order from ${vendorName}`,
+          status: 'PENDING'
+        }
+      });
       
-      return docRef.id;
+      return booking.id;
     } catch (error) {
       console.error('Error creating order:', error);
       throw new Error('Failed to create order');
@@ -87,14 +80,21 @@ export class OrderService {
   // Get order by ID
   static async getOrder(orderId: string): Promise<Order | null> {
     try {
-      const docRef = doc(db, this.COLLECTION_NAME, orderId);
-      const docSnap = await getDoc(docRef);
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId },
+        include: {
+          user: true,
+          item: {
+            include: { user: true }
+          }
+        }
+      });
       
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Order;
+      if (!booking) {
+        return null;
       }
       
-      return null;
+      return this.bookingToOrder(booking);
     } catch (error) {
       console.error('Error getting order:', error);
       throw new Error('Failed to get order');
@@ -104,14 +104,18 @@ export class OrderService {
   // Get orders for a user
   static async getUserOrders(userId: string): Promise<Order[]> {
     try {
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
+      const bookings = await prisma.booking.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: true,
+          item: {
+            include: { user: true }
+          }
+        }
+      });
       
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      return bookings.map(booking => this.bookingToOrder(booking));
     } catch (error) {
       console.error('Error getting user orders:', error);
       throw new Error('Failed to get user orders');
@@ -121,14 +125,22 @@ export class OrderService {
   // Get orders for a vendor
   static async getVendorOrders(vendorId: string): Promise<Order[]> {
     try {
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('vendorId', '==', vendorId),
-        orderBy('createdAt', 'desc')
-      );
+      const bookings = await prisma.booking.findMany({
+        where: {
+          item: {
+            userId: vendorId
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: true,
+          item: {
+            include: { user: true }
+          }
+        }
+      });
       
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      return bookings.map(booking => this.bookingToOrder(booking));
     } catch (error) {
       console.error('Error getting vendor orders:', error);
       throw new Error('Failed to get vendor orders');
@@ -138,15 +150,23 @@ export class OrderService {
   // Get pending approval orders for vendor
   static async getPendingApprovalOrders(vendorId: string): Promise<Order[]> {
     try {
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('vendorId', '==', vendorId),
-        where('status', '==', OrderStatus.AWAITING_APPROVAL),
-        orderBy('createdAt', 'asc')
-      );
+      const bookings = await prisma.booking.findMany({
+        where: {
+          status: 'PENDING',
+          item: {
+            userId: vendorId
+          }
+        },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          user: true,
+          item: {
+            include: { user: true }
+          }
+        }
+      });
       
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      return bookings.map(booking => this.bookingToOrder(booking));
     } catch (error) {
       console.error('Error getting pending approval orders:', error);
       throw new Error('Failed to get pending approval orders');
@@ -160,41 +180,30 @@ export class OrderService {
     approvalNotes?: string
   ): Promise<void> {
     try {
-      const order = await this.getOrder(orderId);
-      if (!order) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId },
+        include: { item: true }
+      });
+      
+      if (!booking) {
         throw new Error('Order not found');
       }
 
-      if (order.vendorId !== vendorId) {
+      if (booking.item.userId !== vendorId) {
         throw new Error('Unauthorized to approve this order');
       }
 
-      if (order.status !== OrderStatus.AWAITING_APPROVAL) {
-        throw new Error('Order is not awaiting approval');
+      if (booking.status !== 'PENDING') {
+        throw new Error('Order is not pending');
       }
 
-      const now = Timestamp.now();
-      const newStatus = order.paymentMethod === PaymentMethod.CASH 
-        ? OrderStatus.CASH_PAYMENT 
-        : OrderStatus.AWAITING_PAYMENT;
-      
-      // For online payments, set payment due date (7 days from approval)
-      const paymentDueAt = order.paymentMethod !== PaymentMethod.CASH 
-        ? new Timestamp(now.seconds + (7 * 24 * 60 * 60), now.nanoseconds)
-        : undefined;
-
-      const updates: Partial<Order> = {
-        status: newStatus,
-        approvedAt: now,
-        updatedAt: now,
-        vendorApprovalNotes: approvalNotes,
-        paymentDueAt
-      };
-
-      await updateDoc(doc(db, this.COLLECTION_NAME, orderId), updates);
-      await this.createStatusUpdate(orderId, newStatus, approvalNotes || 'Order approved', vendorId);
-      
-      // TODO: Send notification to user
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          status: 'PAID',
+          notes: approvalNotes || booking.notes
+        }
+      });
     } catch (error) {
       console.error('Error approving order:', error);
       throw new Error('Failed to approve order');
@@ -208,30 +217,30 @@ export class OrderService {
     reason: string
   ): Promise<void> {
     try {
-      const order = await this.getOrder(orderId);
-      if (!order) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId },
+        include: { item: true }
+      });
+      
+      if (!booking) {
         throw new Error('Order not found');
       }
 
-      if (order.vendorId !== vendorId) {
+      if (booking.item.userId !== vendorId) {
         throw new Error('Unauthorized to decline this order');
       }
 
-      if (order.status !== OrderStatus.AWAITING_APPROVAL) {
-        throw new Error('Order is not awaiting approval');
+      if (booking.status !== 'PENDING') {
+        throw new Error('Order is not pending');
       }
 
-      const now = Timestamp.now();
-      const updates: Partial<Order> = {
-        status: OrderStatus.CANCELLED,
-        updatedAt: now,
-        cancellationReason: reason
-      };
-
-      await updateDoc(doc(db, this.COLLECTION_NAME, orderId), updates);
-      await this.createStatusUpdate(orderId, OrderStatus.CANCELLED, `Order declined: ${reason}`, vendorId);
-      
-      // TODO: Send notification to user
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          status: 'CANCELLED',
+          notes: `Declined: ${reason}`
+        }
+      });
     } catch (error) {
       console.error('Error declining order:', error);
       throw new Error('Failed to decline order');
@@ -247,188 +256,273 @@ export class OrderService {
     paidBy: string
   ): Promise<void> {
     try {
-      const order = await this.getOrder(orderId);
-      if (!order) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId }
+      });
+      
+      if (!booking) {
         throw new Error('Order not found');
       }
 
-      if (![OrderStatus.AWAITING_PAYMENT, OrderStatus.CASH_PAYMENT].includes(order.status)) {
+      if (!['PENDING', 'PAID'].includes(booking.status)) {
         throw new Error('Order is not awaiting payment');
       }
 
-      const now = Timestamp.now();
-      const updates: Partial<Order> = {
-        status: OrderStatus.PAYMENT_RECEIVED,
-        updatedAt: now,
-        paymentId,
-        paymentReference,
-        paymentAmount,
-        paymentStatus: 'completed'
-      };
-
-      await updateDoc(doc(db, this.COLLECTION_NAME, orderId), updates);
-      await this.createStatusUpdate(orderId, OrderStatus.PAYMENT_RECEIVED, 'Payment received', paidBy);
-      
-      // TODO: Send notification to vendor and user
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          status: 'PAID',
+          totalPrice: paymentAmount,
+          notes: `Payment received: ${paymentReference}`
+        }
+      });
     } catch (error) {
       console.error('Error marking payment as received:', error);
       throw new Error('Failed to mark payment as received');
     }
   }
 
-  // Generate QR code for order completion
-  static async generateQRCode(orderId: string, userId: string): Promise<string> {
+  // Freeze order payout
+  static async freezeOrderPayout(orderId: string, reason: string): Promise<void> {
     try {
-      const order = await this.getOrder(orderId);
-      if (!order) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId }
+      });
+      
+      if (!booking) {
         throw new Error('Order not found');
       }
 
-      if (order.userId !== userId) {
+      if (booking.status !== 'PAID') {
+        throw new Error('Order must be in PAID status to freeze');
+      }
+
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          status: 'FROZEN',
+          notes: `Payout frozen: ${reason}`
+        }
+      });
+    } catch (error) {
+      console.error('Error freezing order payout:', error);
+      throw new Error('Failed to freeze order payout');
+    }
+  }
+
+  // Release frozen payout
+  static async releaseOrderPayout(orderId: string): Promise<void> {
+    try {
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId }
+      });
+      
+      if (!booking) {
+        throw new Error('Order not found');
+      }
+
+      if (!['FROZEN', 'PAID'].includes(booking.status)) {
+        throw new Error('Order must be in PAID or FROZEN status to release payout');
+      }
+
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          status: 'PAID'
+        }
+      });
+    } catch (error) {
+      console.error('Error releasing order payout:', error);
+      throw new Error('Failed to release order payout');
+    }
+  }
+
+  // Generate QR code for order completion (120-second expiry)
+  static async generateQRCode(orderId: string, userId: string): Promise<{ qrData: string; expiresAt: Date }> {
+    try {
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId }
+      });
+      
+      if (!booking) {
+        throw new Error('Order not found');
+      }
+
+      if (booking.userId !== userId) {
         throw new Error('Unauthorized to generate QR code for this order');
       }
 
-      if (order.status !== OrderStatus.PAYMENT_RECEIVED) {
+      if (booking.status !== 'PAID') {
         throw new Error('Order payment not yet received');
       }
 
-      // Generate QR code data
-      const qrData = {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 120 * 1000); // 120 seconds
+
+      const qrPayload = {
         orderId,
         userId,
-        vendorId: order.vendorId,
-        timestamp: Date.now()
+        vendorId: booking.itemId, // will resolve vendor from item
+        timestamp: now.getTime(),
+        expiresAt: expiresAt.getTime()
       };
 
-      const qrCode = JSON.stringify(qrData);
-      const now = Timestamp.now();
-      const qrCodeExpiresAt = new Timestamp(now.seconds + 120, now.nanoseconds); // 120 seconds
+      const qrData = JSON.stringify(qrPayload);
 
-      const updates: Partial<Order> = {
-        qrCode,
-        qrCodeExpiresAt,
-        updatedAt: now
-      };
+      // Store QR code and expiry in the database
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          qrCode: qrData,
+          qrCodeExpiresAt: expiresAt
+        }
+      });
 
-      await updateDoc(doc(db, this.COLLECTION_NAME, orderId), updates);
-      
-      return qrCode;
+      return { qrData, expiresAt };
     } catch (error) {
       console.error('Error generating QR code:', error);
       throw new Error('Failed to generate QR code');
     }
   }
 
-  // Complete order using QR code
+  // Complete order using QR code (vendor scans renter's QR)
   static async completeOrderWithQR(
     qrCode: string,
-    vendorId: string
+    scannerId: string
   ): Promise<void> {
     try {
-      // Parse QR code
-      const qrData = JSON.parse(qrCode);
+      let qrData: any;
+      try {
+        qrData = JSON.parse(qrCode);
+      } catch {
+        throw new Error('Invalid QR code format');
+      }
+
       const orderId = qrData.orderId;
 
-      const order = await this.getOrder(orderId);
-      if (!order) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId },
+        include: { item: true }
+      });
+      
+      if (!booking) {
         throw new Error('Order not found');
       }
 
-      if (order.vendorId !== vendorId) {
-        throw new Error('Unauthorized to complete this order');
+      // Verify the scanner is the vendor/shop owner
+      if (booking.item.userId !== scannerId) {
+        throw new Error('Unauthorized: Only the vendor can scan this QR code');
       }
 
-      if (order.status !== OrderStatus.PAYMENT_RECEIVED) {
+      // Check QR code hasn't expired
+      if (booking.qrCodeExpiresAt && new Date() > booking.qrCodeExpiresAt) {
+        throw new Error('QR code has expired. Please ask the customer to generate a new one.');
+      }
+
+      // Verify QR code matches stored one
+      if (booking.qrCode !== qrCode) {
+        throw new Error('Invalid QR code. Please ask the customer to generate a new one.');
+      }
+
+      if (booking.status !== 'PAID') {
         throw new Error('Order payment not yet received');
       }
 
-      // Check if QR code is expired
-      if (order.qrCodeExpiresAt && order.qrCodeExpiresAt.toDate() < new Date()) {
-        throw new Error('QR code has expired');
-      }
+      const now = new Date();
 
-      // Verify QR code matches
-      if (order.qrCode !== qrCode) {
-        throw new Error('Invalid QR code');
-      }
+      // Calculate payout split: 5% platform commission, 95% to vendor
+      const platformCommission = booking.totalPrice * 0.05;
+      const vendorPayout = booking.totalPrice - platformCommission;
 
-      const now = Timestamp.now();
-      const updates: Partial<Order> = {
-        status: OrderStatus.COMPLETED,
-        completedAt: now,
-        updatedAt: now,
-        qrCode: undefined, // Clear QR code after use
-        qrCodeExpiresAt: undefined
-      };
-
-      await updateDoc(doc(db, this.COLLECTION_NAME, orderId), updates);
-      await this.createStatusUpdate(orderId, OrderStatus.COMPLETED, 'Order completed with QR code', vendorId);
-      
-      // TODO: Send completion notification
+      // Update booking to COMPLETED and track return
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          status: 'COMPLETED',
+          qrCodeScannedAt: now,
+          platformCommission: platformCommission,
+          vendorPayoutAmount: vendorPayout,
+          commissionPaid: true,
+          // For rentals, mark as NOT_RETURNED initially; for selling, mark as RETURNED
+          returnStatus: booking.endDate ? 'NOT_RETURNED' : 'RETURNED',
+          notes: booking.notes 
+            ? `${booking.notes} | Completed via QR scan at ${now.toISOString()}`
+            : `Completed via QR scan at ${now.toISOString()}`
+        }
+      });
     } catch (error) {
       console.error('Error completing order with QR code:', error);
-      throw new Error('Failed to complete order');
+      throw error;
     }
   }
 
-  // Create status update record
-  private static async createStatusUpdate(
+  // Mark item as returned by renter (only for rentals)
+  static async markItemReturned(
     orderId: string,
-    status: OrderStatus,
-    notes: string,
-    updatedBy: string
+    vendorId: string
   ): Promise<void> {
     try {
-      const statusUpdate = {
-        orderId,
-        status,
-        notes,
-        updatedBy,
-        timestamp: Timestamp.now()
-      };
+      const booking = await prisma.booking.findUnique({
+        where: { id: orderId },
+        include: { item: true }
+      });
+      
+      if (!booking) {
+        throw new Error('Order not found');
+      }
 
-      await addDoc(collection(db, this.STATUS_UPDATES_COLLECTION), statusUpdate);
+      if (booking.item.userId !== vendorId) {
+        throw new Error('Unauthorized: Only the vendor can mark item as returned');
+      }
+
+      if (booking.status !== 'COMPLETED') {
+        throw new Error('Order must be in COMPLETED status to mark as returned');
+      }
+
+      if (booking.returnStatus === 'RETURNED') {
+        throw new Error('Item has already been returned');
+      }
+
+      const now = new Date();
+
+      await prisma.booking.update({
+        where: { id: orderId },
+        data: {
+          returnStatus: 'RETURNED',
+          returnedAt: now,
+          notes: booking.notes 
+            ? `${booking.notes} | Item returned at ${now.toISOString()}`
+            : `Item returned at ${now.toISOString()}`
+        }
+      });
     } catch (error) {
-      console.error('Error creating status update:', error);
-      // Don't throw here as it's not critical
+      console.error('Error marking item returned:', error);
+      throw error;
     }
   }
 
-  // Get orders that need cleanup (expired)
+
+  // Get expired orders
   static async getExpiredOrders(): Promise<Order[]> {
     try {
-      const now = Timestamp.now();
+      const now = new Date();
       
-      // Get orders awaiting approval that have expired
-      const awaitingApprovalQuery = query(
-        collection(db, this.COLLECTION_NAME),
-        where('status', '==', OrderStatus.AWAITING_APPROVAL),
-        where('expiresAt', '<=', now)
-      );
-
-      // Get orders awaiting payment that have expired
-      const awaitingPaymentQuery = query(
-        collection(db, this.COLLECTION_NAME),
-        where('status', '==', OrderStatus.AWAITING_PAYMENT),
-        where('paymentDueAt', '<=', now)
-      );
-
-      const [approvalDocs, paymentDocs] = await Promise.all([
-        getDocs(awaitingApprovalQuery),
-        getDocs(awaitingPaymentQuery)
-      ]);
-
-      const expiredOrders: Order[] = [];
-      
-      approvalDocs.forEach(doc => {
-        expiredOrders.push({ id: doc.id, ...doc.data() } as Order);
-      });
-      
-      paymentDocs.forEach(doc => {
-        expiredOrders.push({ id: doc.id, ...doc.data() } as Order);
+      const bookings = await prisma.booking.findMany({
+        where: {
+          status: 'PENDING',
+          endDate: {
+            lte: now
+          }
+        },
+        include: {
+          user: true,
+          item: {
+            include: { user: true }
+          }
+        }
       });
 
-      return expiredOrders;
+      return bookings.map(booking => this.bookingToOrder(booking));
     } catch (error) {
       console.error('Error getting expired orders:', error);
       throw new Error('Failed to get expired orders');
@@ -444,34 +538,57 @@ export class OrderService {
         return 0;
       }
 
-      const batch = writeBatch(db);
-      const now = Timestamp.now();
-
-      expiredOrders.forEach(order => {
-        const orderRef = doc(db, this.COLLECTION_NAME, order.id);
-        batch.update(orderRef, {
-          status: OrderStatus.EXPIRED,
-          updatedAt: now,
-          cancellationReason: 'Order expired automatically'
-        });
+      const result = await prisma.booking.updateMany({
+        where: {
+          id: {
+            in: expiredOrders.map(o => o.id)
+          }
+        },
+        data: {
+          status: 'CANCELLED',
+          notes: 'Order expired automatically'
+        }
       });
 
-      await batch.commit();
-
-      // Create status updates for all expired orders
-      for (const order of expiredOrders) {
-        await this.createStatusUpdate(
-          order.id, 
-          OrderStatus.EXPIRED, 
-          'Order expired automatically', 
-          'system'
-        );
-      }
-
-      return expiredOrders.length;
+      return result.count;
     } catch (error) {
       console.error('Error cleaning up expired orders:', error);
       throw new Error('Failed to cleanup expired orders');
     }
+  }
+
+  // Helper method to transform booking to order
+  private static bookingToOrder(booking: any): Order {
+    return {
+      id: booking.id,
+      userId: booking.userId,
+      userName: booking.user?.name || '',
+      userEmail: booking.user?.email || '',
+      userPhone: booking.user?.phone,
+      items: [],
+      subtotal: booking.totalPrice - booking.platformFee,
+      platformFee: booking.platformFee,
+      totalAmount: booking.totalPrice,
+      status: this.convertBookingStatusToOrderStatus(booking.status),
+      paymentMethod: 'card' as PaymentMethod,
+      vendorId: booking.item?.userId || '',
+      vendorName: booking.item?.user?.name || '',
+      vendorEmail: booking.item?.user?.email || '',
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+      notes: booking.notes
+    } as Order;
+  }
+
+  // Helper to convert booking status to order status
+  private static convertBookingStatusToOrderStatus(status: string): OrderStatus {
+    const mapping: Record<string, OrderStatus> = {
+      'PENDING': OrderStatus.AWAITING_APPROVAL,
+      'PAID': OrderStatus.PAYMENT_RECEIVED,
+      'COMPLETED': OrderStatus.COMPLETED,
+      'CANCELLED': OrderStatus.CANCELLED,
+      'FROZEN': OrderStatus.FROZEN
+    };
+    return mapping[status] || OrderStatus.AWAITING_APPROVAL;
   }
 }

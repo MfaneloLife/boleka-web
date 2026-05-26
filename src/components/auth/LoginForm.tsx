@@ -5,7 +5,7 @@ import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signIn as nextAuthSignIn } from 'next-auth/react';
+import { useSignIn, useClerk } from '@clerk/nextjs';
 
 interface LoginFormProps {
   callbackUrl?: string;
@@ -17,6 +17,8 @@ interface LoginFormData {
 
 export default function LoginForm({ callbackUrl = '/dashboard/client' }: LoginFormProps) {
   const router = useRouter();
+  const clerk = useClerk();
+  const { isLoaded: signInLoaded, signIn: clerkSignIn, setActive } = useSignIn();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,21 +35,24 @@ export default function LoginForm({ callbackUrl = '/dashboard/client' }: LoginFo
       setSuccess(null);
       setIsLoading(true);
 
-      // Send passwordless email link
-      const result = await nextAuthSignIn('email', {
-        email: data.email,
-        redirect: false,
-        callbackUrl,
+      // Send passwordless email link via Clerk
+      if (!signInLoaded || !clerkSignIn) {
+        throw new Error('Sign in is not ready yet');
+      }
+      
+      const result = await clerkSignIn.create({
+        identifier: data.email,
+        strategy: 'email_code',
       });
 
-      if (result?.error) {
-        throw new Error('Failed to send verification email');
+      if (result.status === 'needs_second_factor') {
+        throw new Error('Two-factor authentication required');
       }
 
-      setSuccess('Check your email for a sign-in link!');
+      setSuccess('Check your email for a verification code!');
     } catch (error: any) {
       console.error('Login error:', error);
-      setError(error.message || 'Login failed');
+      setError(error.errors?.[0]?.message || error.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -58,21 +63,9 @@ export default function LoginForm({ callbackUrl = '/dashboard/client' }: LoginFo
       setError(null);
       setIsLoading(true);
       
-      const res = await nextAuthSignIn(provider, { 
-        redirect: false,
-        callbackUrl: '/dashboard/client' // Redirect authenticated users to client dashboard
+      await clerk.openSignIn({
+        appearance: { variables: { colorPrimary: '#4f46e5' } },
       });
-      
-      if (res?.error) {
-        throw new Error(res.error);
-      }
-      
-      if (res?.url) {
-        router.push(res.url);
-      } else if (res?.ok) {
-        // Successful authentication without redirect URL
-        router.push('/dashboard/client');
-      }
     } catch (err) {
       console.error('Social login error:', err);
       setError(err instanceof Error ? err.message : `Failed to sign in with ${provider}`);
@@ -196,7 +189,7 @@ export default function LoginForm({ callbackUrl = '/dashboard/client' }: LoginFo
 
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600">
-          Don&apos;t have an account?{' '}
+          Don't have an account?{' '}
           <Link
             href="/auth/login"
             className="font-medium text-indigo-600 hover:text-indigo-500"

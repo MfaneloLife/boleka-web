@@ -1,8 +1,6 @@
-import { Timestamp } from 'firebase/firestore';
-
 export interface Achievement {
   type: string;
-  earnedAt: Timestamp;
+  earnedAt: Date;
   description: string;
 }
 
@@ -47,7 +45,7 @@ export interface UserRewards {
   
   // Recent Activity
   recentTransactions: PointTransaction[];
-  lastActivityDate: Timestamp; // Add this missing field
+  lastActivityDate: Date; // Add this missing field
   
   updatedAt: Timestamp;
 }

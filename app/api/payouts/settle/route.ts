@@ -1,53 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { FirebaseDbService } from '@/src/lib/firebase-db';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 
-// Marks a payment as paid out to the merchant (idempotent)
+/**
+ * POST /api/payouts/settle
+ * Settle a payout for a completed order.
+ * This releases the vendor payout (95%) after platform commission (5%) is deducted.
+ * Only the vendor or an admin can settle a payout.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { paymentId } = await request.json();
-    if (!paymentId) {
-      return NextResponse.json({ error: 'paymentId is required' }, { status: 400 });
+    const { bookingId } = await request.json();
+    if (!bookingId) {
+      return NextResponse.json({ error: 'bookingId is required' }, { status: 400 });
     }
 
-    // Load payment to check ownership
-    const payments = await FirebaseDbService.getPaymentsByMerchant('dummy');
-    // The above doesn't fetch arbitrary payment by id; add a lightweight get by id using admin
-    // Workaround: Temporary query
-    // @ts-ignore
-    const adminDb = (await import('@/src/lib/firebase-admin')).adminDb;
-    const doc = await adminDb.collection('payments').doc(paymentId).get();
-    if (!doc.exists) {
-      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
-    }
-    const payment = { id: doc.id, ...doc.data() } as any;
-
-    // Only allow the merchant who owns this payment or an admin to settle
-    const userRes = await FirebaseDbService.getUserByEmail(session.user.email);
-    if (!userRes.success || !userRes.user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    const isOwner = payment.merchantId === userRes.user.id;
-    const isAdmin = session.user.email?.endsWith('@boleka.admin');
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    await FirebaseDbService.updatePayment(paymentId, {
-      merchantPaid: true,
-      merchantPayoutDate: new Date(),
-      status: 'PAID',
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { item: true }
     });
 
-    return NextResponse.json({ success: true });
+    if (!booking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    // Verify ownership
+    const isOwner = booking.item.userId === session.userId;
+    const isAdmin = session.userId?.endsWith('@boleka.admin');
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: 'Forbidden: Only the vendor or admin can settle this payout' }, { status: 403 });
+    }
+
+    // Validate booking is in a settleable state
+    if (booking.status !== 'COMPLETED') {
+      return NextResponse.json({ error: 'Booking must be in COMPLETED status to settle payout' }, { status: 400 });
+    }
+
+    if (booking.returnStatus === 'NOT_RETURNED') {
+      return NextResponse.json({ error: 'Item must be marked as returned before settling payout' }, { status: 400 });
+    }
+
+    const now = new Date();
+    
+    // Calculate payout split: 5% platform commission
+    const platformCommission = booking.totalPrice * 0.05;
+    const vendorPayoutAmount = booking.totalPrice - platformCommission;
+
+    // Update booking with payout details
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        platformCommission,
+        vendorPayoutAmount,
+        commissionPaid: true,
+        notes: booking.notes 
+          ? `${booking.notes} | Payout settled at ${now.toISOString()} (Platform: R${platformCommission.toFixed(2)}, Vendor: R${vendorPayoutAmount.toFixed(2)})`
+          : `Payout settled at ${now.toISOString()} (Platform: R${platformCommission.toFixed(2)}, Vendor: R${vendorPayoutAmount.toFixed(2)})`
+      }
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Payout settled successfully',
+      payout: {
+        totalAmount: booking.totalPrice,
+        platformCommission,
+        vendorPayoutAmount,
+        settledAt: now.toISOString()
+      }
+    });
   } catch (error) {
-    console.error('Settle payout error:', error);
-    return NextResponse.json({ error: 'Failed to settle payout' }, { status: 500 });
+    console.error('SETTLE_PAYOUT_ERROR', error);
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to settle payout' 
+    }, { status: 500 });
   }
 }

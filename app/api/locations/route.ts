@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FirebaseDbService, BusinessProfile } from '@/src/lib/firebase-db';
 
 export async function GET(req: NextRequest) {
   try {
     // Get unique locations from business profiles
-    const businessProfilesResult = await FirebaseDbService.getAllBusinessProfiles();
+    const businessProfilesResult = await neondatabase.getAllBusinessProfiles();
     
     if (!businessProfilesResult.success || !businessProfilesResult.profiles) {
       // Fallback to static locations if Firebase fetch fails

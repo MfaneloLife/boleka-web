@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { auth } from '@clerk/nextjs/server';
 import { ReviewService } from '@/src/lib/review-service';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -32,8 +31,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user can leave review for this order
-    const reviewEligibility = await ReviewService.canUserReviewOrder(orderId, session.user.id);
+    const reviewEligibility = await ReviewService.canUserReviewOrder(orderId, session.userId);
     
     if (!reviewEligibility.canReview) {
       return NextResponse.json(
@@ -90,7 +89,7 @@ export async function POST(request: NextRequest) {
       reviewType
     };
 
-    const reviewId = await ReviewService.createReview(reviewData, session.user.id);
+    const reviewId = await ReviewService.createReview(reviewData, session.userId);
 
     return NextResponse.json({ 
       success: true, 

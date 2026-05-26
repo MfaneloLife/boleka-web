@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { Order, OrderStatus, PaymentMethod } from '../types/order';
 import { OrderService } from '../lib/order-service';
 import { CreditCardIcon, BanknotesIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
@@ -15,7 +15,7 @@ interface PaymentFlowProps {
 }
 
 const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) => {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(order.paymentMethod);
   const [showPayFastForm, setShowPayFastForm] = useState(false);
@@ -69,7 +69,11 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
       if (loading) return; // double-click guard
       setLoading(true);
       
-      // Generate PayFast payment form
+      // Calculate split: 5% platform commission, 95% vendor payout
+      const platformCommission = order.totalAmount * 0.05;
+      const vendorPayout = order.totalAmount - platformCommission;
+
+      // Generate PayFast payment form with split payment data
       const paymentData = {
         merchant_id: process.env.NEXT_PUBLIC_PAYFAST_MERCHANT_ID,
         merchant_key: process.env.NEXT_PUBLIC_PAYFAST_MERCHANT_KEY,
@@ -80,15 +84,16 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
         payment_method: 'cc,dc,eft',
         return_url: `${window.location.origin}/payment/success?orderId=${order.id}`,
         cancel_url: `${window.location.origin}/payment/cancel?orderId=${order.id}`,
-  notify_url: `${window.location.origin}/api/payment/payfast-notify`,
+        notify_url: `${window.location.origin}/api/payment/payfast-notify`,
         name_first: order.userName.split(' ')[0] || order.userName,
         name_last: order.userName.split(' ').slice(1).join(' ') || '',
-  // custom_str1 -> orderId for deterministic mapping
-  // custom_str2 -> userId (payer) optional; we already have email
-  // custom_str3 -> vendorId (merchant)
-  custom_str1: order.id,
-  custom_str2: order.userId,
-  custom_str3: order.vendorId,
+        // Custom fields for split payment tracking
+        custom_str1: order.id,     // Order ID
+        custom_str2: order.userId,  // Renter ID
+        custom_str3: order.vendorId, // Vendor ID
+        // Split amounts in cents for PayFast ITN verification
+        custom_int1: String(Math.round(platformCommission * 100)), // Platform commission (5%)
+        custom_int2: String(Math.round(vendorPayout * 100)),       // Vendor payout (95%)
       };
 
       // Create form and submit to PayFast
@@ -145,7 +150,7 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
   const getPaymentDueStatus = () => {
     if (!order.paymentDueAt) return null;
     
-    const dueDate = order.paymentDueAt.toDate();
+    const dueDate = new Date(order.paymentDueAt);
     const now = new Date();
     const hoursUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60));
     

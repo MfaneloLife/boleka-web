@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { auth } from '@clerk/nextjs/server';
 import { RewardsService } from '@/src/lib/rewards-service';
 
 export async function POST(request: NextRequest) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user owns this discount
-    if (discount.userId !== session.user.id) {
+    if (discount.userId !== session.userId) {
       return NextResponse.json(
         { 
           valid: false,

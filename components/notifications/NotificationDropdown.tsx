@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 
@@ -16,7 +16,7 @@ interface Notification {
 }
 
 export default function NotificationDropdown() {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -24,7 +24,7 @@ export default function NotificationDropdown() {
 
   // Fetch unread notification count
   const fetchUnreadCount = async () => {
-    if (!session?.user) return;
+    if (!user) return;
 
     try {
       const response = await fetch('/api/notifications?count=true');
@@ -39,7 +39,7 @@ export default function NotificationDropdown() {
 
   // Fetch notifications when dropdown is opened
   const fetchNotifications = async () => {
-    if (!session?.user) return;
+    if (!user) return;
 
     setIsLoading(true);
     try {
@@ -113,14 +113,14 @@ export default function NotificationDropdown() {
 
   // Load notification count on mount and periodically
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       fetchUnreadCount();
 
       // Refresh count every minute
       const intervalId = setInterval(fetchUnreadCount, 60000);
       return () => clearInterval(intervalId);
     }
-  }, [session, fetchUnreadCount]);
+  }, [user, fetchUnreadCount]);
 
   // Get link for notification type
   const getNotificationLink = (notification: Notification) => {

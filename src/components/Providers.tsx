@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { SessionProvider } from "next-auth/react";
+import { ClerkProvider } from "@clerk/nextjs";
 import { AuthProvider } from "@/src/context/AuthContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <ClerkProvider>
       <AuthProvider>{children}</AuthProvider>
-    </SessionProvider>
+    </ClerkProvider>
   );
 }

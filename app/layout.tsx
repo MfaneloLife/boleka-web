@@ -26,9 +26,9 @@ export const metadata: Metadata = {
       "script-src 'self' 'unsafe-eval'", // remove 'unsafe-eval' when not using turbopack dev
       "style-src 'self' 'unsafe-inline'", // replace with hashed styles for strict mode
       "img-src 'self' data: blob:",
-      "connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+      "connect-src 'self' https://api.clerk.com https://clerk.boleka.com",
       "font-src 'self' data:",
-      "frame-src 'self' https://www.payfast.co.za",
+      "frame-src 'self' https://www.payfast.co.za https://accounts.clerk.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self' https://www.payfast.co.za"
@@ -52,7 +52,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ErrorBoundary>
-          {/* Client-side providers (NextAuth + Firebase) */}
+          {/* Client-side providers (Clerk) */}
           <Providers>{children}</Providers>
         </ErrorBoundary>
       </body>

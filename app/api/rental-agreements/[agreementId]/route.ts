@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { RentalAgreementService } from '@/src/lib/rental-agreement-service';
 
 export async function GET(
@@ -8,8 +7,8 @@ export async function GET(
   { params }: { params: { agreementId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -20,7 +19,7 @@ export async function GET(
     }
 
     // Check if user is authorized to view this agreement
-    if (agreement.owner.id !== session.user.id && agreement.renter.id !== session.user.id) {
+    if (agreement.owner.id !== session.userId && agreement.renter.id !== session.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -39,8 +38,8 @@ export async function PATCH(
   { params }: { params: { agreementId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -54,7 +53,7 @@ export async function PATCH(
     }
 
     // Check if user can modify this agreement
-    if (!RentalAgreementService.canModifyAgreement(agreement, session.user.id)) {
+    if (!RentalAgreementService.canModifyAgreement(agreement, session.userId)) {
       return NextResponse.json({ error: 'Cannot modify this agreement' }, { status: 403 });
     }
 

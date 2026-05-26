@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { Tab } from '@headlessui/react';
 import ReviewList from '@/components/reviews/ReviewList';
 
@@ -10,42 +10,16 @@ function classNames(...classes: string[]) {
 }
 
 export default function ReviewsPage() {
-  const { status } = useSession();
+  const { isLoaded } = useUser();
   const [selectedTab, setSelectedTab] = useState(0);
 
-  if (status === 'loading') {
+  if (!isLoaded) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
       </div>
     );
   }
-
-  if (status === 'unauthenticated') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            You need to be logged in to view this page
-          </h1>
-          <p className="text-gray-600 mb-8">
-            Please sign in to access your reviews.
-          </p>
-          <a
-            href="/auth/login"
-            className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md"
-          >
-            Sign In
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  const categories = [
-    { name: 'Reviews I\'ve Received', type: 'received' },
-    { name: 'Reviews I\'ve Given', type: 'given' },
-  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -54,7 +28,7 @@ export default function ReviewsPage() {
       <div className="w-full">
         <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
           <Tab.List className="flex space-x-1 rounded-xl bg-orange-50 p-1 mb-6">
-            {categories.map((category) => (
+            {[{ name: "Reviews I've Received", type: 'received' }, { name: "Reviews I've Given", type: 'given' }].map((category) => (
               <Tab
                 key={category.name}
                 className={({ selected }) =>

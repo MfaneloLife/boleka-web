@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import RatingStars from '@/components/reviews/RatingStars';
 import SendMessageModal from '@/components/SendMessageModal';
-import { auth } from '@/src/lib/firebase';
+import { useUser } from '@clerk/nextjs';
 
 interface Item {
   id: string;
@@ -73,19 +73,20 @@ export default function ItemDetailsPage() {
     }
   }, [itemId]);
 
+  const { user, isLoaded } = useUser();
+
   const handleRequestItem = async () => {
-    if (!auth.currentUser) {
-      router.push('/auth/login');
+    if (!isLoaded) return;
+    if (!user) {
+      window.location.href = '/auth/sign-in';
       return;
     }
 
     try {
-      const idToken = await auth.currentUser.getIdToken();
       const response = await fetch('/api/requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           itemId,
@@ -100,7 +101,6 @@ export default function ItemDetailsPage() {
       router.push('/dashboard/client/requests');
     } catch (err: unknown) {
       console.error('Error creating request:', err);
-      // Handle error here
     }
   };
 
@@ -131,7 +131,7 @@ export default function ItemDetailsPage() {
     );
   }
 
-  const isOwner = auth.currentUser && item.ownerId === auth.currentUser.uid;
+  const isOwner = isLoaded && user && item.ownerId === user.id;
   const images = item.imageUrls ? JSON.parse(item.imageUrls) : [];
 
   return (

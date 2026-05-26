@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { ReminderService } from '@/src/lib/reminder-service';
-import { adminDb } from '@/src/lib/firebase-admin';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -20,21 +18,8 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit');
 
     if (type === 'pending') {
-      // Restrict: only users with a business profile OR explicit admin flag
-      const userEmail = session.user.email;
-      const usersSnap = await adminDb.collection('users').where('email','==',userEmail).limit(1).get();
-      let userDoc = usersSnap.empty ? null : usersSnap.docs[0];
-      let isAdmin = false;
-      if (userDoc) {
-        const data:any = userDoc.data();
-        isAdmin = !!data.isAdmin;
-      }
-      let hasBusiness = false;
-      if (userDoc) {
-        const bizSnap = await adminDb.collection('businessProfiles').where('userId','==',userDoc.id).limit(1).get();
-        hasBusiness = !bizSnap.empty;
-      }
-      if (!isAdmin && !hasBusiness) {
+      const isAdmin = session.userId?.endsWith('@boleka.admin');
+      if (!isAdmin) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
       const reminders = await ReminderService.getPendingReminders(
@@ -43,12 +28,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ reminders, count: reminders.length });
     }
 
-    // Get user's reminders (ownership enforced)
-    const reminders = await ReminderService.getUserReminders(session.user.id);
+    const reminders = await ReminderService.getUserReminders(session.userId);
 
     return NextResponse.json({
       reminders,
-      count: reminders.length
+      count: reminders.length,
     });
 
   } catch (error) {
@@ -62,9 +46,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -88,8 +72,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if user is authorized (owner or renter)
-        const canAccess = agreement.owner.id === session.user.id || 
-                         agreement.renter.id === session.user.id;
+        const canAccess = agreement.owner.id === session.userId || 
+                         agreement.renter.id === session.userId;
         
         if (!canAccess) {
           return NextResponse.json(
@@ -118,8 +102,8 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const canAccess = agreement.owner.id === session.user.id || 
-                         agreement.renter.id === session.user.id;
+        const canAccess = agreement.owner.id === session.userId || 
+                         agreement.renter.id === session.userId;
         
         if (!canAccess) {
           return NextResponse.json(
@@ -149,7 +133,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        if (agreement.owner.id !== session.user.id) {
+        if (agreement.owner.id !== session.userId) {
           return NextResponse.json(
             { error: 'Only the item owner can schedule late notices' },
             { status: 403 }
@@ -176,8 +160,8 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const canAccess = agreement.owner.id === session.user.id || 
-                         agreement.renter.id === session.user.id;
+        const canAccess = agreement.owner.id === session.userId || 
+                         agreement.renter.id === session.userId;
         
         if (!canAccess) {
           return NextResponse.json(
@@ -212,9 +196,9 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { OrderService } from '@/src/lib/order-service';
 
 export async function GET(
@@ -8,7 +7,7 @@ export async function GET(
   { params }: { params: { orderId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -27,7 +26,7 @@ export async function GET(
     }
 
     // Check if user has access to this order
-    if (order.userId !== session.user.id && order.vendorId !== session.user.id) {
+    if (order.userId !== session.userId && order.vendorId !== session.userId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -23,7 +23,7 @@ interface Item {
 }
 
 export default function ItemReviewsPage() {
-  const { data: session } = useSession();
+  const { user, isLoaded } = useUser();
   const params = useParams();
   const itemId = params.itemId as string;
 
@@ -104,7 +104,7 @@ export default function ItemReviewsPage() {
     );
   }
 
-  const canReview = session?.user && item.userId !== session.user.id;
+  const canReview = isLoaded && user && item.userId !== user.id;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

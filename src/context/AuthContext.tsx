@@ -1,27 +1,16 @@
-"use client";
+﻿"use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  User, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  signInWithPopup,
-  updateProfile
-} from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
-import { auth, googleProvider, facebookProvider } from '@/src/lib/firebase';
-import { ProfileFirestoreService } from '@/src/lib/firestore';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useUser, useClerk, useSignIn, useSignUp } from '@clerk/nextjs';
 
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: { id?: string; name?: string | null; email?: string | null; image?: string | null } | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<User>;
-  signUp: (email: string, password: string, name: string) => Promise<User>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
   logOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<User>;
-  signInWithFacebook: () => Promise<User>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithFacebook: () => Promise<void>;
   error: string | null;
 }
 
@@ -36,287 +25,112 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const clerk = useClerk();
+  const { isLoaded: signInLoaded, signIn: clerkSignIn, setActive: setSignInActive } = useSignIn();
+  const { isLoaded: signUpLoaded, signUp: clerkSignUp, setActive: setSignUpActive } = useSignUp();
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+    if (isLoaded) {
       setLoading(false);
-    });
+    }
+  }, [isLoaded]);
 
-    return unsubscribe;
-  }, []);
+  const currentUser = isSignedIn && user
+    ? {
+        id: user.id,
+        name: user.fullName || user.firstName || user.username || null,
+        email: user.primaryEmailAddress?.emailAddress || null,
+        image: user.imageUrl || null,
+        displayName: user.fullName || user.firstName || 'User',
+        photoURL: user.imageUrl || null,
+      }
+    : null;
 
-  async function signIn(email: string, password: string) {
+  async function handleSignIn(email: string, password: string) {
     try {
       setError(null);
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      // Persist email for server fallbacks
-      try {
-        if (result.user?.email && typeof window !== 'undefined') {
-          localStorage.setItem('boleka_user_email', result.user.email);
-        }
-      } catch {}
-      return result.user;
-    } catch (error: unknown) {
-      console.error("Login error:", error);
-      let errorMessage = "Failed to sign in";
-      if (error instanceof FirebaseError && (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password')) {
-        errorMessage = "Invalid email or password";
+      if (!signInLoaded || !clerkSignIn) {
+        throw new Error('Sign in is not ready yet');
       }
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      const result = await clerkSignIn.create({
+        identifier: email,
+        password,
+      });
+      if (result.status === 'complete' && setSignInActive) {
+        await setSignInActive({ session: result.createdSessionId });
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || err.message || 'Sign in failed');
+      throw err;
     }
   }
 
-  async function signUp(email: string, password: string, name: string) {
+  async function handleSignUp(email: string, password: string, name: string) {
     try {
       setError(null);
-      console.log('Attempting to create Firebase user:', { email, name });
-      
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('Firebase user created:', result.user.uid);
-      
-      // Update user profile with name
-      if (result.user) {
-        try {
-          await updateProfile(result.user, { displayName: name });
-          console.log('User profile updated with name');
-          
-          // Create user profile in Firestore
-          try {
-            console.log('Creating user profile in Firestore');
-            const userProfileResult = await ProfileFirestoreService.createUserProfile(result.user.uid, {
-              email: result.user.email,
-              name: name,
-              photoURL: result.user.photoURL,
-              provider: 'email'
-            });
-            
-            if (userProfileResult.success) {
-              console.log('User profile created successfully in Firestore');
-            } else {
-              console.error('Error creating user profile:', userProfileResult.error);
-            }
-            
-            // Automatically create a basic client profile in Firestore
-            try {
-              console.log('Creating basic client profile in Firestore');
-              const clientProfileResult = await ProfileFirestoreService.createClientProfile(result.user.uid, {
-                email: result.user.email,
-                name: name,
-                clientProvince: '',
-                clientCity: '',
-                clientSuburb: '',
-                cellPhone: '',
-                preferences: 'Everything',
-                profileImageUrl: result.user.photoURL || ''
-              });
-              
-              if (clientProfileResult.success) {
-                console.log('Basic client profile created successfully in Firestore');
-              } else {
-                console.log('Client profile creation will be handled later:', clientProfileResult.error);
-              }
-            } catch (clientError) {
-              console.log('Client profile will be created during profile setup:', clientError);
-            }
-          } catch (firestoreError) {
-            console.error('Error creating profiles in Firestore:', firestoreError);
-            // Continue - the user is created in Firebase, we can try to create the profile later
-          }
-        } catch (profileError) {
-          console.error('Error updating Firebase profile:', profileError);
-          // Continue - we have the Firebase user
-        }
+      if (!signUpLoaded || !clerkSignUp) {
+        throw new Error('Sign up is not ready yet');
       }
-      
-      return result.user;
-    } catch (error: unknown) {
-      console.error("Signup error:", error);
-      let errorMessage = "Failed to create account";
-      if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
-        errorMessage = "Email already in use";
-      } else if (error instanceof FirebaseError && error.code === 'auth/weak-password') {
-        errorMessage = "Password is too weak";
-      } else if (error instanceof FirebaseError && error.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email address";
+      const result = await clerkSignUp.create({
+        emailAddress: email,
+        password,
+        firstName: name,
+      });
+      if (result.status === 'complete' && setSignUpActive) {
+        await setSignUpActive({ session: result.createdSessionId });
+      } else if (result.status === 'missing_requirements') {
+        await clerkSignUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       }
-      setError(errorMessage);
-      throw new Error(errorMessage);
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || err.message || 'Sign up failed');
+      throw err;
     }
   }
 
-  async function logOut() {
+  async function handleLogOut() {
     try {
       setError(null);
-      return await signOut(auth);
-    } catch (error: unknown) {
-      console.error("Logout error:", error);
-      setError("Failed to log out");
-      throw new Error("Failed to log out");
+      await clerk.signOut();
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || err.message || 'Sign out failed');
     }
   }
 
-  async function signInWithGoogle() {
+  async function handleSignInWithGoogle() {
     try {
       setError(null);
-      console.log('Starting Google sign-in...');
-      
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log('Google sign-in successful:', result.user.uid);
-      
-      // Create or update user profile in Firestore
-      if (result.user) {
-        try {
-          console.log('Creating/updating user profile for Google user in Firestore...');
-          const userProfileResult = await ProfileFirestoreService.createUserProfile(result.user.uid, {
-            email: result.user.email,
-            name: result.user.displayName,
-            photoURL: result.user.photoURL,
-            provider: 'google'
-          });
-          
-          if (!userProfileResult.success) {
-            console.error('Failed to create profile for Google user:', userProfileResult.error);
-          } else {
-            console.log('User profile created/updated successfully in Firestore');
-            
-            // Automatically create a basic client profile for new Google users
-            try {
-              console.log('Creating basic client profile for Google user in Firestore');
-              const clientProfileResult = await ProfileFirestoreService.createClientProfile(result.user.uid, {
-                email: result.user.email,
-                name: result.user.displayName,
-                clientProvince: '',
-                clientCity: '',
-                clientSuburb: '',
-                cellPhone: '',
-                preferences: 'Everything',
-                profileImageUrl: result.user.photoURL || ''
-              });
-              
-              if (clientProfileResult.success) {
-                console.log('Basic client profile created successfully for Google user in Firestore');
-              } else {
-                console.log('Client profile creation will be handled later:', clientProfileResult.error);
-              }
-            } catch (clientError) {
-              console.log('Client profile will be created during profile setup:', clientError);
-            }
-          }
-        } catch (firestoreError) {
-          console.error('Error creating profile for Google user in Firestore:', firestoreError);
-        }
-      }
-      
-      return result.user;
-    } catch (error: unknown) {
-      console.error("Google sign-in error:", error);
-      let errorMessage = "Failed to sign in with Google";
-      
-      if (error instanceof FirebaseError) {
-        switch (error.code) {
-          case 'auth/popup-closed-by-user':
-            errorMessage = "Sign-in was cancelled";
-            break;
-          case 'auth/popup-blocked':
-            errorMessage = "Popup was blocked by browser. Please allow popups and try again";
-            break;
-          case 'auth/cancelled-popup-request':
-            errorMessage = "Sign-in was cancelled";
-            break;
-          case 'auth/network-request-failed':
-            errorMessage = "Network error. Please check your connection and try again";
-            break;
-          default:
-            errorMessage = `Google sign-in failed: ${error.message}`;
-        }
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      await clerk.openSignIn({
+        appearance: { variables: { colorPrimary: '#4f46e5' } },
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || err.message || 'Google sign in failed');
     }
   }
 
-  async function signInWithFacebook() {
+  async function handleSignInWithFacebook() {
     try {
       setError(null);
-      const result = await signInWithPopup(auth, facebookProvider);
-      
-      // Create or update user profile in Firestore
-      if (result.user) {
-        try {
-          const userProfileResult = await ProfileFirestoreService.createUserProfile(result.user.uid, {
-            email: result.user.email,
-            name: result.user.displayName,
-            photoURL: result.user.photoURL,
-            provider: 'facebook'
-          });
-          
-          if (!userProfileResult.success) {
-            console.error('Failed to create profile for Facebook user:', userProfileResult.error);
-          } else {
-            console.log('User profile created/updated successfully for Facebook user in Firestore');
-            
-            // Automatically create a basic client profile for new Facebook users
-            try {
-              console.log('Creating basic client profile for Facebook user in Firestore');
-              const clientProfileResult = await ProfileFirestoreService.createClientProfile(result.user.uid, {
-                email: result.user.email,
-                name: result.user.displayName,
-                clientProvince: '',
-                clientCity: '',
-                clientSuburb: '',
-                cellPhone: '',
-                preferences: 'Everything',
-                profileImageUrl: result.user.photoURL || ''
-              });
-              
-              if (clientProfileResult.success) {
-                console.log('Basic client profile created successfully for Facebook user in Firestore');
-              } else {
-                console.log('Client profile creation will be handled later:', clientProfileResult.error);
-              }
-            } catch (clientError) {
-              console.log('Client profile will be created during profile setup:', clientError);
-            }
-          }
-        } catch (firestoreError) {
-          console.error('Error creating profile for Facebook user in Firestore:', firestoreError);
-        }
-      }
-      
-      // Persist email for server fallbacks
-      try {
-        if (result.user?.email && typeof window !== 'undefined') {
-          localStorage.setItem('boleka_user_email', result.user.email);
-        }
-      } catch {}
-      return result.user;
-    } catch (error: unknown) {
-      console.error("Facebook sign-in error:", error);
-      setError("Failed to sign in with Facebook");
-      throw new Error("Failed to sign in with Facebook");
+      await clerk.openSignIn({
+        appearance: { variables: { colorPrimary: '#4f46e5' } },
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || err.message || 'Facebook sign in failed');
     }
   }
 
   const value: AuthContextType = {
     currentUser,
     loading,
-    signIn,
-    signUp,
-    logOut,
-    signInWithGoogle,
-    signInWithFacebook,
+    signIn: handleSignIn,
+    signUp: handleSignUp,
+    logOut: handleLogOut,
+    signInWithGoogle: handleSignInWithGoogle,
+    signInWithFacebook: handleSignInWithFacebook,
     error,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { auth } from '@/src/lib/firebase';
+import { useUser } from '@clerk/nextjs';
 
 interface Conversation {
   id: string;
@@ -41,57 +41,42 @@ interface Conversation {
 
 export default function MessagesPage() {
   const router = useRouter();
+  const { user, isLoaded, isSignedIn } = useUser();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        router.push('/auth/login');
-        return;
-      }
-      setUserEmail(user.email);
-      setAuthReady(true);
-      await fetchConversations();
-    });
-    return () => unsub();
-  }, [router]);
+    if (!isLoaded) return;
 
-  const fetchConversations = async () => {
-    try {
-      setIsLoading(true);
-      const user = auth.currentUser;
-      const idToken = await user?.getIdToken();
-      const response = await fetch('/api/messages', {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch conversations');
-      }
-      
-      const data = await response.json();
-      setConversations(data);
-    } catch (err) {
-      console.error('Error fetching conversations:', err);
-      setError('Failed to load your conversations. Please try again.');
-    } finally {
-      setIsLoading(false);
+    if (!isSignedIn) {
+      window.location.href = '/auth/sign-in';
+      return;
     }
-  };
+
+    const fetchConversations = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/messages');
+        if (!response.ok) {
+          throw new Error('Failed to fetch conversations');
+        }
+        const data = await response.json();
+        setConversations(data);
+      } catch (err) {
+        console.error('Error fetching conversations:', err);
+        setError('Failed to load your conversations. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchConversations();
+  }, [isLoaded, isSignedIn]);
 
   const getOtherParty = (conversation: Conversation) => {
-    if (!userEmail) return null;
-    
-    // Determine if the current user is the requester or the owner
-    const userIsRequester = conversation.requester.id === userEmail;
-    
-    // Return the other party's information
+    if (!user) return null;
+    const userIsRequester = conversation.requester.id === user.id;
     return userIsRequester ? conversation.owner : conversation.requester;
   };
 
@@ -105,7 +90,7 @@ export default function MessagesPage() {
     });
   };
 
-  if (!authReady || isLoading) {
+  if (!isLoaded || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -239,9 +224,6 @@ export default function MessagesPage() {
                 </svg>
                 List an Item
               </Link>
-            </div>
-            <div className="mt-4 text-xs text-gray-400">
-              Tip: Messages help you coordinate pickups, ask questions about items, and build trust in the Boleka community.
             </div>
           </div>
         )}

@@ -3,29 +3,28 @@
 import React, { useState } from 'react';
 import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 
 interface ProfileSetupFormData {
-  businessName?: string;
-  province?: string;
-  city?: string;
-  suburb?: string;
-  contactNumber?: string;
-  access?: string;
+  businessName: string;
+  province: string;
+  city: string;
+  suburb: string;
+  contactNumber: string;
+  returnWindow: string;
+  lateFeePerDay: string;
 }
 
 export default function ProfileSetupPage() {
   const router = useRouter();
   const { currentUser } = useAuth();
-  const searchParams = useSearchParams(); // kept in case of future use
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // South African provinces
+
   const provinces = [
     'Mpumalanga',
-    'Gauteng', 
+    'Gauteng',
     'KwaZulu-Natal',
     'Free State',
     'Eastern Cape',
@@ -35,201 +34,179 @@ export default function ProfileSetupPage() {
     'Northern Cape'
   ];
 
-  // Access options for business
-  const accessOptions = [
-    'Delivery',
-    'Collection only',
-    'Both'
-  ];
-  
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ProfileSetupFormData>();
+  } = useForm<ProfileSetupFormData>({
+    defaultValues: {
+      returnWindow: '48',
+      lateFeePerDay: '50'
+    }
+  });
 
-  const onSubmit = async (data: ProfileSetupFormData) => {
+  async function onSubmit(data: ProfileSetupFormData) {
     setIsSubmitting(true);
     setError(null);
 
+    if (!currentUser) {
+      setError('Please sign in before setting up your profile.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to create a profile');
-      }
-
-      // Get the Firebase ID token
-      const idToken = await currentUser.getIdToken();
-
+      const token = await currentUser.getIdToken();
       const response = await fetch('/api/profile/business', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          businessName: data.businessName,
+          province: data.province,
+          city: data.city,
+          suburb: data.suburb,
+          contactNumber: data.contactNumber,
+          access: 'Both',
+          returnWindowHours: Number(data.returnWindow),
+          lateFeePerDay: Number(data.lateFeePerDay),
+        }),
       });
 
       if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || 'Failed to update profile');
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to save profile');
       }
 
-      // Redirect to business dashboard after setup
       router.push('/dashboard/business');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-2xl p-8 space-y-8 bg-white rounded-lg shadow-md">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Set up your Business Profile</h1>
-          <p className="mt-2 text-gray-600">Create your business profile to list items, accept requests, and get paid.</p>
-        </div>
-
-
-        {error && (
-          <div className="p-3 text-sm text-white bg-red-500 rounded">
-            {error}
+    <div className="min-h-screen bg-slate-50 py-8">
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
+        <div className="rounded-3xl bg-white p-6 shadow-sm sm:p-10">
+          <div className="mb-8 space-y-3 text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-500">Account setup</p>
+            <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">One account. Full access.</h1>
+            <p className="mx-auto max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+              Complete your vendor profile once and start listing items, accepting requests, and managing return terms.
+            </p>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-            <>
-              <div>
-                <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
-                  Business Name *
-                </label>
+          {error && (
+            <div className="mb-6 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Business Name</span>
                 <input
-                  id="businessName"
                   type="text"
-                  {...register('businessName', {
-                    required: 'Business name is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  {...register('businessName', { required: 'Business name is required' })}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
-                {errors.businessName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>
-                )}
-              </div>
+                {errors.businessName && <p className="mt-2 text-sm text-red-600">{errors.businessName.message}</p>}
+              </label>
 
-              <div>
-                <label htmlFor="province" className="block text-sm font-medium text-gray-700">
-                  Province *
-                </label>
-                <select
-                  id="province"
-                  {...register('province', {
-                    required: 'Province is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Choose your Province</option>
-                  {provinces.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
-                {errors.province && (
-                  <p className="mt-1 text-sm text-red-600">{errors.province.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-                  City *
-                </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Contact Number</span>
                 <input
-                  id="city"
-                  type="text"
-                  {...register('city', {
-                    required: 'City is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.city && (
-                  <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="suburb" className="block text-sm font-medium text-gray-700">
-                  Suburb *
-                </label>
-                <input
-                  id="suburb"
-                  type="text"
-                  {...register('suburb', {
-                    required: 'Suburb is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.suburb && (
-                  <p className="mt-1 text-sm text-red-600">{errors.suburb.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700">
-                  Contact Number *
-                </label>
-                <input
-                  id="contactNumber"
                   type="tel"
-                  {...register('contactNumber', {
-                    required: 'Contact number is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  {...register('contactNumber', { required: 'Contact number is required' })}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
-                {errors.contactNumber && (
-                  <p className="mt-1 text-sm text-red-600">{errors.contactNumber.message}</p>
-                )}
-              </div>
+                {errors.contactNumber && <p className="mt-2 text-sm text-red-600">{errors.contactNumber.message}</p>}
+              </label>
+            </div>
 
-              <div>
-                <label htmlFor="access" className="block text-sm font-medium text-gray-700">
-                  Access *
-                </label>
+            <div className="grid gap-6 sm:grid-cols-3">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Province</span>
                 <select
-                  id="access"
-                  {...register('access', {
-                    required: 'Access option is required',
-                  })}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  {...register('province', { required: 'Province is required' })}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 >
-                  <option value="">Choose access option</option>
-                  {accessOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
+                  <option value="">Select Province</option>
+                  {provinces.map((province) => (
+                    <option key={province} value={province}>{province}</option>
                   ))}
                 </select>
-                {errors.access && (
-                  <p className="mt-1 text-sm text-red-600">{errors.access.message}</p>
-                )}
-              </div>
-            </>
+                {errors.province && <p className="mt-2 text-sm text-red-600">{errors.province.message}</p>}
+              </label>
 
-          <div className="space-y-3">
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              {isSubmitting ? 'Setting up profile...' : 'Save Profile'}
-            </Button>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">City</span>
+                <input
+                  type="text"
+                  {...register('city', { required: 'City is required' })}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                />
+                {errors.city && <p className="mt-2 text-sm text-red-600">{errors.city.message}</p>}
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Suburb</span>
+                <input
+                  type="text"
+                  {...register('suburb', { required: 'Suburb is required' })}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                />
+                {errors.suburb && <p className="mt-2 text-sm text-red-600">{errors.suburb.message}</p>}
+              </label>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Return window (hours)</span>
+                <input
+                  type="number"
+                  min="1"
+                  {...register('returnWindow', { required: 'Return window is required' })}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                />
+                {errors.returnWindow && <p className="mt-2 text-sm text-red-600">{errors.returnWindow.message}</p>}
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Late fee per day (R)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  {...register('lateFeePerDay', { required: 'Late return fee is required' })}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                />
+                {errors.lateFeePerDay && <p className="mt-2 text-sm text-red-600">{errors.lateFeePerDay.message}</p>}
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? 'Saving profile…' : 'Save business settings'}
+              </Button>
+            </div>
+          </form>
+
+          <div className="mt-6 rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">
+            <p className="font-medium text-slate-900">What this does</p>
+            <p className="mt-2">
+              These details let your account offer both listing and request capabilities, and set the vendor return window plus late return fee for your items.
+            </p>
           </div>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            You can always edit your business profile later from your dashboard.
-          </p>
         </div>
       </div>
     </div>

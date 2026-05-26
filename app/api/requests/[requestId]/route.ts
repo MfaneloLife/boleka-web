@@ -1,149 +1,149 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/src/lib/firebase-admin';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 
-async function getAuthedUser(request: NextRequest) {
-  const authHeader = request.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.substring('Bearer '.length)
-    : undefined;
-  if (!token) return { error: 'Missing Authorization token', status: 401 } as const;
-  const decoded = await adminAuth.verifyIdToken(token);
-  const email = decoded.email;
-  if (!email) return { error: 'Invalid token: missing email', status: 401 } as const;
-  const usersSnap = await adminDb.collection('users').where('email', '==', email).limit(1).get();
-  if (usersSnap.empty) return { error: 'User not found', status: 404 } as const;
-  const userDoc = usersSnap.docs[0];
-  return { userId: userDoc.id, email, user: userDoc.data() } as const;
+function isValidStatusTransition(
+  currentStatus: string,
+  newStatus: string,
+  currentUserId: string,
+  requesterId: string,
+  ownerId: string
+) {
+  if (newStatus === currentStatus) {
+    return true;
+  }
+
+  const isOwner = currentUserId === ownerId;
+  const isRequester = currentUserId === requesterId;
+
+  if (isOwner) {
+    if (currentStatus === 'PENDING' && (newStatus === 'ACCEPTED' || newStatus === 'REJECTED')) {
+      return true;
+    }
+    if (currentStatus === 'COMPLETED' && newStatus === 'PAID') {
+      return true;
+    }
+  }
+
+  if (isRequester) {
+    if (currentStatus === 'PENDING' && newStatus === 'CANCELLED') {
+      return true;
+    }
+    if (currentStatus === 'ACCEPTED' && newStatus === 'COMPLETED') {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
-  try {
-    const auth = await getAuthedUser(request);
-    if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
-
-    const requestDoc = await adminDb.collection('requests').doc(params.requestId).get();
-    if (!requestDoc.exists) {
-      return NextResponse.json({ error: 'Request not found' }, { status: 404 });
-    }
-
-    const requestData = requestDoc.data() as any;
-    
-    // Check if user is authorized to view this request
-    const isOwner = requestData.ownerId === auth.userId || requestData.ownerEmail === auth.email;
-    const isRequester = requestData.requesterId === auth.userId || requestData.requesterEmail === auth.email;
-    if (!isOwner && !isRequester) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
-    return NextResponse.json({
-      id: requestDoc.id,
-      ...requestData
-    });
-  } catch (error) {
-    console.error('Error fetching request:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch request' },
-      { status: 500 }
-    );
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const requestRecord = await prisma.request.findUnique({
+    where: { id: params.requestId },
+    include: {
+      item: { include: { images: { orderBy: { order: 'asc' } } } },
+      requester: { select: { id: true, name: true, image: true, email: true } },
+      owner: { select: { id: true, name: true, image: true, email: true } },
+      messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+    },
+  });
+
+  if (!requestRecord) {
+    return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+  }
+
+  const currentUserId = session.userId;
+  if (currentUserId !== requestRecord.requesterId && currentUserId !== requestRecord.ownerId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  return NextResponse.json({
+    id: requestRecord.id,
+    status: requestRecord.status,
+    item: {
+      id: requestRecord.item.id,
+      title: requestRecord.item.title,
+      imageUrls: requestRecord.item.images.map((image) => image.url),
+    },
+    requester: {
+      id: requestRecord.requester.id,
+      name: requestRecord.requester.name,
+      image: requestRecord.requester.image,
+      email: requestRecord.requester.email,
+    },
+    owner: {
+      id: requestRecord.owner.id,
+      name: requestRecord.owner.name,
+      image: requestRecord.owner.image,
+      email: requestRecord.owner.email,
+    },
+    totalPrice: requestRecord.totalPrice,
+    startDate: requestRecord.startDate?.toISOString() ?? null,
+    endDate: requestRecord.endDate?.toISOString() ?? null,
+    lastMessage: requestRecord.messages[0]
+      ? {
+          id: requestRecord.messages[0].id,
+          content: requestRecord.messages[0].content,
+          createdAt: requestRecord.messages[0].createdAt.toISOString(),
+          senderId: requestRecord.messages[0].senderId,
+        }
+      : null,
+    updatedAt: requestRecord.updatedAt.toISOString(),
+  });
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
-  try {
-    const auth = await getAuthedUser(request);
-    if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
-
-    const body = await request.json();
-    
-    // Get the current request to check authorization
-    const requestDoc = await adminDb.collection('requests').doc(params.requestId).get();
-    if (!requestDoc.exists) {
-      return NextResponse.json({ error: 'Request not found' }, { status: 404 });
-    }
-
-    const requestData = requestDoc.data() as any;
-    
-    // Check if user is authorized to update this request
-    // Owner can approve/decline, requester can cancel
-    const isOwner = requestData.ownerId === auth.userId || requestData.ownerEmail === auth.email;
-    const isRequester = requestData.requesterId === auth.userId || requestData.requesterEmail === auth.email;
-    if (!isOwner && !isRequester) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
-    // Validate status transitions
-    const currentStatus = requestData.status;
-    const newStatus = body.status;
-    
-    if (newStatus && !isValidStatusTransition(currentStatus, newStatus, auth.email, requestData)) {
-      return NextResponse.json({ 
-        error: 'Invalid status transition' 
-      }, { status: 400 });
-    }
-
-    // Prepare update data
-    const updateData: any = {
-      ...body,
-      updatedAt: new Date()
-    };
-
-    // Update the request
-    await adminDb.collection('requests').doc(params.requestId).update(updateData);
-
-    // Get updated request
-    const updatedDoc = await adminDb.collection('requests').doc(params.requestId).get();
-    
-    return NextResponse.json({
-      id: updatedDoc.id,
-      ...updatedDoc.data()
-    });
-  } catch (error) {
-    console.error('Error updating request:', error);
-    return NextResponse.json(
-      { error: 'Failed to update request' },
-      { status: 500 }
-    );
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-}
 
-function isValidStatusTransition(
-  currentStatus: string, 
-  newStatus: string, 
-  userEmail: string, 
-  requestData: any
-): boolean {
-  // Owner can approve or decline pending requests
-  if (userEmail === requestData.ownerEmail) {
-    if (currentStatus === 'pending' && (newStatus === 'accepted' || newStatus === 'rejected')) {
-      return true;
-    }
-    // Owner can mark completed requests as paid
-    if (currentStatus === 'completed' && newStatus === 'paid') {
-      return true;
-    }
+  const body = await request.json();
+  const requestRecord = await prisma.request.findUnique({
+    where: { id: params.requestId },
+  });
+
+  if (!requestRecord) {
+    return NextResponse.json({ error: 'Request not found' }, { status: 404 });
   }
-  
-  // Requester can cancel their own pending requests
-  if (userEmail === requestData.requesterEmail) {
-    if (currentStatus === 'pending' && newStatus === 'cancelled') {
-      return true;
-    }
-    // Requester can mark accepted requests as completed
-    if (currentStatus === 'accepted' && newStatus === 'completed') {
-      return true;
-    }
+
+  const currentUserId = session.userId;
+  if (currentUserId !== requestRecord.requesterId && currentUserId !== requestRecord.ownerId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
-  
-  // System updates (like linking orders)
-  if (newStatus === currentStatus) {
-    return true; // Allow updates to same status (for additional fields)
+
+  if (body.status && !isValidStatusTransition(requestRecord.status, body.status, currentUserId, requestRecord.requesterId, requestRecord.ownerId)) {
+    return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
   }
-  
-  return false;
+
+  const updateData: any = { updatedAt: new Date() };
+  if (body.status) updateData.status = body.status;
+  if (body.startDate) updateData.startDate = new Date(body.startDate);
+  if (body.endDate) updateData.endDate = new Date(body.endDate);
+  if (body.totalPrice !== undefined) updateData.totalPrice = Number(body.totalPrice);
+
+  const updatedRequest = await prisma.request.update({
+    where: { id: params.requestId },
+    data: updateData,
+  });
+
+  return NextResponse.json({
+    id: updatedRequest.id,
+    status: updatedRequest.status,
+    totalPrice: updatedRequest.totalPrice,
+    startDate: updatedRequest.startDate?.toISOString() ?? null,
+    endDate: updatedRequest.endDate?.toISOString() ?? null,
+    updatedAt: updatedRequest.updatedAt.toISOString(),
+  });
 }

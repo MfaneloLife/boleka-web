@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { Html5QrcodeScanner, Html5QrcodeScanType, Html5QrcodeResult } from 'html5-qrcode';
 import { 
   CameraIcon, 
@@ -40,7 +40,7 @@ const MLBarcodeScanner: React.FC<MLBarcodeScannerProps> = ({
   enableBarcodeScanning = true,
   className = ''
 }) => {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<MLBarcodeResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -127,7 +127,7 @@ const MLBarcodeScanner: React.FC<MLBarcodeScannerProps> = ({
       onBarcodeScanned?.(mlResult);
       
       // Save to user's scan history
-      if (session?.user?.id) {
+      if (user?.id) {
         await saveScanToHistory(mlResult);
       }
 
@@ -149,7 +149,7 @@ const MLBarcodeScanner: React.FC<MLBarcodeScannerProps> = ({
       // Create FormData for image upload
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('userId', session?.user?.id || 'anonymous');
+      formData.append('userId', user?.id || 'anonymous');
       formData.append('enableBarcodeScanning', enableBarcodeScanning.toString());
       formData.append('enableTextExtraction', enableTextExtraction.toString());
       formData.append('enableImageLabeling', enableImageLabeling.toString());
@@ -225,7 +225,7 @@ const MLBarcodeScanner: React.FC<MLBarcodeScannerProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: session?.user?.id,
+          userId: user?.id,
           ...result,
           scannedAt: new Date().toISOString()
         })

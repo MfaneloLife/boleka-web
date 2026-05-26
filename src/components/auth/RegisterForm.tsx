@@ -5,7 +5,7 @@ import { Button } from '@/src/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signIn as nextAuthSignIn } from 'next-auth/react';
+import { useSignUp, useClerk } from '@clerk/nextjs';
 
 interface RegisterFormProps {
   callbackUrl?: string;
@@ -18,6 +18,8 @@ interface RegisterFormData {
 
 export default function RegisterForm({ callbackUrl = '/dashboard/client' }: RegisterFormProps) {
   const router = useRouter();
+  const clerk = useClerk();
+  const { isLoaded: signUpLoaded, signUp: clerkSignUp, setActive } = useSignUp();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,34 +35,28 @@ export default function RegisterForm({ callbackUrl = '/dashboard/client' }: Regi
       setError(null);
       setSuccess(null);
       setIsLoading(true);
-      
-      // Create user profile first (without password)
-      const resp = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: data.name, email: data.email }),
-      });
-      
-      if (!resp.ok) {
-        const r = await resp.json().catch(() => ({}));
-        throw new Error(r.error || 'Registration failed');
-      }
 
-      // Send passwordless email link
-      const result = await nextAuthSignIn('email', {
-        email: data.email,
-        redirect: false,
-        callbackUrl,
+      // Create user with Clerk sign-up
+      if (!signUpLoaded || !clerkSignUp) {
+        throw new Error('Sign up is not ready yet');
+      }
+      
+      const result = await clerkSignUp.create({
+        emailAddress: data.email,
+        firstName: data.name,
       });
 
-      if (result?.error) {
-        throw new Error('Failed to send verification email');
+      if (result.status === 'complete' && setActive) {
+        await setActive({ session: result.createdSessionId });
+        router.push(callbackUrl);
+      } else if (result.status === 'missing_requirements') {
+        // Send email verification
+        await clerkSignUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        setSuccess('Check your email for a verification code!');
       }
-
-      setSuccess('Check your email for a sign-in link!');
     } catch (error: any) {
       console.error('Registration error:', error);
-      setError(error.message || 'Registration failed');
+      setError(error.errors?.[0]?.message || error.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -71,21 +67,9 @@ export default function RegisterForm({ callbackUrl = '/dashboard/client' }: Regi
       setError(null);
       setIsLoading(true);
       
-      const res = await nextAuthSignIn(provider, { 
-        redirect: false,
-        callbackUrl: '/dashboard/client' // Redirect social signups to client dashboard
+      await clerk.openSignUp({
+        appearance: { variables: { colorPrimary: '#4f46e5' } },
       });
-      
-      if (res?.error) {
-        throw new Error(res.error);
-      }
-      
-      if (res?.url) {
-        router.push(res.url);
-      } else if (res?.ok) {
-        // Successful authentication without redirect URL
-        router.push('/dashboard/client');
-      }
     } catch (err) {
       console.error('Social registration error:', err);
       setError(err instanceof Error ? err.message : `Failed to sign up with ${provider}`);

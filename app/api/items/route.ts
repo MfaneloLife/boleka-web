@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchItems, getUserItems, createItem } from '@/src/lib/firebase-storage';
-import { logger } from '@/src/lib/logger';
-import { adminDb, adminAuth } from '@/src/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
+
+function normalizeItem(item: any) {
+  const imageUrls = Array.isArray(item.images)
+    ? item.images.map((image: any) => image.url).filter(Boolean)
+    : [];
+
+  return {
+    ...item,
+    imageUrl: imageUrls[0] || null,
+    imageUrls,
+    location: item.address || null,
+  };
+}
 
 export async function GET(req: NextRequest) {
   try {
-  // Parse query parameters
     const url = new URL(req.url);
     const category = url.searchParams.get('category');
     const location = url.searchParams.get('location');
@@ -14,252 +24,174 @@ export async function GET(req: NextRequest) {
     const ownerIdParam = url.searchParams.get('ownerId');
     const minPrice = url.searchParams.get('minPrice');
     const maxPrice = url.searchParams.get('maxPrice');
-    
-    // Get user to determine ownerId for "me" requests
-    let ownerId = null;
+
+    let ownerId: string | null = null;
     if (ownerIdParam === 'me') {
-      // Require Authorization header for ownerId=me
-      const authHeader = req.headers.get('authorization') || '';
-      const token = authHeader.startsWith('Bearer ')
-        ? authHeader.substring('Bearer '.length)
-        : undefined;
-      if (!token) {
+      const session = await auth();
+      if (!session.userId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-  const decoded = await adminAuth.verifyIdToken(token);
-  logger.debug('items.meTokenDecoded', { uid: decoded.uid, emailKnown: !!decoded.email });
-      // Resolve user by firebaseUid first (firebaseUid field), fallback to email mapping, fallback to direct doc id usage
-      let resolvedUserId: string | null = null;
-      // Try firestore users where firebaseUid == decoded.uid
-      const uidSnap = await adminDb.collection('users').where('firebaseUid', '==', decoded.uid).limit(1).get();
-      if (!uidSnap.empty) {
-        resolvedUserId = uidSnap.docs[0].id;
-      } else {
-        // fallback: try email
-        if (decoded.email) {
-          const emailSnap = await adminDb.collection('users').where('email', '==', decoded.email).limit(1).get();
-          if (!emailSnap.empty) {
-            resolvedUserId = emailSnap.docs[0].id;
-            // backfill firebaseUid if missing
-            try { await emailSnap.docs[0].ref.update({ firebaseUid: decoded.uid }); } catch {}
-          }
-        }
-      }
-      // As a last resort check if a doc whose id == decoded.uid exists (older creation pattern)
-      if (!resolvedUserId) {
-        const directDoc = await adminDb.collection('users').doc(decoded.uid).get();
-        if (directDoc.exists) {
-          resolvedUserId = directDoc.id;
-          try { await directDoc.ref.update({ firebaseUid: decoded.uid }); } catch {}
-        }
-      }
-      if (!resolvedUserId) {
-        return NextResponse.json({ items: [] }, { status: 200 });
-      }
-      ownerId = resolvedUserId;
+      ownerId = session.userId;
     } else if (ownerIdParam) {
       ownerId = ownerIdParam;
     }
-    
-    // If requesting user's own items
-    if (ownerId) {
-      const items = await getUserItems(ownerId);
-      logger.debug('items.userItems', { ownerId, count: items.length });
-      return NextResponse.json({ items });
-    }
-    
-    // Build filters for search
-    const filters: any = {};
-    
-    if (category) {
-      filters.category = category;
-    }
-    
+
+    const where: any = {};
+    if (ownerId) where.userId = ownerId;
+    if (category) where.category = category;
     if (location) {
-      filters.location = location;
+      where.address = { contains: location, mode: 'insensitive' };
     }
-    
+    if (searchTerm) {
+      where.OR = [
+        { title: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
     if (minPrice && maxPrice) {
-      filters.priceRange = {
-        min: parseFloat(minPrice),
-        max: parseFloat(maxPrice)
-      };
+      const min = parseFloat(minPrice);
+      const max = parseFloat(maxPrice);
+      if (!Number.isNaN(min) && !Number.isNaN(max)) {
+        where.price = { gte: min, lte: max };
+      }
     }
-    
-    // Search items
-    const items = await searchItems(searchTerm, filters);
-    
-    logger.debug('items.search', { count: items.length, category: filters.category, location: filters.location });
-    return NextResponse.json({ items });
+
+    const items = await prisma.item.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+        images: {
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return NextResponse.json({ items: items.map(normalizeItem) });
   } catch (error) {
-    logger.error('items.error', { error: (error as any)?.message });
+    console.error('items.error', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // Verify Firebase ID token
-    const authHeader = req.headers.get('authorization') || '';
-    const token = authHeader.startsWith('Bearer ')
-      ? authHeader.substring('Bearer '.length)
-      : undefined;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const decoded = await adminAuth.verifyIdToken(token);
-    const email = decoded.email;
-    const uid = decoded.uid;
-    if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    // Get user from Firebase (prefer uid, fallback to email query)
-    let userDocSnap = await adminDb.collection('users').doc(uid).get();
-    if (!userDocSnap.exists) {
-      const usersSnapshot = await adminDb.collection('users')
-        .where('email', '==', email)
-        .limit(1)
-        .get();
-      if (usersSnapshot.empty) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
-      }
-      userDocSnap = usersSnapshot.docs[0];
+    const session = await auth();
+    if (!session.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const userData = userDocSnap.data() as any;
-    
-    // Check if user has a business profile
-    const businessProfileSnapshot = await adminDb.collection('businessProfiles')
-      .where('userId', '==', userDocSnap.id)
-      .limit(1)
-      .get();
-    
-    if (businessProfileSnapshot.empty) {
-      return NextResponse.json(
-        { error: 'You need a business profile to list items' },
-        { status: 403 }
-      );
-    }
-    
+
+    const clerkUser = await currentUser();
+    const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? null;
+    const name = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ') || clerkUser?.fullName || null;
+    const image = clerkUser?.imageUrl || null;
+
+    await prisma.user.upsert({
+      where: { id: session.userId },
+      update: {
+        email,
+        name,
+        image,
+      },
+      create: {
+        id: session.userId,
+        email,
+        name,
+        image,
+      },
+    });
+
     const contentType = req.headers.get('content-type') || '';
-
+    let body: any;
     if (contentType.includes('application/json')) {
-      // Accept JSON body with pre-uploaded image URLs
-      const body = await req.json();
-      const title = body.title || body.name;
-      const price = body.price ?? body.dailyPrice;
-      if (!title || !body.description || !body.category || price === undefined) {
-        return NextResponse.json(
-          { error: 'Missing required fields: title, description, category, and price are required' },
-          { status: 400 }
-        );
-      }
-
-      // Optionally resolve client profile for linkage
-      let clientProfileId: string | null = null;
-      try {
-        const cps = await adminDb.collection('clientProfiles').where('userId', '==', userDocSnap.id).limit(1).get();
-        if (!cps.empty) clientProfileId = cps.docs[0].id;
-      } catch {}
-
-      const doc = await adminDb.collection('items').add({
-        title,
-        description: body.description,
-        category: body.category,
-        subcategory: body.subcategory || '',
-        price: parseFloat(String(price)),
-        location: body.location || userData?.location || '',
-        condition: (body.condition as 'new' | 'used' | 'refurbished') || 'used',
-        ownerId: userDocSnap.id,
-        ownerName: userData?.name || decoded.name || '',
-        ownerEmail: userData?.email || email || '',
-        status: 'available' as const,
-        tags: Array.isArray(body.tags) ? body.tags : [],
-        specifications: body.specifications || {},
-        images: Array.isArray(body.images) ? body.images : [],
-        clientProfileId: clientProfileId || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      // Back-link item to client profile document (array of itemIds)
-      if (clientProfileId) {
-        try {
-          await adminDb.collection('clientProfiles').doc(clientProfileId).update({
-            itemIds: FieldValue.arrayUnion(doc.id),
-            updatedAt: new Date()
-          });
-          logger.debug('items.linkedToClientProfile', { itemId: doc.id, clientProfileId });
-        } catch (e) {
-          logger.warn('items.linkClientProfileFailed', { itemId: doc.id, clientProfileId });
-        }
-      }
-
-      return NextResponse.json({ id: doc.id, message: 'Item created successfully', imagesUploaded: (Array.isArray(body.images) ? body.images.length : 0) }, { status: 201 });
-    } else {
-      // Parse form data for file uploads
+      body = await req.json();
+    } else if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      
-      // Extract item data
-      const itemData = {
+      body = {
         title: (formData.get('title') as string) || (formData.get('name') as string),
         description: formData.get('description') as string,
         category: formData.get('category') as string,
-        subcategory: formData.get('subcategory') as string,
-        price: parseFloat((formData.get('price') as string) || (formData.get('dailyPrice') as string)),
-        location: (formData.get('location') as string) || (userData?.location || ''),
-        condition: (formData.get('condition') as 'new' | 'used' | 'refurbished') || 'used',
-        ownerId: userDocSnap.id,
-        ownerName: userData?.name || decoded.name || '',
-        ownerEmail: userData?.email || email || '',
-        status: 'available' as const,
-        tags: formData.get('tags') ? (formData.get('tags') as string).split(',').map(tag => tag.trim()) : [],
-        specifications: formData.get('specifications') ? JSON.parse(formData.get('specifications') as string) : {},
-        images: [], // Will be populated with uploaded URLs
+        condition: (formData.get('condition') as string) || 'used',
+        price: parseFloat((formData.get('price') as string) || (formData.get('dailyPrice') as string) || ''),
+        quantity: parseInt((formData.get('quantity') as string) || '1', 10),
+        address: formData.get('location') as string || formData.get('address') as string,
+        imageUrl: formData.get('imageUrl') as string || formData.get('image')?.toString(),
+        images: formData.getAll('images').map((entry) => typeof entry === 'string' ? entry : null).filter(Boolean),
+        allowCollection: formData.get('allowCollection') !== 'false',
+        allowDelivery: formData.get('allowDelivery') !== 'false',
+        deliveryFee: parseFloat((formData.get('deliveryFee') as string) || '0'),
       };
-      
-      // Extract images
-      const images: File[] = [];
-      for (const [key, value] of formData.entries()) {
-        if ((key.startsWith('image_') || key === 'images') && value instanceof File && value.size > 0) {
-          images.push(value);
-        }
-      }
-      
-      // Validate required fields
-      if (!itemData.title || !itemData.description || !itemData.category || !itemData.price) {
-        return NextResponse.json(
-          { error: 'Missing required fields: title, description, category, and price are required' },
-          { status: 400 }
-        );
-      }
-      
-      // Create item with images
-      // Resolve client profile for linkage
-      let clientProfileId: string | null = null;
-      try {
-        const cps = await adminDb.collection('clientProfiles').where('userId', '==', userDocSnap.id).limit(1).get();
-        if (!cps.empty) clientProfileId = cps.docs[0].id;
-      } catch {}
-
-      const itemId = await createItem(itemData, images);
-
-      if (clientProfileId) {
-        try {
-          const itemRef = adminDb.collection('items').doc(itemId);
-          await itemRef.update({ clientProfileId, updatedAt: new Date() });
-          await adminDb.collection('clientProfiles').doc(clientProfileId).update({
-            itemIds: FieldValue.arrayUnion(itemId),
-            updatedAt: new Date()
-          });
-          logger.debug('items.linkedToClientProfile', { itemId, clientProfileId });
-        } catch (e) {
-          logger.warn('items.linkClientProfileFailed', { itemId, clientProfileId });
-        }
-      }
-      
-      return NextResponse.json({ 
-        id: itemId, 
-        message: 'Item created successfully',
-        imagesUploaded: images.length
-      }, { status: 201 });
+    } else {
+      body = await req.json().catch(() => ({}));
     }
+
+    const title = body.title || body.name;
+    const price = body.price ?? body.dailyPrice;
+    const condition = body.condition || 'used';
+    const category = body.category;
+
+    if (!title || !category || price === undefined) {
+      return NextResponse.json(
+        { error: 'Missing required fields: title, category, and price are required' },
+        { status: 400 }
+      );
+    }
+
+    const imageUrls = [];
+    if (body.imageUrl) imageUrls.push(body.imageUrl);
+    if (Array.isArray(body.images)) {
+      imageUrls.push(...body.images.filter((url: any) => typeof url === 'string'));
+    }
+
+    const itemData: any = {
+      title,
+      description: body.description || null,
+      category,
+      condition,
+      price: Number(price),
+      quantity: Number.isFinite(Number(body.quantity)) ? Number(body.quantity) : 1,
+      lat: body.lat !== undefined ? Number(body.lat) : null,
+      lng: body.lng !== undefined ? Number(body.lng) : null,
+      address: body.address || body.location || null,
+      allowCollection: body.allowCollection !== false,
+      allowDelivery: body.allowDelivery !== false,
+      deliveryFee: Number.isFinite(Number(body.deliveryFee)) ? Number(body.deliveryFee) : 0,
+      userId: session.userId,
+    };
+
+    if (imageUrls.length > 0) {
+      itemData.images = {
+        create: imageUrls.map((url: string, index: number) => ({
+          url,
+          order: index,
+        })),
+      };
+    }
+
+    const item = await prisma.item.create({
+      data: itemData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+        images: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    return NextResponse.json(normalizeItem(item), { status: 201 });
   } catch (error) {
     console.error('Error creating item:', error);
     return NextResponse.json({ error: 'Failed to create item' }, { status: 500 });

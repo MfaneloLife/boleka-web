@@ -1,29 +1,29 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+  const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     
-    if (status === 'unauthenticated') {
+    if (isLoaded && !isSignedIn) {
       router.push('/auth/login');
     }
-  }, [status, router]);
+  }, [isLoaded, isSignedIn, router]);
 
   // Show nothing during SSR to prevent hydration mismatch
   if (!isClient) {
     return null;
   }
 
-  if (status === 'loading') {
+  if (!isLoaded) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <LoadingSpinner />
@@ -31,7 +31,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  if (!session) {
+  if (!isSignedIn) {
     return null;
   }
 

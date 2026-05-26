@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { auth } from '@clerk/nextjs/server';
 import { authOptions } from '../../../auth/[...nextauth]/route';
 import { RentalAgreementService } from '@/src/lib/rental-agreement-service';
 
@@ -8,8 +8,8 @@ export async function POST(
   { params }: { params: { agreementId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const session = await auth();
+    if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,7 +28,7 @@ export async function POST(
     }
 
     // Check if user can sign this agreement
-    if (!RentalAgreementService.canSignAgreement(agreement, session.user.id)) {
+    if (!RentalAgreementService.canSignAgreement(agreement, session.userId)) {
       return NextResponse.json({ error: 'Cannot sign this agreement' }, { status: 403 });
     }
 
@@ -40,7 +40,7 @@ export async function POST(
 
     await RentalAgreementService.signAgreement(
       params.agreementId,
-      session.user.id,
+      session.userId,
       signature.trim(),
       ipAddress,
       userAgent

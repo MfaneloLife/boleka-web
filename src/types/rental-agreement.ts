@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
-
 export interface RentalAgreement {
   id: string;
   
@@ -14,7 +12,7 @@ export interface RentalAgreement {
     email: string;
     phone?: string;
     address?: string;
-    signedAt?: Timestamp;
+    signedAt?: Date;
     signature?: string; // Base64 encoded signature image
   };
   
@@ -24,7 +22,7 @@ export interface RentalAgreement {
     email: string;
     phone?: string;
     address?: string;
-    signedAt?: Timestamp;
+    signedAt?: Date;
     signature?: string; // Base64 encoded signature image
   };
   
@@ -42,8 +40,8 @@ export interface RentalAgreement {
   
   // Rental Terms
   rentalPeriod: {
-    startDate: Timestamp;
-    endDate: Timestamp;
+    startDate: Date;
+    endDate: Date;
     duration: number; // in days
     pickupTime?: string;
     returnTime?: string;

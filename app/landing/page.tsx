@@ -3,28 +3,16 @@ export const dynamic = 'force-static';
 // Tailwind recreation of the old static /out/index.html placeholder page (without inline <style>)
 export default function Landing() {
   const features = [
-    {
-      title: '🤖 ML Vision',
-      body: 'Advanced image analysis, text extraction, and barcode detection using Google Cloud Vision API'
-    },
-    {
-      title: '🔐 OAuth Integration',
-      body: 'Secure authentication with Google and (optionally) Facebook OAuth providers'
-    },
-    {
-      title: '🎯 Rewards System',
-      body: '(Planned) points, discounts, and achievements system with Firestore integration'
-    },
-    {
-      title: '🔥 Firebase Backend',
-      body: 'Firestore + Auth + (optional) Cloud Functions foundation'
-    }
+    { title: "Zero Fees", body: "Sell and rent items on BOLEKA with zero selling fees. Keep more of what you earn." },
+    { title: "Trusted Community", body: "Join a growing community of trusted buyers and sellers across South Africa." },
+    { title: "Secure Payments", body: "Integrated PayFast and wallet payment options with platform protection." },
+    { title: "Easy Listing", body: "List your items in minutes with our simple and intuitive listing process." },
   ];
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-400 via-indigo-500 to-purple-600 p-6 text-white">
       <div className="w-full max-w-4xl text-center">
-        <div className="text-5xl font-extrabold mb-2">🚀 Boleka</div>
-        <p className="text-xl opacity-90 mb-8">ML Vision & Rental Platform</p>
+        <div className="text-5xl font-extrabold mb-2"> Boleka</div>
+        <p className="text-xl opacity-90 mb-8"> Rental Platform</p>
 
         <div className="rounded-lg border border-green-400/60 bg-green-400/10 px-6 py-4 mb-8 backdrop-blur-sm">
           <p className="font-medium">✅ Deployment Scaffold Ready</p>

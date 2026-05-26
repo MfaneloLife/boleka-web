@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@clerk/nextjs/server';
 import { RentalAgreementService } from '@/src/lib/rental-agreement-service';
 import { PDFGenerator } from '@/src/lib/pdf-generator';
-import { Timestamp } from 'firebase/firestore';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { agreementId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -32,8 +30,8 @@ export async function GET(
     }
 
     // Check if user is authorized to download this agreement
-    const canAccess = agreement.owner.id === session.user.id || 
-                     agreement.renter.id === session.user.id;
+    const canAccess = agreement.owner.id === session.userId || 
+                     agreement.renter.id === session.userId;
     
     if (!canAccess) {
       return NextResponse.json(
@@ -102,7 +100,7 @@ export async function POST(
   { params }: { params: { agreementId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -125,8 +123,8 @@ export async function POST(
     }
 
     // Check if user is authorized
-    const canAccess = agreement.owner.id === session.user.id || 
-                     agreement.renter.id === session.user.id;
+    const canAccess = agreement.owner.id === session.userId || 
+                     agreement.renter.id === session.userId;
     
     if (!canAccess) {
       return NextResponse.json(
@@ -141,7 +139,7 @@ export async function POST(
     // Update agreement with PDF URL
     await RentalAgreementService.updateAgreement(agreementId, {
       pdfUrl: downloadURL,
-      pdfGeneratedAt: Timestamp.now()
+      pdfGeneratedAt: new Date(),
     });
 
     return NextResponse.json({
