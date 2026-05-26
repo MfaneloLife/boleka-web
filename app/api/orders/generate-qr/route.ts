@@ -9,8 +9,8 @@ import { OrderService } from '@/src/lib/order-service';
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'orderId is required' }, { status: 400 });
     }
 
-    const result = await OrderService.generateQRCode(orderId, session.userId);
+    const result = await OrderService.generateQRCode(orderId, userId);
 
     return NextResponse.json({
       success: true,

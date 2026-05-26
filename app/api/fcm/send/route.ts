@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
@@ -16,16 +16,16 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
   const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get('userId') || session.userId;
+  const targetUserId = searchParams.get('userId') || userId;
   const limit = parseInt(searchParams.get('limit') || '20');
 
-  if (userId !== session.userId) {
+  if (targetUserId !== userId) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 

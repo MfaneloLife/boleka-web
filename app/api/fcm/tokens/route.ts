@@ -5,8 +5,8 @@ function unauthorizedResponse() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return unauthorizedResponse();
   }
 
@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return unauthorizedResponse();
   }
 
@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return unauthorizedResponse();
   }
 

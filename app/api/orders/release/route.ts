@@ -9,8 +9,8 @@ import { OrderService } from '@/src/lib/order-service';
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    if (order.vendorId !== session.userId) {
+    if (order.vendorId !== userId) {
       return NextResponse.json({ error: 'Forbidden: Only the vendor can release this order payout' }, { status: 403 });
     }
 

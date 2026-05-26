@@ -6,8 +6,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -24,7 +24,6 @@ export async function GET(
     return NextResponse.json({ error: 'Request not found' }, { status: 404 });
   }
 
-  const userId = session.userId;
   if (userId !== requestRecord.requesterId && userId !== requestRecord.ownerId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
@@ -76,8 +75,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -96,7 +95,6 @@ export async function POST(
     return NextResponse.json({ error: 'Request not found' }, { status: 404 });
   }
 
-  const userId = session.userId;
   if (userId !== requestRecord.requesterId && userId !== requestRecord.ownerId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }

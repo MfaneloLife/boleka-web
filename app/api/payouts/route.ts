@@ -4,12 +4,12 @@ import { getPaymentsForMerchant } from '@/lib/neon-db';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const payments = await getPaymentsForMerchant(session.userId);
+    const payments = await getPaymentsForMerchant(userId);
     const summary = {
       count: payments.length,
       totalAmount: payments.reduce((sum, payment) => sum + payment.amount, 0),

@@ -10,8 +10,8 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -30,10 +30,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify ownership
-    const isOwner = booking.item.userId === session.userId;
-    const isAdmin = session.userId?.endsWith('@boleka.admin');
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden: Only the vendor or admin can settle this payout' }, { status: 403 });
+    const isOwner = booking.item.userId === userId;
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Forbidden: Only the vendor can settle this payout' }, { status: 403 });
     }
 
     // Validate booking is in a settleable state

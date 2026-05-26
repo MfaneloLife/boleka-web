@@ -8,9 +8,9 @@ export async function GET(
   { params }: { params: { agreementId: string } }
 ) {
   try {
-    const session = await auth();
+    const { userId } = await auth();
     
-    if (!session?.userId) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -30,8 +30,8 @@ export async function GET(
     }
 
     // Check if user is authorized to download this agreement
-    const canAccess = agreement.owner.id === session.userId || 
-                     agreement.renter.id === session.userId;
+    const canAccess = agreement.owner.id === userId || 
+                     agreement.renter.id === userId;
     
     if (!canAccess) {
       return NextResponse.json(
@@ -79,7 +79,6 @@ export async function GET(
 
     // Add caching headers
     headers.set('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-    headers.set('ETag', `"${agreement.id}-${agreement.updatedAt.toMillis()}"`);
 
     return new NextResponse(buffer, {
       status: 200,
@@ -100,9 +99,9 @@ export async function POST(
   { params }: { params: { agreementId: string } }
 ) {
   try {
-    const session = await auth();
+    const { userId } = await auth();
     
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -123,8 +122,8 @@ export async function POST(
     }
 
     // Check if user is authorized
-    const canAccess = agreement.owner.id === session.userId || 
-                     agreement.renter.id === session.userId;
+    const canAccess = agreement.owner.id === userId || 
+                     agreement.renter.id === userId;
     
     if (!canAccess) {
       return NextResponse.json(

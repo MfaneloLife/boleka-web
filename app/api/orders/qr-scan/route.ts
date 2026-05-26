@@ -10,8 +10,8 @@ import { OrderService } from '@/src/lib/order-service';
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Complete the order using QR code scan
-    await OrderService.completeOrderWithQR(qrCode, session.userId);
+    await OrderService.completeOrderWithQR(qrCode, userId);
 
     return NextResponse.json({
       success: true,

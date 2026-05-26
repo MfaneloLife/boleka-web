@@ -27,9 +27,9 @@ function getVisionClient() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const { userId } = await auth();
     
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

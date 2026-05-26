@@ -7,9 +7,9 @@ export async function GET(
   { params }: { params: { orderId: string } }
 ) {
   try {
-    const session = await auth();
+    const { userId } = await auth();
     
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -26,7 +26,7 @@ export async function GET(
     }
 
     // Check if user has access to this order
-    if (order.userId !== session.userId && order.vendorId !== session.userId) {
+    if (order.userId !== userId && order.vendorId !== userId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

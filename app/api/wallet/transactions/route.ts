@@ -4,8 +4,8 @@ import { getWalletTransactions } from '@/lib/neon-db';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const limitParam = parseInt(searchParams.get('limit') || '50', 10);
     const limit = Math.min(Math.max(limitParam, 1), 200);
 
-    const transactions = await getWalletTransactions(session.userId, limit);
+    const transactions = await getWalletTransactions(userId, limit);
 
     return NextResponse.json({ success: true, transactions });
   } catch (error) {

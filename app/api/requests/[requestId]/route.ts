@@ -41,8 +41,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -60,8 +60,7 @@ export async function GET(
     return NextResponse.json({ error: 'Request not found' }, { status: 404 });
   }
 
-  const currentUserId = session.userId;
-  if (currentUserId !== requestRecord.requesterId && currentUserId !== requestRecord.ownerId) {
+  if (userId !== requestRecord.requesterId && userId !== requestRecord.ownerId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -104,8 +103,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -118,12 +117,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Request not found' }, { status: 404 });
   }
 
-  const currentUserId = session.userId;
-  if (currentUserId !== requestRecord.requesterId && currentUserId !== requestRecord.ownerId) {
+  if (userId !== requestRecord.requesterId && userId !== requestRecord.ownerId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  if (body.status && !isValidStatusTransition(requestRecord.status, body.status, currentUserId, requestRecord.requesterId, requestRecord.ownerId)) {
+  if (body.status && !isValidStatusTransition(requestRecord.status, body.status, userId, requestRecord.requesterId, requestRecord.ownerId)) {
     return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 });
   }
 

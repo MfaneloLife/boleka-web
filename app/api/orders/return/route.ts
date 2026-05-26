@@ -11,8 +11,8 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only the vendor can mark as returned
-    if (booking.item.userId !== session.userId) {
+    if (booking.item.userId !== userId) {
       return NextResponse.json({ error: 'Forbidden: Only the vendor can mark item as returned' }, { status: 403 });
     }
 

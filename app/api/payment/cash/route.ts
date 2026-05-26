@@ -5,8 +5,8 @@ import { createPaymentRecord, getRequestById } from '@/lib/neon-db';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    if (order.userId !== session.userId) {
+    if (order.userId !== userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

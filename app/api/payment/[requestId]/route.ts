@@ -7,8 +7,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
-  const session = await auth();
-  if (!session?.user?.id || !session.userId) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -22,7 +22,7 @@ export async function POST(
     return NextResponse.json({ error: 'Request not found' }, { status: 404 });
   }
 
-  if (requestRecord.requesterId !== session.userId) {
+  if (requestRecord.requesterId !== userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -38,19 +38,21 @@ export async function POST(
   const payment = await prisma.payment.create({
     data: {
       requestId: requestRecord.id,
-      payerId: session.userId,
+      payerId: userId,
       amount: Number(amount),
       status: 'PENDING',
       method: 'PAYFAST',
     },
   });
 
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+
   const formData = generatePaymentFormData({
     amount: Number(amount),
     itemName: itemName || item.title,
-    email: session.userId,
-    firstName: session.name?.split(' ')[0] || '',
-    lastName: session.name?.split(' ').slice(1).join(' ') || '',
+    email: user?.email || userId,
+    firstName: user?.name?.split(' ')[0] || '',
+    lastName: user?.name?.split(' ').slice(1).join(' ') || '',
     customStr1: payment.id,
   });
 

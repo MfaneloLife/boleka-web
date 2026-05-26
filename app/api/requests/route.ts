@@ -3,12 +3,11 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const userId = session.userId;
   const type = request.nextUrl.searchParams.get('type');
 
   const whereClause =
@@ -66,8 +65,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -89,14 +88,14 @@ export async function POST(request: NextRequest) {
   const newRequest = await prisma.request.create({
     data: {
       itemId: item.id,
-      requesterId: session.userId,
+      requesterId: userId,
       ownerId: item.userId,
       status: 'PENDING',
       totalPrice: item.price,
       messages: message
         ? {
             create: {
-              senderId: session.userId,
+              senderId: userId,
               content: message.trim(),
             },
           }
