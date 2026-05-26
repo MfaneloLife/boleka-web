@@ -1,4 +1,8 @@
 import type { Metadata, Viewport } from "next";
+
+// Force dynamic rendering to prevent Clerk from failing during static generation
+// when NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY isn't available at build time
+export const dynamic = 'force-dynamic';
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/src/components/Providers";
