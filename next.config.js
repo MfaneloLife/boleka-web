@@ -8,7 +8,13 @@ const nextConfig = {
   },
   serverExternalPackages: ['bcrypt', 'bcryptjs', '@google-cloud/vision', 'canvas'],
   images: {
-    unoptimized: true
+    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
   },
   compress: true,
   poweredByHeader: false,
