@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Button } from '@/src/components/ui/Button';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
+import { COUNTRIES, COUNTRY_LIST, type Country } from '@/src/lib/countries';
 
 interface ProfileSetupFormData {
   businessName: string;
-  province: string;
+  country: string;
+  region: string;
   city: string;
   suburb: string;
   contactNumber: string;
@@ -21,31 +21,39 @@ export default function ProfileSetupPage() {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState('ZA');
+  const [availableRegions, setAvailableRegions] = useState<{ id: string; name: string }[]>([]);
 
-  const provinces = [
-    'Mpumalanga',
-    'Gauteng',
-    'KwaZulu-Natal',
-    'Free State',
-    'Eastern Cape',
-    'North West',
-    'Western Cape',
-    'Limpopo',
-    'Northern Cape'
-  ];
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ProfileSetupFormData>({
-    defaultValues: {
-      returnWindow: '48',
-      lateFeePerDay: '50'
+  useEffect(() => {
+    const country = COUNTRIES[selectedCountry];
+    if (country) {
+      setAvailableRegions(country.regions);
+    } else {
+      setAvailableRegions([]);
     }
+  }, [selectedCountry]);
+
+  const [formData, setFormData] = useState<ProfileSetupFormData>({
+    businessName: '',
+    country: 'ZA',
+    region: '',
+    city: '',
+    suburb: '',
+    contactNumber: '',
+    returnWindow: '48',
+    lateFeePerDay: '50',
   });
 
-  async function onSubmit(data: ProfileSetupFormData) {
+  const handleChange = (field: keyof ProfileSetupFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (field === 'country') {
+      setSelectedCountry(value);
+      setFormData((prev) => ({ ...prev, region: '' }));
+    }
+  };
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
@@ -56,22 +64,20 @@ export default function ProfileSetupPage() {
     }
 
     try {
-      const token = await currentUser.getIdToken();
       const response = await fetch('/api/profile/business', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          businessName: data.businessName,
-          province: data.province,
-          city: data.city,
-          suburb: data.suburb,
-          contactNumber: data.contactNumber,
-          access: 'Both',
-          returnWindowHours: Number(data.returnWindow),
-          lateFeePerDay: Number(data.lateFeePerDay),
+          businessName: formData.businessName,
+          country: formData.country,
+          region: formData.region,
+          city: formData.city,
+          suburb: formData.suburb,
+          contactNumber: formData.contactNumber,
+          returnWindowHours: Number(formData.returnWindow),
+          lateFeePerDay: Number(formData.lateFeePerDay),
         }),
       });
 
@@ -80,7 +86,7 @@ export default function ProfileSetupPage() {
         throw new Error(body?.error || 'Failed to save profile');
       }
 
-      router.push('/dashboard/business');
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -94,9 +100,10 @@ export default function ProfileSetupPage() {
         <div className="rounded-3xl bg-white p-6 shadow-sm sm:p-10">
           <div className="mb-8 space-y-3 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-500">Account setup</p>
-            <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">One account. Full access.</h1>
+            <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Set up your vendor profile</h1>
             <p className="mx-auto max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              Complete your vendor profile once and start listing items, accepting requests, and managing return terms.
+              Complete your profile to start listing items and accepting rental requests.
+              Choose your country and region so customers can find you.
             </p>
           </div>
 
@@ -106,105 +113,123 @@ export default function ProfileSetupPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-6 sm:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Business Name</span>
                 <input
                   type="text"
-                  {...register('businessName', { required: 'Business name is required' })}
+                  required
+                  value={formData.businessName}
+                  onChange={(e) => handleChange('businessName', e.target.value)}
                   className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
-                {errors.businessName && <p className="mt-2 text-sm text-red-600">{errors.businessName.message}</p>}
               </label>
 
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Contact Number</span>
                 <input
                   type="tel"
-                  {...register('contactNumber', { required: 'Contact number is required' })}
+                  required
+                  value={formData.contactNumber}
+                  onChange={(e) => handleChange('contactNumber', e.target.value)}
+                  placeholder="+27 12 345 6789"
                   className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
-                {errors.contactNumber && <p className="mt-2 text-sm text-red-600">{errors.contactNumber.message}</p>}
               </label>
             </div>
 
             <div className="grid gap-6 sm:grid-cols-3">
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Province</span>
+                <span className="text-sm font-medium text-slate-700">Country</span>
                 <select
-                  {...register('province', { required: 'Province is required' })}
+                  value={formData.country}
+                  onChange={(e) => handleChange('country', e.target.value)}
                   className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 >
-                  <option value="">Select Province</option>
-                  {provinces.map((province) => (
-                    <option key={province} value={province}>{province}</option>
+                  <option value="">Select Country</option>
+                  {COUNTRY_LIST.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
                   ))}
                 </select>
-                {errors.province && <p className="mt-2 text-sm text-red-600">{errors.province.message}</p>}
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">
+                  {selectedCountry === 'US' ? 'State' : selectedCountry === 'CN' ? 'Province' : 'Province / Region'}
+                </span>
+                <select
+                  value={formData.region}
+                  onChange={(e) => handleChange('region', e.target.value)}
+                  required
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                >
+                  <option value="">
+                    {selectedCountry === 'US' ? 'Select State' : 'Select Region'}
+                  </option>
+                  {availableRegions.map((r) => (
+                    <option key={r.id} value={r.name}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">City</span>
                 <input
                   type="text"
-                  {...register('city', { required: 'City is required' })}
+                  required
+                  value={formData.city}
+                  onChange={(e) => handleChange('city', e.target.value)}
                   className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
-                {errors.city && <p className="mt-2 text-sm text-red-600">{errors.city.message}</p>}
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Suburb</span>
-                <input
-                  type="text"
-                  {...register('suburb', { required: 'Suburb is required' })}
-                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                />
-                {errors.suburb && <p className="mt-2 text-sm text-red-600">{errors.suburb.message}</p>}
               </label>
             </div>
 
             <div className="grid gap-6 sm:grid-cols-2">
               <label className="block">
+                <span className="text-sm font-medium text-slate-700">Suburb / District</span>
+                <input
+                  type="text"
+                  value={formData.suburb}
+                  onChange={(e) => handleChange('suburb', e.target.value)}
+                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                />
+              </label>
+
+              <label className="block">
                 <span className="text-sm font-medium text-slate-700">Return window (hours)</span>
                 <input
                   type="number"
                   min="1"
-                  {...register('returnWindow', { required: 'Return window is required' })}
+                  value={formData.returnWindow}
+                  onChange={(e) => handleChange('returnWindow', e.target.value)}
                   className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                 />
-                {errors.returnWindow && <p className="mt-2 text-sm text-red-600">{errors.returnWindow.message}</p>}
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Late fee per day (R)</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  {...register('lateFeePerDay', { required: 'Late return fee is required' })}
-                  className="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                />
-                {errors.lateFeePerDay && <p className="mt-2 text-sm text-red-600">{errors.lateFeePerDay.message}</p>}
               </label>
             </div>
 
             <div className="space-y-3">
-              <Button
+              <button
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? 'Saving profile…' : 'Save business settings'}
-              </Button>
+                {isSubmitting ? 'Saving profile…' : 'Save vendor settings'}
+              </button>
             </div>
           </form>
 
           <div className="mt-6 rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">
             <p className="font-medium text-slate-900">What this does</p>
             <p className="mt-2">
-              These details let your account offer both listing and request capabilities, and set the vendor return window plus late return fee for your items.
+              Set your location so customers can find items near them. Your country and region
+              will be shown on your listings. You can update these settings anytime from your dashboard.
+              Currently supported regions include South Africa, United States, China, UK, EU countries,
+              and more.
             </p>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import DashboardLayout from '@/src/components/layout/DashboardLayout';
-import FirebaseProtectedRoute from '@/src/components/auth/FirebaseProtectedRoute';
+import ProtectedRoute from '@/src/components/auth/ProtectedRoute';
 
 export default function DashboardLayoutWrapper({
   children,
@@ -7,8 +7,8 @@ export default function DashboardLayoutWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <FirebaseProtectedRoute>
+    <ProtectedRoute>
       <DashboardLayout>{children}</DashboardLayout>
-    </FirebaseProtectedRoute>
+    </ProtectedRoute>
   );
 }
