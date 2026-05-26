@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
+
+function getR2Client() {
+  return new S3Client({
+    region: "auto",
+    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID!,
+      secretAccessKey: R2_SECRET_ACCESS_KEY!,
+    },
+  });
+}
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -13,6 +25,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
+      return NextResponse.json(
+        { error: "R2 storage not configured" },
+        { status: 500 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string) || "items";
@@ -21,37 +40,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Invalid file type. Allowed: jpeg, png, webp, gif" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 10MB" },
+        { status: 400 }
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const key = `${folder}/${userId}/${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
+    const sanitizedName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
+    const key = `${folder}/${userId}/${Date.now()}-${sanitizedName}`;
 
-    const uploadUrl = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${key}`;
+    const client = getR2Client();
 
-    const response = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "X-Auth-Token": `${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}`,
-        "Content-Type": file.type || "application/octet-stream",
-        "Content-Length": String(buffer.length),
-      },
-      body: buffer,
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type,
+      ContentLength: buffer.length,
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      return NextResponse.json(
-        { error: "Upload failed", detail: text },
-        { status: 500 }
-      );
-    }
+    await client.send(command);
 
     const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
 
     return NextResponse.json({ url: publicUrl, key });
   } catch (error: any) {
+    console.error("R2 upload error:", error);
     return NextResponse.json(
-      { error: "Internal server error", detail: error.message },
+      { error: "Upload failed", detail: error.message || "Unknown error" },
       { status: 500 }
     );
   }
