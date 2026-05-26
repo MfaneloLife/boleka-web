@@ -6,8 +6,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  serverExternalPackages: ['bcrypt', 'bcryptjs', '@google-cloud/vision'],
-  trailingSlash: true,
+  serverExternalPackages: ['bcrypt', 'bcryptjs', '@google-cloud/vision', 'canvas'],
   images: {
     unoptimized: true
   },
