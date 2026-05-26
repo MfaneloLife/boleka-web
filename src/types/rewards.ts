@@ -1,3 +1,5 @@
+// Rewards Types (No Firebase dependencies - uses native Date)
+
 export interface Achievement {
   type: string;
   earnedAt: Date;
@@ -35,19 +37,19 @@ export interface UserRewards {
   activeDiscounts: Discount[];
   lifetimeDiscountsUsed: number;
   discountsUsed: number;
-  discountsEarned: number; // Add this missing field
+  discountsEarned: number;
   totalSavingsAmount: number;
   totalSavings: number;
   
   // Achievements
-  achievements: Achievement[]; // Change from string[] to Achievement[]
-  pointsHistory: PointTransaction[]; // Add this missing field
+  achievements: Achievement[];
+  pointsHistory: PointTransaction[];
   
   // Recent Activity
   recentTransactions: PointTransaction[];
-  lastActivityDate: Date; // Add this missing field
+  lastActivityDate: Date;
   
-  updatedAt: Timestamp;
+  updatedAt: Date;
 }
 
 export interface PointTransaction {
@@ -73,10 +75,10 @@ export interface PointTransaction {
   // Transaction details
   balanceBefore: number;
   balanceAfter: number;
-  expiresAt?: Timestamp;
+  expiresAt?: Date;
   
-  createdAt: Timestamp;
-  processedAt?: Timestamp;
+  createdAt: Date;
+  processedAt?: Date;
   status: 'pending' | 'confirmed' | 'expired' | 'cancelled';
 }
 
@@ -97,24 +99,24 @@ export interface Discount {
   excludedCategories?: string[];
   
   // Validity
-  validFrom: Timestamp;
-  validUntil: Timestamp;
+  validFrom: Date;
+  validUntil: Date;
   maxUses: number;
   usedCount: number;
-  usageCount: number; // Add alias for usedCount
-  usageLimit: number; // Add alias for maxUses
+  usageCount: number;
+  usageLimit: number;
   
   // Status
   status: 'active' | 'used' | 'expired' | 'cancelled';
-  isActive: boolean; // Add boolean status field
-  isUsed: boolean; // Add boolean used field
+  isActive: boolean;
+  isUsed: boolean;
   
   // Metadata
   generatedFrom: 'points_redemption' | 'streak_bonus' | 'special_offer' | 'admin_grant';
   orderId?: string; // If used in an order
   
-  createdAt: Timestamp;
-  usedAt?: Timestamp;
+  createdAt: Date;
+  usedAt?: Date;
 }
 
 export interface RewardRule {
@@ -147,11 +149,11 @@ export interface RewardRule {
   
   // Validity
   isActive: boolean;
-  validFrom: Timestamp;
-  validUntil?: Timestamp;
+  validFrom: Date;
+  validUntil?: Date;
   
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface RewardLevel {
@@ -309,7 +311,7 @@ export const isEligibleForDiscount = (
 ): boolean => {
   return userRewards.availablePoints >= discount.pointsCost &&
          discount.status === 'active' &&
-         discount.validUntil.toDate() > new Date();
+         discount.validUntil > new Date();
 };
 
 export const calculateStreakBonus = (streak: number): number => {

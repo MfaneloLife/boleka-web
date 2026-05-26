@@ -26,7 +26,8 @@ export async function POST(
       return NextResponse.json({ error: 'Agreement not found' }, { status: 404 });
     }
 
-    if (agreement.renterId !== userId && agreement.ownerId !== userId) {
+    // Check if the user is either the owner or renter of this agreement
+    if (agreement.ownerId !== userId && agreement.renterId !== userId) {
       return NextResponse.json({ error: 'Cannot sign this agreement' }, { status: 403 });
     }
 
