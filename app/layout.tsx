@@ -48,12 +48,12 @@ export const metadata: Metadata = {
     'msapplication-TileImage': '/icons/icon-144x144.png',
     'Content-Security-Policy': [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://images.unsplash.com",
-      "connect-src 'self' https://api.clerk.com https://clerk.boleka.com",
+      "img-src 'self' data: blob: https://images.unsplash.com https://img.clerk.com",
+      "connect-src 'self' https://api.clerk.com https://clerk.staging.com https://*.clerk.com https://boleka-web.vercel.app",
       "font-src 'self' data:",
-      "frame-src 'self' https://www.payfast.co.za https://accounts.clerk.com",
+      "frame-src 'self' https://www.payfast.co.za https://accounts.clerk.com *.clerk.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self' https://www.payfast.co.za"
