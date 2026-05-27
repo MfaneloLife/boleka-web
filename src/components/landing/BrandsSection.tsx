@@ -1,37 +1,39 @@
 "use client";
 
-import Link from "next/link";
-import { Tag } from "lucide-react";
+import { Clock, Shield, BadgePercent, Banknote } from "lucide-react";
 
-const categories = [
-  { name: "Tools", slug: "tools" },
-  { name: "Equipment", slug: "equipment" },
-  { name: "Vehicles", slug: "vehicles" },
-  { name: "Electronics", slug: "electronics" },
+const perks = [
+  { name: "Same Day Rental", desc: "Book and collect today", icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
+  { name: "Secure Payments", desc: "Protected transactions", icon: Shield, color: "text-green-600", bg: "bg-green-50" },
+  { name: "No Hidden Fees", desc: "Transparent pricing", icon: BadgePercent, color: "text-purple-600", bg: "bg-purple-50" },
+  { name: "Best Rates", desc: "Competitive daily prices", icon: Banknote, color: "text-amber-600", bg: "bg-amber-50" },
 ];
 
-export default function CategoriesSection() {
+export default function BrandsSection() {
   return (
     <section className="px-4 py-6 bg-white">
-      <div className="flex items-center justify-between max-w-7xl mx-auto mb-4">
-        <div className="flex items-center gap-2">
-          <Tag className="w-5 h-5 text-gray-700" />
-          <h2 className="text-lg font-semibold text-gray-900">categories</h2>
-        </div>
-        <Link href="/dashboard/client/search" className="text-sm text-orange-500 font-medium">
-          See more
-        </Link>
+      <div className="max-w-7xl mx-auto mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Why Boleka?</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Rent with confidence</p>
       </div>
       <div className="grid grid-cols-2 gap-3 max-w-7xl mx-auto">
-        {categories.map((category) => (
-          <Link
-            key={category.slug}
-            href={`/dashboard/client/search?category=${category.slug}`}
-            className="flex items-center justify-center rounded-full border border-gray-200 py-3 px-4 hover:border-orange-300 transition"
-          >
-            <span className="text-sm font-semibold text-gray-800">{category.name}</span>
-          </Link>
-        ))}
+        {perks.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={item.name}
+              className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-4 hover:border-orange-200 hover:bg-orange-50/50 transition-all"
+            >
+              <div className={`w-10 h-10 rounded-lg ${item.bg} flex items-center justify-center flex-shrink-0`}>
+                <Icon className={`w-5 h-5 ${item.color}`} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                <p className="text-xs text-gray-500">{item.desc}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

@@ -1,19 +1,28 @@
-# Migration Task Plan
+# Completed Changes
 
-## Status
-- Clerk is already installed & partially configured (middleware, login/signup pages, items API)
-- NextAuth still used in ~38 API routes, ~15 client components, AuthContext
-- Need to fully migrate to Clerk + Neon/Prisma
+## ✅ Fixed - ShopsTab.tsx
+- Removed fake "Daniela Canny" profile with placeholder images
+- Modernized design with gradient backgrounds, rounded corners, and proper icons
+- Added browse-by-category section with emoji icons
+- Added "How it works" steps section
+- Clean sign-up CTA for unauthenticated users
+- Browse Items link for authenticated users with no followed shops
 
-## Steps
-1. Create Clerk server-side auth helper (`lib/auth-clerk.ts`)
-2. Update `Providers.tsx` to use only Clerk (remove SessionProvider)
-3. Update `AuthContext.tsx` to use Clerk hooks
-4. Update `AuthButton.tsx` to use Clerk hooks
-5. Update all API route files to use Clerk `auth()` instead of `getServerSession(authOptions)`
-6. Update client components using `useSession` from NextAuth
-7. Clean up: Remove NextAuth config, Firebase files, unused files
-8. Update Prisma schema (remove NextAuth tables)
-9. Run Prisma migrations
-10. Update env files for production
-11. Commit and push to GitHub
+## ✅ Fixed - MobileHeader.tsx (Modern Flyout Sidebar)
+- Complete rewrite into a full-width sliding flyout sidebar with smooth animation
+- Organized into collapsible sections: Main, Client, Business, More
+- Features all platform links:
+  - **Main**: Home, Search, Shops, Favourites
+  - **Client**: Dashboard, Messages, Requests, Orders, Wallet, Rewards, Reviews, Profile
+  - **Business**: Dashboard, Items, Add Item, Requests, Orders, Wallet, Agreements, Profile, Reviews, Notifications
+  - **More**: Notifications, Settings, Help & Support, Safety Tips
+- User greeting with avatar and name
+- Quick sign-up for guests
+- Profile footer with link to profile page
+- Gradient accents on the logo and branding
+- Glass-morphism backdrop blur on overlay
+- Collapsible sections (Client/Business) with chevron indicators
+
+## ⚠️ Note - middleware.ts
+- Reverted to original `auth().protect()` as Clerk v5 types confirm `auth` is `() => ClerkMiddlewareAuthObject` (a function)
+- The 500 error may be caused by missing `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` or `CLERK_SECRET_KEY` in Vercel environment variables (they're in `.env.local` locally but need to be set in Vercel dashboard)

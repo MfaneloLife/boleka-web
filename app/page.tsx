@@ -19,9 +19,15 @@ type Tab = "discover" | "shops" | "favourites";
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("discover");
 
+  const handleTabChange = (tab: string) => {
+    if (tab === "discover" || tab === "shops" || tab === "favourites") {
+      setActiveTab(tab);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
-      <MobileHeader />
+      <MobileHeader onTabChange={handleTabChange} />
       <SearchBar />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
