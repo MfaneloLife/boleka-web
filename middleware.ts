@@ -5,17 +5,21 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/landing',
   '/auth/sign-in(.*)',
-  '/auth/sign-up(.*)',
+  '/auth/signup(.*)',
+  '/auth/login(.*)',
   '/auth/error(.*)',
   '/api/payment/payfast-notify',
   '/api/webhooks(.*)',
   '/_next(.*)',
   '/favicon.ico',
+  '/manifest.json',
+  '/icons(.*)',
 ]);
 
-export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) {
-    auth().protect();
+export default clerkMiddleware(async (auth, req) => {
+  // Only protect non-public routes if auth is configured
+  if (!isPublicRoute(req) && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    await auth.protect();
   }
 });
 
