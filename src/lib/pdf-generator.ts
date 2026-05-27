@@ -26,4 +26,20 @@ export const PDFGenerator = {
     console.warn('[PDFGenerator] generateAndUploadPDF not fully implemented');
     return '';
   },
+
+  async downloadAgreementPDF(
+    _agreement: any,
+    _filename: string,
+    _options?: any
+  ): Promise<void> {
+    // TODO: Implement actual PDF download
+    console.warn('[PDFGenerator] downloadAgreementPDF not fully implemented');
+    const blob = await PDFGenerator.generateAgreementPDF(_agreement, _options);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = _filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };

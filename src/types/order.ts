@@ -110,7 +110,7 @@ export function calculateOrderTotals(items: OrderItem[]) {
 export function calculatePayoutSplit(totalAmount: number) {
   const platformCommission = totalAmount * 0.05; // 5% platform commission on total payment
   const vendorPayoutAmount = totalAmount - platformCommission;
-  
+
   return {
     platformCommission,
     vendorPayoutAmount,
@@ -121,12 +121,12 @@ export function calculatePayoutSplit(totalAmount: number) {
 // Helper function to check if order is expired
 export function isOrderExpired(order: Order): boolean {
   const now = new Date();
-  
+
   switch (order.status) {
     case OrderStatus.AWAITING_APPROVAL:
-      return order.expiresAt ? order.expiresAt.toDate() < now : false;
+      return order.expiresAt ? order.expiresAt < now : false;
     case OrderStatus.AWAITING_PAYMENT:
-      return order.paymentDueAt ? order.paymentDueAt.toDate() < now : false;
+      return order.paymentDueAt ? order.paymentDueAt < now : false;
     default:
       return false;
   }

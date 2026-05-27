@@ -124,8 +124,8 @@ export interface UserNotificationPreferences {
   dndEnabled: boolean;
   dndDays: string[]; // ["saturday", "sunday"]
   dndDateRanges: {
-    start: Timestamp;
-    end: Timestamp;
+    start: Date;
+    end: Date;
     reason?: string;
   }[];
   
@@ -135,8 +135,8 @@ export interface UserNotificationPreferences {
   timeFormat: '12h' | '24h';
   
   // Metadata
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface NotificationDelivery {
@@ -155,24 +155,24 @@ export interface NotificationDelivery {
   
   // Status tracking
   status: 'pending' | 'sent' | 'delivered' | 'failed' | 'bounced' | 'clicked' | 'opened';
-  sentAt?: Timestamp;
-  deliveredAt?: Timestamp;
-  openedAt?: Timestamp;
-  clickedAt?: Timestamp;
+  sentAt?: Date;
+  deliveredAt?: Date;
+  openedAt?: Date;
+  clickedAt?: Date;
   
   // Error handling
   errorCode?: string;
   errorMessage?: string;
   retryAttempt: number;
-  nextRetryAt?: Timestamp;
+  nextRetryAt?: Date;
   
   // Provider details
   providerMessageId?: string;
   providerResponse?: Record<string, any>;
   
   // Metadata
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Helper functions for reminder scheduling
@@ -270,8 +270,8 @@ export function shouldSendReminder(
     
     // Check date ranges
     const isInDndRange = preferences.dndDateRanges.some(range => {
-      const start = range.start.toDate();
-      const end = range.end.toDate();
+      const start = range.start;
+      const end = range.end;
       return scheduledTime >= start && scheduledTime <= end;
     });
     if (isInDndRange) return false;

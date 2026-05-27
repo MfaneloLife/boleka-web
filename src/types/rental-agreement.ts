@@ -59,7 +59,7 @@ export interface RentalAgreement {
     totalAmount: number;
     currency: string;
     paymentMethod: string;
-    paymentDueDate: Timestamp;
+    paymentDueDate: Date;
   };
   
   // Policies
@@ -100,15 +100,15 @@ export interface RentalAgreement {
   disputeResolution: string;
   
   // Metadata
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  signedAt?: Timestamp;
-  terminatedAt?: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
+  signedAt?: Date;
+  terminatedAt?: Date;
   terminationReason?: string;
   
   // Document Management
   pdfUrl?: string;
-  pdfGeneratedAt?: Timestamp;
+  pdfGeneratedAt?: Date;
   documentVersion: number;
 }
 
@@ -139,8 +139,8 @@ export interface AgreementTemplate {
   };
   
   isActive: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface AgreementSignature {
@@ -150,7 +150,7 @@ export interface AgreementSignature {
   signatureData: string; // Base64 encoded signature
   ipAddress: string;
   userAgent: string;
-  signedAt: Timestamp;
+  signedAt: Date;
   isValid: boolean;
 }
 
@@ -169,7 +169,7 @@ export const calculateLateFee = (
   agreement: RentalAgreement, 
   returnDate: Date
 ): number => {
-  const expectedReturn = agreement.rentalPeriod.endDate.toDate();
+  const expectedReturn = agreement.rentalPeriod.endDate;
   const gracePeriod = agreement.policies.lateFees.gracePeriod * 60 * 60 * 1000; // Convert hours to milliseconds
   
   // Add grace period to expected return time
@@ -211,20 +211,20 @@ export const calculateDamageFee = (
 
 export const isAgreementExpired = (agreement: RentalAgreement): boolean => {
   const now = new Date();
-  const endDate = agreement.rentalPeriod.endDate.toDate();
+  const endDate = agreement.rentalPeriod.endDate;
   return now > endDate;
 };
 
 export const getDaysUntilReturn = (agreement: RentalAgreement): number => {
   const now = new Date();
-  const endDate = agreement.rentalPeriod.endDate.toDate();
+  const endDate = agreement.rentalPeriod.endDate;
   const diffTime = endDate.getTime() - now.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
 export const formatAgreementPeriod = (agreement: RentalAgreement): string => {
-  const start = agreement.rentalPeriod.startDate.toDate();
-  const end = agreement.rentalPeriod.endDate.toDate();
+  const start = agreement.rentalPeriod.startDate;
+  const end = agreement.rentalPeriod.endDate;
   
   const startStr = start.toLocaleDateString();
   const endStr = end.toLocaleDateString();

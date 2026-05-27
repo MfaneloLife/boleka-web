@@ -23,6 +23,18 @@ export const RentalAgreementService = {
     return null;
   },
 
+  async getUserAgreements(userId: string): Promise<Agreement[]> {
+    // TODO: Implement actual agreement fetching via Prisma
+    console.warn('[RentalAgreementService] getUserAgreements not fully implemented', userId);
+    return [];
+  },
+
+  async createAgreementFromOrder(orderId: string): Promise<Agreement> {
+    // TODO: Implement actual agreement creation via Prisma
+    console.warn('[RentalAgreementService] createAgreementFromOrder not fully implemented', orderId);
+    throw new Error('Not implemented');
+  },
+
   async updateAgreement(_agreementId: string, _data: Record<string, any>): Promise<void> {
     // TODO: Implement actual agreement update via Prisma
     console.warn('[RentalAgreementService] updateAgreement not fully implemented');
@@ -37,5 +49,11 @@ export const RentalAgreementService = {
   ): Promise<void> {
     // TODO: Implement actual agreement signing logic
     console.warn('[RentalAgreementService] signAgreement not fully implemented');
+  },
+
+  async canModifyAgreement(agreementId: string, userId: string): Promise<boolean> {
+    // TODO: Implement actual permission check via Prisma
+    console.warn('[RentalAgreementService] canModifyAgreement not fully implemented');
+    return false;
   },
 };

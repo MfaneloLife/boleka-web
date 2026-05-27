@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { OrderService } from '@/src/lib/order-service';
-import { createPaymentRecord, getRequestById } from '@/lib/neon-db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,28 +23,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const requestData = await getRequestById(order.requestId);
-    if (!requestData) {
-      return NextResponse.json({ error: 'Request not found for this order' }, { status: 404 });
-    }
-
     const totalAmount = Number(order.totalAmount || 0);
-    const payment = await createPaymentRecord({
-      requestId: order.requestId,
-      amount: totalAmount,
-      payerId: order.userId,
-      method: 'CASH',
-    });
 
     await OrderService.markPaymentReceived(
       orderId,
-      payment.id,
+      orderId,
       'Cash payment confirmed',
       totalAmount,
       order.userId
     );
 
-    return NextResponse.json({ success: true, paymentId: payment.id });
+    return NextResponse.json({ success: true, paymentId: orderId });
   } catch (error) {
     console.error('CASH_PAYMENT_ERROR', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

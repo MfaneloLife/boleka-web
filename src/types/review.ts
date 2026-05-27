@@ -48,7 +48,7 @@ export interface UserRating {
   // Recent reviews (for quick display)
   recentReviews: Review[];
   
-  updatedAt: Timestamp;
+  updatedAt: Date;
 }
 
 export interface ReviewStats {
@@ -102,7 +102,7 @@ export const canLeaveReview = (
   // Can only leave review if user was part of the transaction
   const isOwner = order.vendorId === currentUserId;
   const isRenter = order.userId === currentUserId;
-  
+
   if (!isOwner && !isRenter) return false;
   
   // Check if review already exists
