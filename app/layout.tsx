@@ -20,12 +20,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BOLEKA - Rent & Sell | Free Listings",
-  description: "South Africa's peer-to-peer rental & selling platform. List items for FREE. Buy, sell, and rent with zero fees.",
-  applicationName: "BOLEKA",
+  title: "Boleka - Peer-to-Peer Sharing Platform",
+  description: "A platform for sharing and requesting items with dual profiles for clients and businesses",
+  applicationName: "Boleka",
   appleWebApp: {
     capable: true,
-    title: "BOLEKA",
+    title: "Boleka",
     statusBarStyle: "default",
   },
   manifest: "/manifest.json",
