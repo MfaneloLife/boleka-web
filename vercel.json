@@ -5,7 +5,7 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "env": {
-    "NEXT_PUBLIC_APP_URL": "https://boleka-web.vercel.app",
+    "NEXT_PUBLIC_APP_URL": "https://boleka-web8.vercel.app",
     "PAYFAST_MERCHANT_ID": "17739107",
     "PAYFAST_MERCHANT_KEY": "m2hpqzhb9yvsr",
     "PAYFAST_PASS_PHRASE": "",
