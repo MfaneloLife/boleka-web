@@ -6,43 +6,43 @@ import { Home, Sparkles, Laptop, BookOpen, Palette, UtensilsCrossed, Wrench } fr
 const categories = [
   {
     label: "Home",
-    href: "/search?q=home",
+    slug: "home",
     icon: Home,
     img: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&h=450&fit=crop",
   },
   {
     label: "Beauty",
-    href: "/search?q=beauty",
+    slug: "beauty",
     icon: Sparkles,
     img: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&h=450&fit=crop",
   },
   {
     label: "Technology",
-    href: "/search?q=technology",
+    slug: "technology",
     icon: Laptop,
     img: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=600&h=450&fit=crop",
   },
   {
     label: "Events & Catering",
-    href: "/search?q=events+catering",
+    slug: "events",
     icon: UtensilsCrossed,
     img: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&h=450&fit=crop",
   },
   {
     label: "Home & Garden Tools",
-    href: "/search?q=home+garden+tools",
+    slug: "tools",
     icon: Wrench,
     img: "https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=600&h=450&fit=crop",
   },
   {
     label: "Books & Magazine",
-    href: "/search?q=books",
+    slug: "books",
     icon: BookOpen,
     img: "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=600&h=450&fit=crop",
   },
   {
     label: "Local Design",
-    href: "/search?q=local+design",
+    slug: "design",
     icon: Palette,
     img: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&h=450&fit=crop",
   },
@@ -61,7 +61,7 @@ export default function CategoryGrid() {
           return (
             <Link
               key={cat.label}
-              href={cat.href}
+              href={`/search?category=${cat.slug}`}
               className="relative group overflow-hidden rounded-xl aspect-[4/3] block"
             >
               {/* Background image */}
