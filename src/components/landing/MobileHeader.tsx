@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
@@ -308,21 +308,6 @@ export default function MobileHeader({ onTabChange }: MobileHeaderProps) {
         </div>
       )}
 
-      <style jsx global>{`
-        @keyframes slide-in-left {
-          from {
-            opacity: 0;
-            transform: translateX(-100%);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        .animate-slide-in-left {
-          animation: slide-in-left 0.3s ease-out;
-        }
-      `}</style>
     </header>
   );
 }
