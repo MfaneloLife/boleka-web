@@ -3,40 +3,27 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useUser, SignOutButton, useAuth } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import {
+  Home,
   Store,
-  Package,
-  ClipboardList,
-  ShoppingBag,
   Wallet,
-  Star,
-  Award,
-  User,
-  Bell,
-  Settings,
   MessageSquare,
-  HelpCircle,
-  Shield,
+  Settings,
+  Package,
+  LogIn,
+  UserPlus,
   Menu,
   X,
-  LayoutDashboard,
 } from 'lucide-react';
 
 const navItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'My Shop', href: '/dashboard/items', icon: Store },
+  { name: 'My Wallet', href: '/dashboard/wallet', icon: Wallet },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
-  { name: 'My Requests', href: '/dashboard/requests', icon: ClipboardList },
-  { name: 'Orders', href: '/dashboard/orders', icon: ShoppingBag },
-  { name: 'My Shop', href: '/dashboard/shop', icon: Store, badge: 'Sell' },
-  { name: 'Wallet', href: '/dashboard/wallet', icon: Wallet },
-  { name: 'Rewards', href: '/dashboard/rewards', icon: Award },
-  { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
-  { name: 'Profile', href: '/dashboard/profile', icon: User },
-  { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+  { name: 'My Rentals', href: '/dashboard/orders', icon: Package },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-  { name: 'Help & Support', href: '/support', icon: HelpCircle },
-  { name: 'Safety Tips', href: '/safety', icon: Shield },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -47,7 +34,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/') return pathname === '/';
+    if (href === '/dashboard/items') return pathname?.startsWith('/dashboard/items');
     return pathname?.startsWith(href);
   };
 
@@ -89,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
 
-        {/* User greeting */}
+        {/* User greeting - only when signed in */}
         {isLoaded && user && (
           <div className="px-5 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
             <div className="flex items-center gap-3">
@@ -123,27 +111,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 <span className="flex-1 truncate">{item.name}</span>
-                {item.badge && (
-                  <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-md">
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Bottom */}
+        {/* Bottom - Sign up / Log in OR Sign out */}
         <div className="border-t border-gray-100 p-4 space-y-2">
-          <button
-            onClick={() => signOut(() => router.push('/'))}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Sign out
-          </button>
+          {isLoaded && !user ? (
+            <>
+              <Link
+                href="/auth/login"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-orange-600 hover:bg-orange-50 transition-all"
+              >
+                <LogIn className="w-5 h-5" />
+                Log in
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 transition-all shadow-sm"
+              >
+                <UserPlus className="w-5 h-5" />
+                Sign up
+              </Link>
+            </>
+          ) : isLoaded && user ? (
+            <button
+              onClick={() => signOut(() => router.push('/'))}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign out
+            </button>
+          ) : null}
           <p className="text-[10px] text-gray-400 text-center">Boleka v1.0 • Rent & Share items</p>
         </div>
       </aside>
