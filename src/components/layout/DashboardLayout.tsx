@@ -1,244 +1,178 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/src/context/AuthContext';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import NotificationDropdown from '@/components/notifications/NotificationDropdown';
-import { 
-  HomeIcon, 
-  MagnifyingGlassIcon,
-  UserCircleIcon,
-  UserIcon,
-  ChatBubbleLeftRightIcon,
-  ClipboardDocumentListIcon,
-  BellIcon,
-  CubeIcon,
-  BanknotesIcon,
-  CogIcon,
-  ArrowRightOnRectangleIcon,
-  Bars3Icon,
-  XMarkIcon,
-  PlusIcon
-} from '@heroicons/react/24/outline';
-import { ShareIcon } from '@heroicons/react/24/outline';
+import { usePathname, useRouter } from 'next/navigation';
+import { useUser, SignOutButton, useAuth } from '@clerk/nextjs';
+import {
+  Store,
+  Package,
+  ClipboardList,
+  ShoppingBag,
+  Wallet,
+  Star,
+  Award,
+  User,
+  Bell,
+  Settings,
+  MessageSquare,
+  HelpCircle,
+  Shield,
+  Menu,
+  X,
+  LayoutDashboard,
+} from 'lucide-react';
 
-interface DashboardLayoutProps {
-  children: React.ReactNode;
-}
+const navItems = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Messages', href: '/messages', icon: MessageSquare },
+  { name: 'My Requests', href: '/dashboard/requests', icon: ClipboardList },
+  { name: 'Orders', href: '/dashboard/orders', icon: ShoppingBag },
+  { name: 'My Shop', href: '/dashboard/shop', icon: Store, badge: 'Sell' },
+  { name: 'Wallet', href: '/dashboard/wallet', icon: Wallet },
+  { name: 'Rewards', href: '/dashboard/rewards', icon: Award },
+  { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
+  { name: 'Profile', href: '/dashboard/profile', icon: User },
+  { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Help & Support', href: '/support', icon: HelpCircle },
+  { name: 'Safety Tips', href: '/safety', icon: Shield },
+];
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { currentUser, logOut } = useAuth();
-  const router = useRouter();
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, isLoaded } = useUser();
+  const { signOut } = useAuth();
   const pathname = usePathname();
-  const [profileType, setProfileType] = useState<'client' | 'business'>('client');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Determine profile type based on current path
-  useEffect(() => {
-    if (pathname?.includes('/business/')) {
-      setProfileType('business');
-    } else {
-      setProfileType('client');
-    }
-  }, [pathname]);
-
-  const toggleProfileType = () => {
-    const newType = profileType === 'client' ? 'business' : 'client';
-    setProfileType(newType);
-    
-    // Redirect to appropriate dashboard
-    if (newType === 'business') {
-      router.push('/dashboard/business/items');
-    } else {
-      router.push('/dashboard/client/search');
-    }
-  };
-
-  const clientNavItems = [
-    { name: 'Home', href: '/dashboard', icon: HomeIcon },
-    { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
-    { name: 'My Requests', href: '/dashboard/client/requests', icon: ClipboardDocumentListIcon },
-    { name: 'Profile', href: '/dashboard/client/profile', icon: UserIcon },
-  ];
-
-  const businessNavItems = [
-    { name: 'Home', href: '/dashboard', icon: HomeIcon },
-    { name: 'My Items', href: '/dashboard/business/items', icon: CubeIcon },
-    { name: 'Add Item', href: '/dashboard/business/items/new', icon: PlusIcon },
-    { name: 'Requests', href: '/dashboard/business/requests', icon: ClipboardDocumentListIcon },
-    { name: 'My Wallet', href: '/dashboard/business/wallet', icon: BanknotesIcon },
-    { name: 'Notifications', href: '/dashboard/business/notifications', icon: BellIcon },
-    { name: 'Business Profile', href: '/dashboard/business/profile', icon: CogIcon },
-  ];
-
-  const navItems = profileType === 'client' ? clientNavItems : businessNavItems;
+  const router = useRouter();
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') {
-      return pathname === '/dashboard';
-    }
+    if (href === '/dashboard') return pathname === '/dashboard';
     return pathname?.startsWith(href);
   };
 
-  const handleInvite = async () => {
-    try {
-      const url = typeof window !== 'undefined' ? window.location.origin : 'https://boleka.app';
-      const shareData = {
-        title: 'Boleka — Share and rent items',
-        text: "Join me on Boleka to find, share, and rent items easily!",
-        url,
-      };
-      if (navigator.share) {
-        await navigator.share(shareData as any);
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
-        alert('Invite link copied to clipboard');
-      }
-    } catch (e) {
-      console.error('Invite/share failed', e);
-    }
-  };
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Mobile sidebar overlay */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        </div>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } flex flex-col`}>
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <Link href="/" className="flex items-center">
-            <span className="text-2xl font-bold text-orange-600">Boleka</span>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-out lg:translate-x-0 lg:static lg:inset-auto ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } flex flex-col`}
+      >
+        {/* Logo */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-sm">B</span>
+            </div>
+            <span className="text-xl font-extrabold tracking-tight text-gray-900">BOLEKA</span>
           </Link>
           <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
             aria-label="Close sidebar"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
-        {/* Navigation */}
-  <nav className="flex-1 overflow-y-auto px-6 py-6">
-          <ul className="space-y-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.name}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                      isActive(item.href)
-                        ? 'bg-orange-50 text-orange-600 border-r-2 border-orange-600'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                    onClick={() => setIsSidebarOpen(false)}
-                  >
-                    <Icon className="h-5 w-5 mr-3" />
-                    {item.name}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-
-          {/* Invite button */}
-          <div className="mt-6">
-            <button
-              onClick={handleInvite}
-              className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium rounded-lg transition-colors text-white bg-orange-600 hover:bg-orange-700"
-            >
-              <ShareIcon className="h-5 w-5 mr-2" />
-              Invite
-            </button>
-          </div>
-        </nav>
-
-        {/* Bottom section */}
-  <div className="border-t border-gray-200 p-6">
-          {/* Profile switcher */}
-          <button
-            onClick={toggleProfileType}
-            className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors mb-4"
-          >
-            <UserCircleIcon className="h-5 w-5 mr-3" />
-            Switch to {profileType === 'client' ? 'Business' : 'Client'}
-          </button>
-
-          {/* User info */}
-          <div className="flex items-center px-4 py-2 mb-2">
-            <div className="flex-shrink-0">
-              <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <UserCircleIcon className="h-5 w-5 text-orange-600" />
+        {/* User greeting */}
+        {isLoaded && user && (
+          <div className="px-5 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {user.firstName?.[0] || user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {user.fullName || user.emailAddresses?.[0]?.emailAddress || 'User'}
+                </p>
+                <p className="text-xs text-gray-500">Welcome back! 👋</p>
               </div>
             </div>
-            <div className="ml-3 flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {isClient ? (currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User') : 'User'}
-              </p>
-              <p className="text-xs text-gray-500 capitalize">
-                {profileType} Profile
-              </p>
-            </div>
           </div>
+        )}
 
-          {/* Sign out */}
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-0.5">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  active
+                    ? 'bg-orange-50 text-orange-600'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className="flex-1 truncate">{item.name}</span>
+                {item.badge && (
+                  <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-md">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom */}
+        <div className="border-t border-gray-100 p-4 space-y-2">
           <button
-            onClick={async () => {
-              try {
-                await logOut();
-                router.push('/');
-              } catch (error) {
-                console.error('Error signing out:', error);
-              }
-            }}
-            className="w-full flex items-center px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            onClick={() => signOut(() => router.push('/'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
           >
-            <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
             Sign out
           </button>
+          <p className="text-[10px] text-gray-400 text-center">Boleka v1.0 • Rent & Share items</p>
         </div>
-      </div>
+      </aside>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar for mobile */}
-        <div className="lg:hidden bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-4">
+        {/* Mobile top bar */}
+        <div className="lg:hidden bg-white border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 py-3">
             <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 -ml-2 rounded-xl hover:bg-gray-100 transition-colors"
               aria-label="Open sidebar"
             >
-              <Bars3Icon className="h-6 w-6" />
+              <Menu className="w-5 h-5 text-gray-700" />
             </button>
-            <span className="text-xl font-bold text-orange-600">Boleka</span>
-            <div className="flex items-center space-x-2">
-              <NotificationDropdown />
-            </div>
+            <Link href="/" className="flex items-center gap-1.5">
+              <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                <span className="text-white font-bold text-xs">B</span>
+              </div>
+              <span className="text-lg font-extrabold tracking-tight text-gray-900">BOLEKA</span>
+            </Link>
+            <div className="w-9 h-9" /> {/* Spacer */}
           </div>
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
+        <main className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="px-4 py-5 max-w-7xl mx-auto">
             {children}
           </div>
         </main>
