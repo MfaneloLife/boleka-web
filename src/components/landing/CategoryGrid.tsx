@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Sparkles, Laptop, BookOpen, Palette } from "lucide-react";
+import { Home, Sparkles, Laptop, BookOpen, Palette, UtensilsCrossed, Wrench } from "lucide-react";
 
 const categories = [
   {
@@ -21,6 +21,18 @@ const categories = [
     href: "/search?q=technology",
     icon: Laptop,
     img: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=600&h=450&fit=crop",
+  },
+  {
+    label: "Events & Catering",
+    href: "/search?q=events+catering",
+    icon: UtensilsCrossed,
+    img: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&h=450&fit=crop",
+  },
+  {
+    label: "Home & Garden Tools",
+    href: "/search?q=home+garden+tools",
+    icon: Wrench,
+    img: "https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=600&h=450&fit=crop",
   },
   {
     label: "Books & Magazine",
