@@ -28,15 +28,30 @@ model User {
   hasBusinessProfile Boolean @default(false)
   role              String?   // 'user', 'owner', 'admin'
 
+  // About me / Personal info
+  bio         String?
+  dateOfBirth DateTime?
+
   // International location fields
   country String @default("ZA")
   region  String @default("")
   city    String @default("")
+  suburb  String @default("")
   address String @default("")
+
+  // Business profile fields
+  businessName        String?
+  businessDescription String?
+  returnWindowHours   Int     @default(48)
+  lateFeePerDay       Float   @default(50)
+
+  // Preferences
+  language String @default("en")
 
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
 
   // Relationships
   items     Item[]
