@@ -1,4 +1,4 @@
-import DashboardLayout from '@/src/components/layout/DashboardLayout';
+import AppShell from '@/src/components/layout/AppShell';
 import ProtectedRoute from '@/src/components/auth/ProtectedRoute';
 
 export default function DashboardLayoutWrapper({
@@ -8,7 +8,7 @@ export default function DashboardLayoutWrapper({
 }) {
   return (
     <ProtectedRoute>
-      <DashboardLayout>{children}</DashboardLayout>
+      <AppShell variant="dashboard">{children}</AppShell>
     </ProtectedRoute>
   );
 }

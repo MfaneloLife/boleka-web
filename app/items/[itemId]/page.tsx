@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Star } from "lucide-react";
 import ItemPageClient from "./ItemPageClient";
+import AppShellClient from "@/src/components/layout/AppShellClient";
 
 // Force dynamic so every request gets fresh data
 export const dynamic = "force-dynamic";
@@ -148,9 +149,10 @@ export default async function ItemPage({ params }: ItemPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="min-h-screen bg-gray-50">
-        {/* Breadcrumb */}
-        <nav className="max-w-7xl mx-auto px-4 pt-4 pb-2 text-sm text-gray-500" aria-label="Breadcrumb">
+      <AppShellClient>
+        <div className="min-h-screen bg-gray-50">
+          {/* Breadcrumb */}
+          <nav className="max-w-7xl mx-auto px-4 pt-4 pb-2 text-sm text-gray-500" aria-label="Breadcrumb">
           <ol className="flex items-center gap-2">
             <li><Link href="/" className="hover:text-orange-600">Home</Link></li>
             <li>/</li>
@@ -285,7 +287,8 @@ export default async function ItemPage({ params }: ItemPageProps) {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </AppShellClient>
     </>
   );
 }
