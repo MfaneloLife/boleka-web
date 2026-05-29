@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { Send, Paperclip, X } from 'lucide-react';
 
 interface MessageInputProps {
   onSendMessage: (content: string, file?: File) => void;
@@ -14,9 +15,7 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if ((!message.trim() && !selectedFile) || isSubmitting) return;
-    
     try {
       setIsSubmitting(true);
       await onSendMessage(message, selectedFile || undefined);
@@ -35,43 +34,39 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       {selectedFile && (
-        <div className="mb-2 p-2 bg-gray-100 rounded-md flex items-center justify-between">
-          <div className="text-sm text-gray-700 truncate">
+        <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-xl">
+          <Paperclip className="w-4 h-4 text-orange-500 shrink-0" />
+          <span className="text-sm text-gray-700 truncate flex-1">
             {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-          </div>
-          <button 
-            type="button" 
+          </span>
+          <button
+            type="button"
             onClick={handleRemoveFile}
-            className="text-gray-500 hover:text-gray-700"
+            className="p-0.5 text-gray-400 hover:text-red-500 transition-colors shrink-0"
             aria-label="Remove file"
-            title="Remove file"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
-      
-      <div className="flex items-center">
+
+      <div className="flex items-center gap-2">
         <input
           type="text"
-          className="flex-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full rounded-md sm:text-sm border-gray-300"
-          placeholder="Type your message here..."
+          className="flex-1 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors"
+          placeholder="Type your message..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           disabled={isSubmitting}
         />
-        
-        <label className="ml-2 cursor-pointer">
+
+        <label className="cursor-pointer shrink-0">
           <input
             type="file"
             ref={fileInputRef}
@@ -80,31 +75,23 @@ export default function MessageInput({ onSendMessage }: MessageInputProps) {
             onChange={handleFileChange}
             disabled={isSubmitting}
             aria-label="Upload image"
-            title="Upload image"
           />
-          <span className="inline-flex items-center justify-center p-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-            </svg>
+          <span className="inline-flex items-center justify-center p-2.5 border border-gray-300 rounded-xl text-gray-500 hover:text-orange-600 hover:border-orange-300 hover:bg-orange-50 transition-colors">
+            <Paperclip className="w-5 h-5" />
           </span>
         </label>
-        
+
         <button
           type="submit"
-          className="ml-2 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          disabled={((!message.trim() && !selectedFile) || isSubmitting)}
+          disabled={(!message.trim() && !selectedFile) || isSubmitting}
+          className="flex items-center gap-1.5 shrink-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold text-sm px-4 py-2.5 rounded-xl hover:from-orange-600 hover:to-amber-600 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
+            <Send className="w-4 h-4" />
           )}
-          <span className="ml-1">Send</span>
+          <span>Send</span>
         </button>
       </div>
     </form>
