@@ -63,6 +63,7 @@ model User {
   requestsReceived Request[]   @relation("OwnerRequests")
   messagesSent    Message[]    @relation("SenderMessages")
   paymentsMade    Payment[]    @relation("PayerPayments")
+  favourites      Favourite[]
 }
 
 // Item model with delivery logic
@@ -105,8 +106,24 @@ model Item {
   rentalAgreements RentalAgreement[]
   images      ItemImage[]
   requests    Request[]
+  favourites  Favourite[]
 
   @@index([userId])
+}
+
+// Favourite items - users can save items they like
+model Favourite {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@index([itemId])
 }
 
 // Item type enum: SELLING, RENTING, or BOTH
