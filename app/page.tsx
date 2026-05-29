@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import MobileHeader from "@/src/components/landing/MobileHeader";
 import SearchBar from "@/src/components/landing/SearchBar";
 import TabNav from "@/src/components/landing/TabNav";
-import CategoryPills from "@/src/components/landing/CategoryPills";
 import CategoryGrid from "@/src/components/landing/CategoryGrid";
 import HeroBanner from "@/src/components/landing/HeroBanner";
 import PromoCarousel from "@/src/components/landing/PromoCarousel";
@@ -27,13 +25,11 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
-      <MobileHeader onTabChange={handleTabChange} />
       <SearchBar />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {activeTab === "discover" && (
         <>
-          <CategoryPills />
           <PromoCarousel />
           <CategoryGrid />
           <BrandsSection />

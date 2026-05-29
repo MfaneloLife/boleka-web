@@ -1,7 +1,6 @@
 export { default as MobileHeader } from "./MobileHeader";
 export { default as SearchBar } from "./SearchBar";
 export { default as TabNav } from "./TabNav";
-export { default as CategoryPills } from "./CategoryPills";
 export { default as CategoryGrid } from "./CategoryGrid";
 export { default as HeroBanner } from "./HeroBanner";
 export { default as BrandsSection } from "./BrandsSection";

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Sparkles, Laptop, BookOpen, Palette, UtensilsCrossed, Wrench } from "lucide-react";
+import { Home, Sparkles, Laptop, BookOpen, Palette, UtensilsCrossed, Wrench, Dumbbell } from "lucide-react";
 
 const categories = [
   {
@@ -45,6 +45,12 @@ const categories = [
     slug: "design",
     icon: Palette,
     img: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&h=450&fit=crop",
+  },
+  {
+    label: "Sport Kit",
+    slug: "sport-kit",
+    icon: Dumbbell,
+    img: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&h=450&fit=crop",
   },
 ];
 

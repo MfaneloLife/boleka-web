@@ -8,6 +8,7 @@ import "./globals.css";
 import Providers from "@/src/components/Providers";
 import ErrorBoundary from "@/src/components/ErrorBoundary";
 import PWAInit from "@/src/components/PWAInit";
+import MobileHeader from "@/src/components/landing/MobileHeader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -91,7 +92,10 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ErrorBoundary>
           {/* Client-side providers (Clerk) */}
-          <Providers>{children}</Providers>
+          <Providers>
+            <MobileHeader />
+            {children}
+          </Providers>
         </ErrorBoundary>
         {/* PWA service worker registration & install prompt */}
         <PWAInit />
