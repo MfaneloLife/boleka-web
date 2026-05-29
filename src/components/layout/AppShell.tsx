@@ -274,7 +274,7 @@ export default function AppShell({ children, variant = "public", onTabChange }: 
           {/* Auth + List Item */}
           <div className="flex items-center gap-2">
             <Link
-              href={user ? "/dashboard/items/new" : "/auth/login"}
+              href={user ? "/dashboard/items?action=list" : "/auth/login"}
               className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-2 text-xs font-semibold hover:shadow-lg hover:shadow-orange-200/50 active:scale-95 transition-all"
             >
               <PlusCircle className="w-3.5 h-3.5" />
@@ -371,7 +371,7 @@ export default function AppShell({ children, variant = "public", onTabChange }: 
 
                 {/* List Item CTA (always visible in sidebar) */}
                 <Link
-                  href={user ? "/dashboard/items/new" : "/auth/login"}
+                  href={user ? "/dashboard/items?action=list" : "/auth/login"}
                   onClick={() => setSidebarOpen(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-md transition-all mt-2"
                 >

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { Plus, Package, Edit, Eye, Upload, ImageIcon, X, Loader2 } from 'lucide-react';
 
@@ -27,6 +28,7 @@ interface Item {
 }
 
 export default function MyShopPage() {
+  const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,13 @@ export default function MyShopPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // Auto-open the list form when coming from "List an Item" CTA
+  useEffect(() => {
+    if (searchParams.get('action') === 'list') {
+      setShowAddForm(true);
+    }
+  }, [searchParams]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -187,12 +196,12 @@ export default function MyShopPage() {
           {/* Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600">Title *</label>
-              <input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none" placeholder="e.g. DSLR Camera" />
+              <label className="text-sm font-semibold text-gray-700">Title *</label>
+              <input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="e.g. DSLR Camera" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600">Category</label>
-              <select value={formData.category} onChange={e => setFormData(p => ({ ...p, category: e.target.value }))} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none">
+              <label className="text-sm font-semibold text-gray-700">Category</label>
+              <select value={formData.category} onChange={e => setFormData(p => ({ ...p, category: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors">
                 <option value="electronics">Electronics</option>
                 <option value="home">Home & Garden</option>
                 <option value="fashion">Fashion</option>
@@ -202,12 +211,12 @@ export default function MyShopPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600">Price per day (R) *</label>
-              <input type="number" step="0.01" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none" placeholder="150" />
+              <label className="text-sm font-semibold text-gray-700">Price per day (R) *</label>
+              <input type="number" step="0.01" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="150" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600">Condition</label>
-              <select value={formData.condition} onChange={e => setFormData(p => ({ ...p, condition: e.target.value }))} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none">
+              <label className="text-sm font-semibold text-gray-700">Condition</label>
+              <select value={formData.condition} onChange={e => setFormData(p => ({ ...p, condition: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors">
                 <option value="new">New</option>
                 <option value="like-new">Like New</option>
                 <option value="used">Used</option>
@@ -216,12 +225,12 @@ export default function MyShopPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600">Description</label>
-            <textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none" placeholder="Describe your item..." />
+              <label className="text-sm font-semibold text-gray-700">Description</label>
+              <textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="Describe your item..." />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600">Location / Address</label>
-            <input value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none" placeholder="e.g. Sandton, Johannesburg" />
+              <label className="text-sm font-semibold text-gray-700">Location / Address</label>
+              <input value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="e.g. Sandton, Johannesburg" />
           </div>
           <button type="submit" disabled={uploading || !formData.title || !formData.price} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold py-2.5 rounded-xl text-sm hover:from-orange-600 hover:to-amber-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -246,7 +255,7 @@ export default function MyShopPage() {
           <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
           <h2 className="text-lg font-semibold text-gray-900 mb-1">No items yet</h2>
           <p className="text-sm text-gray-500 mb-6">List your first item to start renting</p>
-          <button onClick={() => setShowAddForm(true)} className="inline-flex items-center gap-1.5 bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-orange-600 transition shadow-sm">
+          <button onClick={() => setShowAddForm(true)} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition shadow-sm">
             <Plus className="w-4 h-4" />
             List your first item
           </button>
