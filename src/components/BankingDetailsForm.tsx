@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import Button from '@/components/Button';
+import Button from '@/src/components/Button';
 
 interface BankingDetailsFormProps {
   businessId: string;

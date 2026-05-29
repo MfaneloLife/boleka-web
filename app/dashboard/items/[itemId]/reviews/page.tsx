@@ -5,9 +5,9 @@ import { useUser } from '@clerk/nextjs';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import ReviewForm from '@/components/reviews/ReviewForm';
-import ReviewList from '@/components/reviews/ReviewList';
-import RatingStars from '@/components/reviews/RatingStars';
+import ReviewForm from '@/src/components/reviews/ReviewForm';
+import ReviewList from '@/src/components/reviews/ReviewList';
+import RatingStars from '@/src/components/reviews/RatingStars';
 
 interface Item {
   id: string;

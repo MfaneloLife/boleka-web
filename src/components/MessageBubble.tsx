@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 
-interface MessageBubbleProps {
+interface MessageProps {
   message: {
     id: string;
     content: string;
     createdAt: string;
-    senderId: string;
     imageUrl?: string | null;
     sender: {
       id: string;
@@ -18,42 +18,87 @@ interface MessageBubbleProps {
   isCurrentUser: boolean;
 }
 
-export default function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
+export default function MessageBubble({ message, isCurrentUser }: MessageProps) {
+  const [imageError, setImageError] = useState(false);
+  
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-          isCurrentUser
-            ? 'bg-orange-500 text-white rounded-br-md'
-            : 'bg-white border border-gray-200 text-gray-900 rounded-bl-md'
+      {!isCurrentUser && (
+        <div className="flex-shrink-0 mr-3">
+          {message.sender.image ? (
+            <Image
+              src={message.sender.image}
+              alt={message.sender.name || 'User'}
+              className="h-8 w-8 rounded-full"
+              width={32}
+              height={32}
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs">
+              {message.sender.name ? message.sender.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div 
+        className={`relative max-w-xl px-4 py-2 rounded-lg shadow ${
+          isCurrentUser 
+            ? 'bg-indigo-600 text-white' 
+            : 'bg-white text-gray-700'
         }`}
       >
-        {!isCurrentUser && (
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-5 h-5 rounded-full bg-gray-300 overflow-hidden relative flex-shrink-0">
-              {message.sender.image ? (
-                <Image src={message.sender.image} alt={message.sender.name} fill className="object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs font-medium text-gray-600">
-                  {message.sender.name?.charAt(0) || '?'}
-                </div>
-              )}
-            </div>
-            <span className={`text-xs font-medium ${isCurrentUser ? 'text-orange-100' : 'text-gray-500'}`}>
-              {message.sender.name}
-            </span>
+        {message.content && (
+          <span className="block">
+            {message.content}
+          </span>
+        )}
+        
+        {message.imageUrl && !imageError && (
+          <div className="mt-2 rounded-md overflow-hidden">
+            <Image
+              src={message.imageUrl}
+              alt="Message attachment"
+              width={300}
+              height={200}
+              className="max-w-full h-auto object-cover"
+              onError={() => setImageError(true)}
+            />
           </div>
         )}
-        {message.imageUrl && (
-          <div className="mb-2 rounded-lg overflow-hidden">
-            <Image src={message.imageUrl} alt="Shared image" width={200} height={200} className="w-full object-cover" />
-          </div>
-        )}
-        {message.content && <p className="text-sm leading-relaxed">{message.content}</p>}
-        <p className={`text-xs mt-1 ${isCurrentUser ? 'text-orange-200' : 'text-gray-400'}`}>
-          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
+        
+        <span 
+          className={`block text-xs mt-1 ${isCurrentUser ? 'text-indigo-200' : 'text-gray-500'}`}
+        >
+          {formatTime(message.createdAt)}
+        </span>
       </div>
+      
+      {isCurrentUser && (
+        <div className="flex-shrink-0 ml-3">
+          {message.sender.image ? (
+            <Image
+              src={message.sender.image}
+              alt={message.sender.name || 'You'}
+              className="h-8 w-8 rounded-full"
+              width={32}
+              height={32}
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs">
+              {message.sender.name ? message.sender.name.charAt(0).toUpperCase() : 'Y'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

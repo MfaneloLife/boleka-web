@@ -1,121 +1,156 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
+import { StarIcon } from '@heroicons/react/24/solid';
+import { StarIcon as StarOutline } from '@heroicons/react/24/outline';
 
 interface ReviewFormProps {
   itemId: string;
-  onSuccess: () => void;
+  requestId?: string;
+  onSuccess?: () => void;
 }
 
-export default function ReviewForm({ itemId, onSuccess }: ReviewFormProps) {
-  const [rating, setRating] = useState(0);
-  const [hoveredRating, setHoveredRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+export default function ReviewForm({ itemId, requestId, onSuccess }: ReviewFormProps) {
+  const [rating, setRating] = useState<number>(0);
+  const [comment, setComment] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
 
     if (rating === 0) {
       setError('Please select a rating');
+      setIsSubmitting(false);
       return;
     }
-
-    if (comment.trim().length < 10) {
-      setError('Please provide a comment with at least 10 characters');
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
 
     try {
       const response = await fetch('/api/reviews', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          itemId,
           rating,
-          comment: comment.trim(),
+          comment,
+          itemId,
+          requestId,
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to submit review');
+        throw new Error(data.error || 'An error occurred while submitting your review');
       }
 
-      onSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit review');
+      setSuccess(true);
+      setRating(0);
+      setComment('');
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to submit review');
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Write a Review</h3>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Rating */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Rating *</label>
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => setRating(star)}
-                onMouseEnter={() => setHoveredRating(star)}
-                onMouseLeave={() => setHoveredRating(0)}
-                className="p-1 focus:outline-none"
-              >
-                <svg
-                  className={`w-8 h-8 ${
-                    star <= (hoveredRating || rating) ? 'text-yellow-400 fill-current' : 'text-gray-300 fill-current'
-                  }`}
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.286 3.957c.3.921-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.784.57-1.838-.197-1.539-1.118l1.285-3.957a1 1 0 00-.364-1.118L2.05 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
-                </svg>
-              </button>
-            ))}
-            <span className="ml-2 text-sm text-gray-500">
-              {['', 'Poor', 'Below Average', 'Average', 'Good', 'Excellent'][hoveredRating || rating]}
-            </span>
+  const renderStars = () => {
+    return Array.from({ length: 5 }).map((_, index) => {
+      const starValue = index + 1;
+      return (
+        <button
+          key={starValue}
+          type="button"
+          className="focus:outline-none"
+          onClick={() => setRating(starValue)}
+        >
+          {starValue <= rating ? (
+            <StarIcon className="h-8 w-8 text-yellow-400" />
+          ) : (
+            <StarOutline className="h-8 w-8 text-gray-300 hover:text-yellow-400" />
+          )}
+        </button>
+      );
+    });
+  };
+
+  if (success) {
+    return (
+      <div className="p-4 bg-green-50 rounded-md">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-green-800">Review submitted successfully!</h3>
+            <div className="mt-2 text-sm text-green-700">
+              <p>Thank you for your feedback.</p>
+            </div>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Comment */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Review *</label>
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-semibold mb-4">Write a Review</h2>
+      
+      {error && (
+        <div className="p-4 mb-4 bg-red-50 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-6">
+          <label className="block text-gray-700 mb-2">Rating</label>
+          <div className="flex">{renderStars()}</div>
+        </div>
+        
+        <div className="mb-6">
+          <label htmlFor="comment" className="block text-gray-700 mb-2">
+            Comment (optional)
+          </label>
           <textarea
+            id="comment"
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+            placeholder="Share your experience with this item..."
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Share your experience with this item..."
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-            disabled={submitting}
           />
-          <p className="mt-1 text-xs text-gray-500">Minimum 10 characters ({comment.length}/500)</p>
         </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded p-3">
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
-
-        {/* Submit */}
-        <div className="flex justify-end gap-2">
+        
+        <div>
           <button
             type="submit"
-            disabled={submitting || rating === 0 || comment.trim().length < 10}
-            className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+            disabled={isSubmitting}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
           >
-            {submitting ? 'Submitting...' : 'Submit Review'}
+            {isSubmitting ? 'Submitting...' : 'Submit Review'}
           </button>
         </div>
       </form>

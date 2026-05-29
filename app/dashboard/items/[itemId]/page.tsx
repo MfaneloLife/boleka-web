@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import RatingStars from '@/components/reviews/RatingStars';
-import SendMessageModal from '@/components/SendMessageModal';
+import RatingStars from '@/src/components/reviews/RatingStars';
+import SendMessageModal from '@/src/components/SendMessageModal';
 import { useUser } from '@clerk/nextjs';
 
 interface Item {

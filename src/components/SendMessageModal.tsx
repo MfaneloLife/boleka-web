@@ -1,125 +1,133 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
-import { useUser, useClerk } from '@clerk/nextjs';
-import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
+import Button from '@/src/components/Button';
 
 interface SendMessageModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  recipientId: string;
-  recipientName: string;
   itemId: string;
+  onClose: () => void;
+  ownerId?: string;
+  isOpen?: boolean;
+  recipientId?: string;
+  recipientName?: string;
 }
 
-export default function SendMessageModal({
-  isOpen,
-  onClose,
-  recipientId,
-  recipientName,
-  itemId,
-}: SendMessageModalProps) {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const clerk = useClerk();
+export default function SendMessageModal({ itemId, onClose, ownerId, isOpen, recipientId, recipientName }: SendMessageModalProps) {
+  const { user } = useUser();
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const router = useRouter();
 
-  if (!isOpen) return null;
-
-  const handleSend = async () => {
-    if (!message.trim()) return;
-
-    if (!isSignedIn) {
-      clerk.openSignIn();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!message.trim()) {
+      setError('Please enter a message');
       return;
     }
-
-    setSending(true);
-    setError(null);
-
+    
     try {
-      const response = await fetch('/api/messages', {
+      setIsLoading(true);
+      setError(null);
+      
+      if (!user) {
+        setError('You need to be signed in to send a message.');
+        return;
+      }
+      
+      // Create a new request
+      const requestResponse = await fetch('/api/requests', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          recipientId,
           itemId,
-          content: message.trim(),
+          message,
         }),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to send message');
+      
+      if (!requestResponse.ok) {
+        throw new Error('Failed to create request');
       }
-
-      setSuccess(true);
-      setMessage('');
-      setTimeout(() => {
-        onClose();
-        setSuccess(false);
-      }, 1500);
+      
+      const { id: requestId } = await requestResponse.json();
+      
+      // Navigate to the conversation
+      router.push(`/messages/${requestId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
+      console.error('Error sending message:', err);
+      setError('Failed to send your message. Please try again.');
     } finally {
-      setSending(false);
+      setIsLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Message {recipientName}
-          </h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
-            <XMarkIcon className="h-5 w-5" />
+  return isOpen ? (
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-3 sm:p-0">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-4 sm:p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">Send Message</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500"
+            aria-label="Close"
+            title="Close"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
-
-        {success ? (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <p className="text-sm font-medium text-green-800">Message sent successfully!</p>
-          </div>
-        ) : (
-          <>
+        
+        <form onSubmit={handleSubmit}>
+          {error && (
+            <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-md">
+              {error}
+            </div>
+          )}
+          
+          <div className="mb-4">
+            <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+              Your Message
+            </label>
             <textarea
+              id="message"
+              rows={4}
+              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+              placeholder="Introduce yourself and explain why you're interested in this item..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={`Ask ${recipientName} about this item...`}
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none text-sm"
+              disabled={isLoading}
+              required
             />
-
-            {error && (
-              <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-                {error}
-              </div>
-            )}
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSend}
-                disabled={!message.trim() || sending}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                <PaperAirplaneIcon className="h-4 w-4" />
-                {sending ? 'Sending...' : 'Send Message'}
-              </button>
-            </div>
-          </>
-        )}
+            <p className="mt-1 text-sm text-gray-500">
+              Your message will be sent to the item owner and create a new request.
+            </p>
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <Button
+              type="submit"
+              disabled={isLoading || !message.trim()}
+              isLoading={isLoading}
+            >
+              Send Message
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
-  );
+  ) : null;
 }

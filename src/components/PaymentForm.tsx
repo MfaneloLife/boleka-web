@@ -1,106 +1,137 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
+import { useUser } from '@clerk/nextjs';
+import Button from '@/src/components/Button';
 
 interface PaymentFormProps {
   requestId: string;
   amount: number;
   itemName: string;
-  onCancel: () => void;
-  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-export default function PaymentForm({
-  requestId,
-  amount,
-  itemName,
-  onCancel,
-  onSuccess,
+export default function PaymentForm({ 
+  requestId, 
+  amount, 
+  itemName, 
+  onCancel 
 }: PaymentFormProps) {
-  const [processing, setProcessing] = useState(false);
+  const { user } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Record<string, string> | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
-  const handlePayment = async () => {
-    setProcessing(true);
-    setError(null);
+  const handlePay = async () => {
+    if (!user) {
+      setError('You need to be logged in to make a payment');
+      return;
+    }
 
     try {
-      const response = await fetch('/api/payments', {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch(`/api/payment/${requestId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          requestId,
           amount,
+          itemName,
         }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Payment failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create payment');
       }
 
       const data = await response.json();
-      
-      // Redirect to payment URL if provided (e.g., PayFast)
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-      } else {
-        onSuccess?.();
-      }
+      setFormData(data.formData);
+      setPaymentUrl(data.paymentUrl);
+
+      // Auto-submit the form to PayFast
+      setTimeout(() => {
+        try {
+          const form = document.getElementById('payfast-form') as HTMLFormElement;
+          if (form) {
+            form.submit();
+          } else {
+            throw new Error('Payment form not found');
+          }
+        } catch (error) {
+          console.error('Form submission error:', error);
+          setError('Failed to redirect to payment gateway. Please try again.');
+          setIsLoading(false);
+        }
+      }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
+      console.error('Payment initiation error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      setProcessing(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Payment Details</h3>
-        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Item:</span>
-            <span className="font-medium text-gray-900">{itemName}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Amount due:</span>
-            <span className="font-bold text-lg text-orange-600">R{amount.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-800 mb-1">Payment Breakdown</h4>
-        <p className="text-xs text-blue-700">
-          <strong>95%</strong> goes to the item owner ({'R' + (amount * 0.95).toFixed(2)})
-          <br />
-          <strong>5%</strong> platform commission ({'R' + (amount * 0.05).toFixed(2)})
-        </p>
-      </div>
-
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Details</h2>
+      
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-md">
+          {error}
         </div>
       )}
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={handlePayment}
-          disabled={processing}
-          className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors text-sm"
-        >
-          {processing ? 'Processing...' : `Pay R${amount.toFixed(2)}`}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={processing}
-          className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-medium transition-colors text-sm"
-        >
-          Cancel
-        </button>
+      
+      <div className="mb-6">
+        <div className="flex justify-between py-2 border-b border-gray-200">
+          <span className="text-gray-600">Item:</span>
+          <span className="font-medium">{itemName}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b border-gray-200">
+          <span className="text-gray-600">Amount:</span>
+          <span className="font-medium">R{amount.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between py-2">
+          <span className="text-gray-600">Payment Method:</span>
+          <span className="font-medium">PayFast</span>
+        </div>
       </div>
+      
+      {formData && paymentUrl ? (
+        <form id="payfast-form" action={paymentUrl} method="post" className="hidden">
+          {Object.entries(formData).map(([key, value]) => (
+            <input key={key} type="hidden" name={key} value={value} />
+          ))}
+          <noscript>
+            <button type="submit" className="p-2 bg-orange-600 text-white rounded">
+              Click here to continue to payment
+            </button>
+          </noscript>
+        </form>
+      ) : (
+        <div className="flex justify-end gap-3">
+          {onCancel && (
+            <Button
+              onClick={onCancel}
+              variant="secondary"
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            onClick={handlePay}
+            variant="primary"
+            isLoading={isLoading}
+          >
+            Pay Now
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

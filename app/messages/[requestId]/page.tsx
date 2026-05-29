@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import MessageBubble from '@/components/MessageBubble';
-import MessageInput from '@/components/MessageInput';
+import MessageBubble from '@/src/components/MessageBubble';
+import MessageInput from '@/src/components/MessageInput';
 import { useUser } from '@clerk/nextjs';
 
 interface Message {

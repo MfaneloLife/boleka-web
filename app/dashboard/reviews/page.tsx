@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Tab } from '@headlessui/react';
-import ReviewList from '@/components/reviews/ReviewList';
+import ReviewList from '@/src/components/reviews/ReviewList';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');

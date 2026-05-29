@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import PaymentForm from '@/components/PaymentForm';
-import TermsAndConditions from '@/components/TermsAndConditions';
-import Loading from '@/components/Loading';
+import PaymentForm from '@/src/components/PaymentForm';
+import TermsAndConditions from '@/src/components/TermsAndConditions';
+import Loading from '@/src/components/Loading';
 
 export default function PaymentPage({ params }: { params: { requestId: string } }) {
   const { requestId } = params;

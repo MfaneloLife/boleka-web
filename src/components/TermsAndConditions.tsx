@@ -1,104 +1,94 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
+import Button from '@/src/components/Button';
 
 interface TermsAndConditionsProps {
-  itemName: string;
-  returnDate?: string;
   onAccept: () => void;
   onCancel: () => void;
+  itemName: string;
+  returnDate?: string;
 }
 
-export default function TermsAndConditions({
+export default function TermsAndConditions({ 
+  onAccept, 
+  onCancel, 
   itemName,
-  returnDate,
-  onAccept,
-  onCancel,
+  returnDate
 }: TermsAndConditionsProps) {
-  const [accepted, setAccepted] = useState(false);
-
+  const [isAgreed, setIsAgreed] = useState(false);
+  
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Terms and Conditions</h3>
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Terms and Conditions</h2>
+      
+      <div className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50 max-h-60 overflow-y-auto">
+        <h3 className="font-semibold mb-2">Rental Agreement for {itemName}</h3>
         
-        <div className="space-y-4 text-sm text-gray-700">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-2">Rental Agreement</h4>
-            <p>
-              By proceeding with this payment, you agree to the following terms:
-            </p>
-          </div>
-
-          <ul className="space-y-3 pl-4">
-            <li className="flex gap-2">
-              <span className="text-orange-500 font-bold">•</span>
-              <span>
-                <strong>Payment:</strong> You will be charged <strong>R{/* amount will show in payment step */}</strong> for renting <strong>{itemName}</strong>.
-              </span>
-            </li>
-            {returnDate && (
-              <li className="flex gap-2">
-                <span className="text-orange-500 font-bold">•</span>
-                <span>
-                  <strong>Return Date:</strong> The item is expected to be returned by <strong>{returnDate}</strong>.
-                </span>
-              </li>
-            )}
-            <li className="flex gap-2">
-              <span className="text-orange-500 font-bold">•</span>
-              <span>
-                <strong>Item Care:</strong> You agree to take reasonable care of the item during the rental period.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-orange-500 font-bold">•</span>
-              <span>
-                <strong>Fee Split:</strong> 95% of the payment goes to the item owner, and 5% is retained by BOLEKA as a platform fee.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-orange-500 font-bold">•</span>
-              <span>
-                <strong>Cancellation:</strong> You may cancel within 24 hours for a full refund, subject to the owner's approval.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-orange-500 font-bold">•</span>
-              <span>
-                <strong>Disputes:</strong> Any disputes will be mediated by BOLEKA support.
-              </span>
-            </li>
-          </ul>
-        </div>
+        <p className="mb-3">
+          By accepting these terms, I acknowledge and agree to the following conditions:
+        </p>
+        
+        <ol className="list-decimal pl-5 space-y-2 text-sm">
+          <li>
+            <span className="font-medium">Responsibility for Loss or Damage:</span> I accept full responsibility for any loss, theft, or damage to the item while it is in my possession, regardless of the cause.
+          </li>
+          <li>
+            <span className="font-medium">Return Obligation:</span> I agree to return the item on time {returnDate ? `by ${returnDate}` : 'by the agreed-upon date'} in the same condition as when I received it.
+          </li>
+          <li>
+            <span className="font-medium">Late Returns:</span> I understand that late returns may result in additional charges or penalties as outlined in the rental agreement.
+          </li>
+          <li>
+            <span className="font-medium">Proper Use:</span> I will use the item only for its intended purpose and in accordance with any provided instructions.
+          </li>
+          <li>
+            <span className="font-medium">No Transfer:</span> I will not sell, lend, or transfer the item to any other person without authorization.
+          </li>
+          <li>
+            <span className="font-medium">Inspection:</span> I have inspected or will inspect the item upon receipt and report any pre-existing damage immediately.
+          </li>
+          <li>
+            <span className="font-medium">Indemnification:</span> I agree to indemnify and hold the owner harmless from any claims arising from my use of the item.
+          </li>
+          <li>
+            <span className="font-medium">Cancellation:</span> I understand the cancellation policy and any associated fees.
+          </li>
+        </ol>
+        
+        <p className="mt-4 text-sm">
+          I understand that by agreeing to these terms, I am entering into a legally binding agreement.
+        </p>
       </div>
-
-      <label className="flex items-start gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={accepted}
-          onChange={(e) => setAccepted(e.target.checked)}
-          className="mt-0.5 h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-        />
-        <span className="text-sm text-gray-700">
-          I have read and agree to the terms and conditions above.
-        </span>
-      </label>
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={onAccept}
-          disabled={!accepted}
-          className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors text-sm"
-        >
-          Accept & Continue to Payment
-        </button>
-        <button
+      
+      <div className="mb-6">
+        <label className="flex items-start">
+          <input 
+            type="checkbox" 
+            className="mt-1 mr-2" 
+            checked={isAgreed} 
+            onChange={(e) => setIsAgreed(e.target.checked)}
+          />
+          <span className="text-sm">
+            I have read and agree to the terms and conditions. I understand that I am responsible for any loss or damage to the item and will return it on time.
+          </span>
+        </label>
+      </div>
+      
+      <div className="flex justify-end gap-3">
+        <Button
           onClick={onCancel}
-          className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
+          variant="secondary"
         >
           Cancel
-        </button>
+        </Button>
+        <Button
+          onClick={onAccept}
+          variant="primary"
+          disabled={!isAgreed}
+        >
+          Accept & Continue
+        </Button>
       </div>
     </div>
   );
