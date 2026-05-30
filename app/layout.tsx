@@ -49,10 +49,10 @@ export const metadata: Metadata = {
     'Content-Security-Policy': [
       "default-src 'self'",
       "script-src 'self'",
-      "style-src 'self'",
-      "img-src 'self' data: blob:",
+      "style-src 'self' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https://pub-0bf9994c37384a93b6f02dc5dc60ec44.r2.dev https://img.clerk.com",
       "connect-src 'self' https://api.clerk.com https://*.clerk.com",
-      "font-src 'self' data:",
+      "font-src 'self' data: https://fonts.gstatic.com",
       "frame-src 'self' https://www.payfast.co.za https://accounts.clerk.com *.clerk.com",
       "object-src 'none'",
       "base-uri 'self'",

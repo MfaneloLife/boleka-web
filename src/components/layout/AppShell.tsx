@@ -167,7 +167,42 @@ export default function AppShell({ children, variant = "public", onTabChange }: 
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-0.5">
-            {userNav.map((item) => {
+            {/* Home */}
+            <Link
+              href="/"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isActive("/") ? "bg-orange-50 text-orange-600" : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <Home className="w-5 h-5 shrink-0" />
+              <span className="flex-1 truncate">Home</span>
+            </Link>
+
+            {/* Account section */}
+            <p className="px-2 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Account</p>
+            {accountItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    active ? "bg-orange-50 text-orange-600" : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  <span className="flex-1 truncate">{item.name}</span>
+                  {"badge" in item && (
+                    <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-md">Sell</span>
+                  )}
+                </Link>
+              );
+            })}
+
+            {/* More section */}
+            <p className="px-2 py-2 mt-4 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">More</p>
+            {moreItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               return (
