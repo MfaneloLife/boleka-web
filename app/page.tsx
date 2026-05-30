@@ -8,6 +8,7 @@ import CategoryGrid from "@/src/components/landing/CategoryGrid";
 import HeroBanner from "@/src/components/landing/HeroBanner";
 import PromoCarousel from "@/src/components/landing/PromoCarousel";
 import BrandsSection from "@/src/components/landing/BrandsSection";
+import ItemsGrid from "@/src/components/landing/ItemsGrid";
 import ShopsTab from "@/src/components/landing/ShopsTab";
 import FavouritesTab from "@/src/components/landing/FavouritesTab";
 import FloatingCTA from "@/src/components/landing/FloatingCTA";
@@ -34,6 +35,7 @@ export default function Home() {
         <>
           <PromoCarousel />
           <CategoryGrid />
+          <ItemsGrid />
           <BrandsSection />
         </>
       )}

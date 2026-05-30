@@ -13,7 +13,7 @@ interface Item {
   title: string;
   description: string;
   price: number;
-  imageUrls: string;
+  imageUrls: string[];
   location: string;
   category: string;
   ownerId: string;
@@ -131,8 +131,8 @@ export default function ItemDetailsPage() {
     );
   }
 
-  const isOwner = isLoaded && user && item.ownerId === user.id;
-  const images = item.imageUrls ? JSON.parse(item.imageUrls) : [];
+  const isOwner = isLoaded && user && user.id === item.ownerId;
+  const images = item.imageUrls || [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-10">
