@@ -457,16 +457,16 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300" />
             </a>
-            <a href="/privacy" className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
+            <div className="flex items-center justify-between px-5 py-4 opacity-50 cursor-not-allowed">
               <div className="flex items-center gap-3">
                 <Shield className="w-5 h-5 text-gray-400" />
                 <div>
                   <span className="text-sm font-medium text-gray-700">Privacy & Security</span>
-                  <p className="text-xs text-gray-400 mt-0.5">Manage your data and security settings</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Coming soon</p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300" />
-            </a>
+            </div>
           </div>
         )}
       </div>

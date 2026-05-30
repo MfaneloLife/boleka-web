@@ -79,12 +79,12 @@ export default function WalletPage() {
           {loading ? '...' : `R${(wallet?.availableBalance || 0).toFixed(2)}`}
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <Link href="/wallet/pay" className="flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium transition">
+          <button className="flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium transition opacity-60 cursor-not-allowed">
             <ArrowUpRight className="w-4 h-4" /> Send
-          </Link>
-          <Link href="/wallet/payout" className="flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium transition">
+          </button>
+          <button className="flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium transition opacity-60 cursor-not-allowed">
             <ArrowDownLeft className="w-4 h-4" /> Withdraw
-          </Link>
+          </button>
         </div>
       </div>
 

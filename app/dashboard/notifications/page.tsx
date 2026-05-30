@@ -26,7 +26,7 @@ export default function NotificationsPage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.push('/auth/sign-in');
+      router.push('/auth/login');
     }
   }, [isLoaded, isSignedIn, router]);
 
@@ -109,14 +109,13 @@ export default function NotificationsPage() {
       case 'REQUEST_CREATED':
       case 'REQUEST_ACCEPTED':
       case 'REQUEST_REJECTED':
-        return `/dashboard/requests/${relatedId}`;
       case 'PAYMENT_RECEIVED':
       case 'PAYMENT_FAILED':
-        return `/dashboard/payments/${relatedId}`;
+        return `/messages/${relatedId}`;
       case 'MESSAGE_RECEIVED':
         return `/messages/${relatedId}`;
       case 'REVIEW_RECEIVED':
-        return `/dashboard/reviews/${relatedId}`;
+        return `/dashboard/items/${relatedId}/reviews`;
       default:
         return '#';
     }
