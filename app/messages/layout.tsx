@@ -1,10 +1,10 @@
-import DashboardLayout from '@/src/components/layout/DashboardLayout';
+import AppShell from '@/src/components/layout/AppShell';
 import ProtectedRoute from '@/src/components/auth/ProtectedRoute';
 
 export default function MessagesLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
-      <DashboardLayout>{children}</DashboardLayout>
+      <AppShell variant="dashboard">{children}</AppShell>
     </ProtectedRoute>
   );
 }
