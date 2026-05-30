@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get('content-type') || '';
     let body: any;
     if (contentType.includes('application/json')) {
-      body = await req.json();
+      body = await req.json().catch(() => ({}));
     } else if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       body = {

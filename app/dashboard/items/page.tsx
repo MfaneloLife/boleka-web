@@ -37,6 +37,9 @@ export default function MyShopPage() {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
   // Auto-open the list form when coming from "List an Item" CTA
@@ -74,14 +77,21 @@ export default function MyShopPage() {
 
   const uploadToR2 = async (files: File[]): Promise<string[]> => {
     const urls: string[] = [];
+    setUploadError(null);
     for (const file of files) {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'items');
-      const res = await fetch('/api/upload/r2', { method: 'POST', body: formData });
-      if (res.ok) {
-        const data = await res.json();
-        urls.push(data.url);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', 'items');
+        const res = await fetch('/api/upload/r2', { method: 'POST', body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          urls.push(data.url);
+        } else {
+          setUploadError(`Failed to upload ${file.name}. Skipping.`);
+        }
+      } catch {
+        setUploadError(`Network error uploading ${file.name}. Skipping.`);
       }
     }
     return urls;
@@ -89,7 +99,9 @@ export default function MyShopPage() {
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 6) { alert('Max 6 images'); return; }
+    const total = selectedFiles.length + uploadedUrls.length + files.length;
+    if (total > 6) { setUploadError('Maximum 6 images allowed'); return; }
+    setUploadError(null);
     setSelectedFiles(prev => [...prev, ...files].slice(0, 6));
   };
 
@@ -100,10 +112,15 @@ export default function MyShopPage() {
 
   const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
+    setUploadError(null);
+
     if (!formData.title || !formData.price) {
-      alert('Title and price are required');
+      setFormError('Title and price are required.');
       return;
     }
+
     setUploading(true);
     try {
       let imageUrls: string[] = [...uploadedUrls];
@@ -126,15 +143,22 @@ export default function MyShopPage() {
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to create item');
+      if (!res.ok) {
+        const errText = await res.text();
+        let errMsg = 'Failed to create item. Please try again.';
+        try { const json = JSON.parse(errText); errMsg = json.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
 
       setFormData({ title: '', description: '', category: 'other', condition: 'used', price: '', address: '' });
       setSelectedFiles([]);
       setUploadedUrls([]);
       setShowAddForm(false);
+      setFormSuccess('Item listed successfully! 🎉');
+      setTimeout(() => setFormSuccess(null), 4000);
       fetchItems();
     } catch (err) {
-      alert('Failed to create item. Please try again.');
+      setFormError(err instanceof Error ? err.message : 'Failed to create item. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -159,10 +183,29 @@ export default function MyShopPage() {
         </button>
       </div>
 
+      {/* Success banner */}
+      {formSuccess && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
+          <span className="text-lg">🎉</span> {formSuccess}
+        </div>
+      )}
+
       {/* Add Item Form */}
       {showAddForm && (
         <form onSubmit={handleCreateItem} className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-900">List a New Item</h2>
+
+          {/* Form errors */}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-xl text-sm">
+              {formError}
+            </div>
+          )}
+          {uploadError && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-xl text-sm">
+              {uploadError}
+            </div>
+          )}
 
           {/* Image Upload */}
           <div>
