@@ -28,7 +28,6 @@ import {
   HelpCircle,
   User,
   ChevronRight,
-  MapPin,
 } from "lucide-react";
 
 // ── Navigation definitions ──
@@ -37,16 +36,6 @@ const publicNav = [
   { name: "Search", href: "/search", icon: Search },
   { name: "Shops", href: "/?tab=shops", icon: Store },
   { name: "Favourites", href: "/?tab=favourites", icon: Heart },
-];
-
-const userNav = [
-  { name: "Home", href: "/", icon: Home },
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "My Shop", href: "/dashboard/items", icon: Store },
-  { name: "Wallet", href: "/dashboard/wallet", icon: Wallet },
-  { name: "Messages", href: "/messages", icon: MessageSquare },
-  { name: "My Rentals", href: "/dashboard/orders", icon: Package },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 const accountItems = [
