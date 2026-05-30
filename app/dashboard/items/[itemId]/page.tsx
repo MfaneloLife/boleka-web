@@ -246,7 +246,7 @@ export default function ItemDetailsPage() {
             <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3">
               {isOwner ? (
                 <Link
-                  href={`/dashboard/business/items/${itemId}/edit`}
+                  href={`/dashboard/items/${itemId}?edit=true`}
                   className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 w-full sm:w-auto"
                 >
                   Edit Item

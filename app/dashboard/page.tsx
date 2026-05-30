@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const quickActions = [
-  { name: 'My Shop', href: '/dashboard/shop', icon: Store, color: 'bg-orange-500', count: 'Manage' },
+  { name: 'My Shop', href: '/dashboard/items', icon: Store, color: 'bg-orange-500', count: 'Manage' },
   { name: 'Items', href: '/dashboard/items', icon: Package, color: 'bg-blue-500', count: 'View' },
   { name: 'Requests', href: '/dashboard/requests', icon: ClipboardList, color: 'bg-purple-500', count: 'View' },
   { name: 'Orders', href: '/dashboard/orders', icon: ShoppingBag, color: 'bg-green-500', count: 'View' },

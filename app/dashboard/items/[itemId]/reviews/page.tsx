@@ -11,11 +11,11 @@ import RatingStars from '@/src/components/reviews/RatingStars';
 
 interface Item {
   id: string;
-  name: string;
+  title: string;
   description: string;
   price: number;
-  images: string[];
-  userId: string;
+  imageUrls: string[];
+  ownerId: string;
   user: {
     id: string;
     name: string;
@@ -93,7 +93,7 @@ export default function ItemReviewsPage() {
           <p className="mt-2 text-sm text-red-700">{error || 'Item not found'}</p>
           <div className="mt-4">
             <Link
-              href="/dashboard/client"
+              href="/dashboard"
               className="text-sm font-medium text-red-600 hover:text-red-500"
             >
               &larr; Back to Dashboard
@@ -104,7 +104,7 @@ export default function ItemReviewsPage() {
     );
   }
 
-  const canReview = isLoaded && user && item.userId !== user.id;
+  const canReview = isLoaded && user && item.ownerId !== user.id;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -121,10 +121,10 @@ export default function ItemReviewsPage() {
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <div className="flex flex-col md:flex-row">
           <div className="md:w-1/3 mb-4 md:mb-0">
-            {item.images && item.images.length > 0 ? (
+            {item.imageUrls && item.imageUrls.length > 0 ? (
               <Image
-                src={item.images[0]}
-                alt={item.name}
+                src={item.imageUrls[0]}
+                alt={item.title}
                 width={300}
                 height={300}
                 className="w-full h-auto object-cover rounded-lg"
@@ -137,7 +137,7 @@ export default function ItemReviewsPage() {
           </div>
           
           <div className="md:w-2/3 md:pl-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{item.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{item.title}</h1>
             <p className="text-gray-500 mb-4">
               Posted by {item.user.name}
             </p>

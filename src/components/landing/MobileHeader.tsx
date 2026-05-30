@@ -47,7 +47,7 @@ const navigation = {
       { name: "Messages", href: "/messages", icon: MessageSquare },
       { name: "My Requests", href: "/dashboard/requests", icon: ClipboardList },
       { name: "Orders", href: "/dashboard/orders", icon: ShoppingBag },
-      { name: "My Shop", href: "/dashboard/shop", icon: Store, badge: "Sell" },
+      { name: "My Shop", href: "/dashboard/items", icon: Store, badge: "Sell" },
       { name: "Wallet", href: "/dashboard/wallet", icon: Wallet },
       { name: "Rewards", href: "/dashboard/rewards", icon: Award },
       { name: "Reviews", href: "/dashboard/reviews", icon: Star },
