@@ -74,7 +74,7 @@ export default function EditItemPage() {
 
   // Fetch item data
   useEffect(() => {
-    if (!itemId) return;
+    if (!itemId || !isLoaded) return;
     setIsLoading(true);
     fetch(`/api/items/${itemId}`)
       .then(res => {
@@ -83,7 +83,7 @@ export default function EditItemPage() {
       })
       .then(data => {
         if (!data) return;
-        if (isLoaded && user && data.ownerId !== user.id) {
+        if (user && data.ownerId !== user.id) {
           setNotOwner(true);
           return;
         }

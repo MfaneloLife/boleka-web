@@ -12,9 +12,9 @@ interface Slide {
 const slides: Slide[] = [
   {
     image:
-      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&q=80&auto=format&fit=crop",
     title: "Home & Garden Tools",
-    subtitle: "List an item for free and start earning",
+    subtitle: "Rent drills, mowers, ladders & more",
   },
   {
     image:
@@ -24,9 +24,9 @@ const slides: Slide[] = [
   },
   {
     image:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=600&q=80&auto=format&fit=crop",
     title: "Event & Catering Equipment",
-    subtitle: "List an item for free and start earning",
+    subtitle: "Tables, chairs, chafing dishes & more",
   },
 ];
 

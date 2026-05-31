@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || '';
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-0bf9994c37384a93b6f02dc5dc60ec44.r2.dev';
 
 function normalizeImageUrl(url: string | null | undefined): string | null {
   if (!url || typeof url !== 'string' || url.trim() === '') return null;
@@ -25,6 +25,7 @@ function normalizeItem(item: any) {
     imageUrl: imageUrls[0] || null,
     imageUrls,
     location: item.address || null,
+    ownerId: item.userId || (item.user ? item.user.id : null),
   };
 }
 
