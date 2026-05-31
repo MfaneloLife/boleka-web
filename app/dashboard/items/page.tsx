@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import { Plus, Package, Edit, Eye, Upload, ImageIcon, X, Loader2, Truck, Hand } from 'lucide-react';
+import { Plus, Package, Edit, Eye, Trash2, Upload, ImageIcon, X, Loader2, Truck, Hand } from 'lucide-react';
 
 interface ItemImage {
   id: string;
@@ -41,6 +41,7 @@ export default function MyShopPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   // Auto-open the list form when coming from "List an Item" CTA
   useEffect(() => {
@@ -194,6 +195,21 @@ export default function MyShopPage() {
       setFormError(err instanceof Error ? err.message : 'Failed to create item. Please try again.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) return;
+    
+    setDeleting(itemId);
+    try {
+      const res = await fetch(`/api/items?id=${itemId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+      setItems(prev => prev.filter(item => item.id !== itemId));
+    } catch (err) {
+      alert('Failed to delete item. Please try again.');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -438,13 +454,20 @@ export default function MyShopPage() {
               <div className="p-3">
                 <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
                 <p className="text-xs text-gray-500 mt-0.5">R{item.price.toFixed(2)}/day &middot; {item.category}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Link href={`/dashboard/items/${item.id}`} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 py-1.5 rounded-lg transition">
+                <div className="flex items-center gap-1.5 mt-2">
+                  <Link href={`/items/${item.id}`} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 py-1.5 rounded-lg transition">
                     <Eye className="w-3.5 h-3.5" /> View
                   </Link>
-                  <Link href={`/dashboard/items/${item.id}?edit=true`} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 py-1.5 rounded-lg transition">
+                  <Link href={`/dashboard/items/${item.id}`} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 py-1.5 rounded-lg transition">
                     <Edit className="w-3.5 h-3.5" /> Edit
                   </Link>
+                  <button
+                    onClick={() => handleDeleteItem(item.id)}
+                    disabled={deleting === item.id}
+                    className="flex items-center justify-center gap-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 py-1.5 px-2 rounded-lg transition disabled:opacity-50"
+                  >
+                    {deleting === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
               </div>
             </div>

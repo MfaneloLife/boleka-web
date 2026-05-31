@@ -33,7 +33,6 @@ import { usePWAInstall } from "@/src/context/PWAInstallContext";
 // ── Navigation definitions ──
 const publicNav = [
   { name: "Home", href: "/", icon: Home },
-  { name: "Search", href: "/search", icon: Search },
   { name: "Shops", href: "/?tab=shops", icon: Store },
   { name: "Favourites", href: "/?tab=favourites", icon: Heart },
 ];

@@ -197,51 +197,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Business Profile */}
-      <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-          <Building className="w-4 h-4 text-gray-400" /> Business Profile
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-semibold text-gray-700">Business Name</label>
-            <input
-              value={profile?.businessName || ""}
-              onChange={(e) => update("businessName", e.target.value)}
-              className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors"
-              placeholder="Your business name (optional)"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-700">Return Window (hours)</label>
-            <input
-              type="number"
-              value={profile?.returnWindowHours || 48}
-              onChange={(e) => update("returnWindowHours", parseInt(e.target.value) || 48)}
-              className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-700">Business Description</label>
-          <textarea
-            value={profile?.businessDescription || ""}
-            onChange={(e) => update("businessDescription", e.target.value)}
-            rows={2}
-            className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors"
-            placeholder="Describe your business..."
-          />
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-gray-700">Late Return Fee (R/day)</label>
-          <input
-            type="number"
-            value={profile?.lateFeePerDay || 50}
-            onChange={(e) => update("lateFeePerDay", parseFloat(e.target.value) || 50)}
-            className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors"
-          />
-        </div>
-      </div>
     </div>
   );
 }

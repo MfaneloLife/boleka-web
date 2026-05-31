@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
@@ -31,7 +31,7 @@ export default function NotificationsPage() {
   }, [isLoaded, isSignedIn, router]);
 
   // Fetch notifications
-  const fetchNotifications = async (filter: 'all' | 'unread' = 'all') => {
+  const fetchNotifications = useCallback(async (filter: 'all' | 'unread' = 'all') => {
     if (!user) return;
 
     setIsLoading(true);
@@ -41,21 +41,25 @@ export default function NotificationsPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setNotifications(data);
+        setNotifications(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setNotifications([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   // Initial fetch
   useEffect(() => {
     if (user) {
       fetchNotifications(activeFilter);
+    } else if (isLoaded) {
+      // If user state resolved but no user, stop loading
+      setIsLoading(false);
     }
-  }, [user, activeFilter, fetchNotifications]);
+  }, [user, activeFilter, fetchNotifications, isLoaded]);
 
   // Mark a notification as read
   const markAsRead = async (notificationId: string) => {
@@ -68,12 +72,9 @@ export default function NotificationsPage() {
         body: JSON.stringify({ notificationId }),
       });
 
-      // Update local state
-      setNotifications(
-        notifications.map(notification =>
-          notification.id === notificationId
-            ? { ...notification, isRead: true }
-            : notification
+      setNotifications(prev =>
+        prev.map(n =>
+          n.id === notificationId ? { ...n, isRead: true } : n
         )
       );
     } catch (error) {
@@ -92,10 +93,7 @@ export default function NotificationsPage() {
         body: JSON.stringify({ markAll: true }),
       });
 
-      // Update local state
-      setNotifications(
-        notifications.map(notification => ({ ...notification, isRead: true }))
-      );
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
@@ -159,7 +157,7 @@ export default function NotificationsPage() {
     }
   };
 
-  if (!isLoaded || isLoading) {
+  if (!isLoaded) {
     return (
       <div className="flex justify-center items-center h-full p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
@@ -203,7 +201,7 @@ export default function NotificationsPage() {
               {/* Mark all as read */}
               <button
                 onClick={markAllAsRead}
-                className="text-sm text-orange-600 hover:text-orange-800"
+                className="text-sm text-orange-600 hover:text-orange-800 disabled:opacity-40"
                 disabled={notifications.every(n => n.isRead)}
               >
                 Mark all as read

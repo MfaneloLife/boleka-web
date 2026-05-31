@@ -205,3 +205,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create item' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const itemId = url.searchParams.get('id');
+    if (!itemId) {
+      return NextResponse.json({ error: 'Item ID required' }, { status: 400 });
+    }
+
+    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    if (!item) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    }
+
+    if (item.userId !== session.userId) {
+      return NextResponse.json({ error: 'Not your item' }, { status: 403 });
+    }
+
+    // Delete related images, then the item
+    await prisma.itemImage.deleteMany({ where: { itemId } });
+    await prisma.item.delete({ where: { id: itemId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    return NextResponse.json({ error: 'Failed to delete item' }, { status: 500 });
+  }
+}
