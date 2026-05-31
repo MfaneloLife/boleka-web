@@ -130,11 +130,12 @@ export default function EditItemPage() {
           const data = await res.json();
           return data.url as string;
         } else {
-          setUploadError(`Failed to upload ${file.name}. Skipping.`);
+          const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+          setUploadError(`${file.name}: ${errData.error || errData.detail || `HTTP ${res.status}`}`);
           return null;
         }
-      } catch {
-        setUploadError(`Network error uploading ${file.name}. Skipping.`);
+      } catch (err: any) {
+        setUploadError(`${file.name}: Network error — ${err?.message || 'check your connection'}`);
         return null;
       }
     });

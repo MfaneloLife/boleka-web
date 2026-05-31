@@ -19,13 +19,11 @@ function getR2Client() {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    const { userId } = await auth();
+    
     if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
+      console.error("R2 config missing:", { accountId: !!R2_ACCOUNT_ID, accessKey: !!R2_ACCESS_KEY_ID, secret: !!R2_SECRET_ACCESS_KEY, bucket: !!R2_BUCKET_NAME });
       return NextResponse.json(
         { error: "R2 storage not configured" },
         { status: 500 }
@@ -44,7 +42,7 @@ export async function POST(req: NextRequest) {
     const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: "Invalid file type. Allowed: jpeg, png, webp, gif" },
+        { error: `Invalid file type "${file.type}". Allowed: jpeg, png, webp, gif` },
         { status: 400 }
       );
     }
@@ -53,7 +51,7 @@ export async function POST(req: NextRequest) {
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 10MB" },
+        { error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 10MB` },
         { status: 400 }
       );
     }
@@ -62,7 +60,8 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     const sanitizedName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
-    const key = `${folder}/${userId}/${Date.now()}-${sanitizedName}`;
+    const uid = userId || "anonymous";
+    const key = `${folder}/${uid}/${Date.now()}-${sanitizedName}`;
 
     const client = getR2Client();
 
@@ -76,13 +75,14 @@ export async function POST(req: NextRequest) {
 
     await client.send(command);
 
-    const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+    const publicUrl = `${process.env.R2_PUBLIC_URL || 'https://pub-0bf9994c37384a93b6f02dc5dc60ec44.r2.dev'}/${key}`;
 
     return NextResponse.json({ url: publicUrl, key });
   } catch (error: any) {
     console.error("R2 upload error:", error);
+    const message = error?.message || error?.toString() || "Unknown error";
     return NextResponse.json(
-      { error: "Upload failed", detail: error.message || "Unknown error" },
+      { error: "Upload failed", detail: message },
       { status: 500 }
     );
   }
