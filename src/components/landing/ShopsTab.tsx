@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
-import { Store, ShoppingBag, Star, ArrowRight, Heart, ImageIcon, Loader2 } from "lucide-react";
+import { Store, Star, ImageIcon, Loader2 } from "lucide-react";
 
 interface Shop {
   id: string;
@@ -22,7 +22,7 @@ interface Shop {
 }
 
 export default function ShopsTab() {
-  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded } = useUser();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +45,7 @@ export default function ShopsTab() {
     }
   };
 
-  if (loading) {
+  if (loading || !isLoaded) {
     return (
       <div className="px-4 py-6 bg-white min-h-[60vh]">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Shops</h2>
@@ -65,25 +65,7 @@ export default function ShopsTab() {
         <p className="text-gray-500">Discover trusted vendors and their items</p>
       </div>
 
-      {!isLoaded || !isSignedIn ? (
-        <div className="text-center py-12 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border border-orange-100">
-          <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-2xl flex items-center justify-center">
-            <Store className="w-8 h-8 text-orange-500" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Join the community</h3>
-          <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-            Sign up to follow your favourite shops, save items, and get notified about new listings.
-          </p>
-          <Link
-            href="/search"
-            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-xl transition-all shadow-lg shadow-orange-200 hover:shadow-xl hover:shadow-orange-300"
-          >
-            <ShoppingBag className="w-5 h-5" />
-            Browse Items
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      ) : shops.length === 0 ? (
+      {shops.length === 0 ? (
         <div className="text-center py-12 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border border-orange-100">
           <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-2xl flex items-center justify-center">
             <Store className="w-8 h-8 text-orange-500" />
@@ -98,7 +80,6 @@ export default function ShopsTab() {
           >
             <Store className="w-5 h-5" />
             Start Your Shop
-            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       ) : (
