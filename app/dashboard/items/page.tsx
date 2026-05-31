@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import { Plus, Package, Edit, Eye, Upload, ImageIcon, X, Loader2 } from 'lucide-react';
+import { Plus, Package, Edit, Eye, Upload, ImageIcon, X, Loader2, Truck, Hand } from 'lucide-react';
 
 interface ItemImage {
   id: string;
@@ -48,6 +48,7 @@ export default function MyShopPage() {
       setShowAddForm(true);
     }
   }, [searchParams]);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -55,6 +56,12 @@ export default function MyShopPage() {
     condition: 'used',
     price: '',
     address: '',
+    quantity: '1',
+    itemType: 'RENTING' as 'SELLING' | 'RENTING' | 'BOTH',
+    rentalPrice: '',
+    allowCollection: true,
+    allowDelivery: true,
+    deliveryFee: '',
   });
 
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -140,18 +147,29 @@ export default function MyShopPage() {
         imageUrls = [...imageUrls, ...newUrls];
       }
 
+      const payload: Record<string, unknown> = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        condition: formData.condition,
+        price: parseFloat(formData.price),
+        quantity: parseInt(formData.quantity, 10) || 1,
+        itemType: formData.itemType,
+        address: formData.address,
+        allowCollection: formData.allowCollection,
+        allowDelivery: formData.allowDelivery,
+        deliveryFee: formData.deliveryFee ? parseFloat(formData.deliveryFee) : 0,
+        images: imageUrls,
+      };
+
+      if (formData.itemType !== 'SELLING' && formData.rentalPrice) {
+        payload.rentalPrice = parseFloat(formData.rentalPrice);
+      }
+
       const res = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          category: formData.category,
-          condition: formData.condition,
-          price: parseFloat(formData.price),
-          address: formData.address,
-          images: imageUrls,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -161,7 +179,11 @@ export default function MyShopPage() {
         throw new Error(errMsg);
       }
 
-      setFormData({ title: '', description: '', category: 'other', condition: 'used', price: '', address: '' });
+      setFormData({
+        title: '', description: '', category: 'other', condition: 'used',
+        price: '', address: '', quantity: '1', itemType: 'RENTING',
+        rentalPrice: '', allowCollection: true, allowDelivery: true, deliveryFee: '',
+      });
       setSelectedFiles([]);
       setUploadedUrls([]);
       setShowAddForm(false);
@@ -247,6 +269,27 @@ export default function MyShopPage() {
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFilesSelected} className="hidden" />
           </div>
 
+          {/* Item type */}
+          <div>
+            <label className="text-sm font-semibold text-gray-700">Item type</label>
+            <div className="flex gap-2 mt-1.5">
+              {(['RENTING', 'SELLING', 'BOTH'] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setFormData(p => ({ ...p, itemType: type }))}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
+                    formData.itemType === type
+                      ? 'bg-orange-50 border-orange-400 text-orange-600'
+                      : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  {type === 'RENTING' ? 'Rent' : type === 'SELLING' ? 'Sell' : 'Both'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -273,7 +316,9 @@ export default function MyShopPage() {
               </select>
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-700">Price per day (R) *</label>
+              <label className="text-sm font-semibold text-gray-700">
+                Price {formData.itemType === 'SELLING' ? '(R)' : '(R/day)'} *
+              </label>
               <input type="number" step="0.01" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="150" />
             </div>
             <div>
@@ -285,15 +330,67 @@ export default function MyShopPage() {
                 <option value="fair">Fair</option>
               </select>
             </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-700">Quantity</label>
+              <input type="number" min="1" value={formData.quantity} onChange={e => setFormData(p => ({ ...p, quantity: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="1" />
+            </div>
+            {formData.itemType !== 'SELLING' && (
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Rental price (R/day)</label>
+                <input type="number" step="0.01" value={formData.rentalPrice} onChange={e => setFormData(p => ({ ...p, rentalPrice: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="Separate rental rate (optional)" />
+              </div>
+            )}
           </div>
           <div>
-              <label className="text-sm font-semibold text-gray-700">Description</label>
-              <textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="Describe your item..." />
+            <label className="text-sm font-semibold text-gray-700">Description</label>
+            <textarea value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="Describe your item..." />
           </div>
           <div>
-              <label className="text-sm font-semibold text-gray-700">Location / Address</label>
-              <input value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="e.g. Sandton, Johannesburg" />
+            <label className="text-sm font-semibold text-gray-700">Location / Address</label>
+            <input value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="e.g. Sandton, Johannesburg" />
           </div>
+
+          {/* Delivery options */}
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Delivery & Collection</p>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.allowCollection}
+                  onChange={e => setFormData(p => ({ ...p, allowCollection: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                />
+                <Hand className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-700">Allow collection</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.allowDelivery}
+                  onChange={e => setFormData(p => ({ ...p, allowDelivery: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                />
+                <Truck className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-700">Allow delivery</span>
+              </label>
+            </div>
+            {formData.allowDelivery && (
+              <div>
+                <label className="text-xs font-medium text-gray-600">Delivery fee (R)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.deliveryFee}
+                  onChange={e => setFormData(p => ({ ...p, deliveryFee: e.target.value }))}
+                  className="w-full mt-1 px-4 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors"
+                  placeholder="0"
+                />
+              </div>
+            )}
+          </div>
+
           <button type="submit" disabled={uploading || !formData.title || !formData.price} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold py-2.5 rounded-xl text-sm hover:from-orange-600 hover:to-amber-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             {uploading ? 'Uploading...' : 'List Item'}
