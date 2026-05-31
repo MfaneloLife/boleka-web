@@ -27,6 +27,7 @@ import {
   User,
   ChevronRight,
   Download,
+  Share2,
 } from "lucide-react";
 import { usePWAInstall } from "@/src/context/PWAInstallContext";
 
@@ -183,6 +184,33 @@ function SidebarContent({
             Install App
           </button>
         )}
+
+        {/* Invite Friends button */}
+        <button
+          onClick={() => {
+            const shareData: ShareData = {
+              title: 'BOLEKA - Rent & Share Items',
+              text: 'Check out BOLEKA! Rent items from people near you or list your own items to earn money. 🎒📸🎮',
+              url: window.location.origin,
+            };
+            
+            if (navigator.share && navigator.canShare?.(shareData)) {
+              navigator.share(shareData).catch(() => {});
+            } else {
+              // Fallback: copy link
+              navigator.clipboard.writeText(window.location.origin).then(() => {
+                alert('Link copied! Share it with your friends.');
+              }).catch(() => {
+                prompt('Share this link:', window.location.origin);
+              });
+            }
+            onClose();
+          }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-all w-full mt-2"
+        >
+          <Share2 className="w-5 h-5" />
+          Invite Friends
+        </button>
 
         {/* Account Section (signed in only) */}
         <SignedIn>
