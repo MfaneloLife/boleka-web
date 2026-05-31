@@ -150,7 +150,11 @@ export default function PromoCarousel() {
 
   return (
     <section
-      className="relative overflow-hidden rounded-2xl mx-4 mt-4 shadow-xl h-64 sm:h-80"
+      className="relative overflow-hidden w-screen md:rounded-2xl md:mx-4 mt-4 shadow-xl min-h-72 sm:min-h-96 md:h-80 flex flex-col justify-center md:w-auto"
+      style={{
+        paddingTop: "1.5cm",
+        paddingBottom: "1.5cm",
+      }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -159,48 +163,48 @@ export default function PromoCarousel() {
         src={slide.image}
         alt={slide.alt}
         fill
-        className="object-cover transition-all duration-700"
+        className="object-cover transition-all duration-700 -z-10"
         priority
-        sizes="(max-width: 640px) 100vw, 800px"
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 800px"
       />
 
-      {/* Gradient overlay */}
+      {/* Gradient overlay - enhanced for readability */}
       <div
-        className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`}
+        className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} -z-5`}
       />
 
-      {/* Extra dark scrim at bottom for readability */}
-      <div className="absolute inset-0 bg-black/20" />
+      {/* Extra dark scrim for readability */}
+      <div className="absolute inset-0 bg-black/35 -z-5" />
 
       {/* Content */}
       <div
-        className={`absolute inset-0 flex flex-col justify-center p-6 sm:p-10 z-10 ${
+        className={`relative z-10 flex flex-col justify-center px-6 sm:px-8 md:px-10 py-6 h-full gap-3 sm:gap-4 ${
           slide.textSide === "right" ? "items-end text-right" : "items-start text-left"
         }`}
       >
-        <span className="inline-block bg-white/20 backdrop-blur-md text-white text-xs font-semibold px-3 py-1 rounded-full mb-2 sm:mb-3 uppercase tracking-wider">
+        <span className="inline-block bg-white/25 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
           {slide.alt}
         </span>
 
-        <h2 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white drop-shadow-lg max-w-lg leading-tight mb-2">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] max-w-xl leading-tight">
           {slide.title}
         </h2>
 
-        <p className="text-sm sm:text-base text-white/90 max-w-md mb-4 sm:mb-6 drop-shadow">
+        <p className="text-base sm:text-lg text-white max-w-xl drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] leading-relaxed">
           {slide.subtitle}
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 mt-2">
           <Link
             href={slideLink(slide)}
-            className="inline-flex items-center justify-center gap-2 bg-white text-gray-900 font-semibold px-5 py-2.5 rounded-lg hover:bg-gray-100 transition text-sm sm:text-base shadow-lg"
+            className="inline-flex items-center justify-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition text-base sm:text-lg shadow-xl hover:shadow-2xl"
           >
             {slideLabel(slide)}
           </Link>
           {slide.category !== "promo" && (
             <Link
               href={`/search?category=${slide.category}`}
-              className="inline-flex items-center justify-center gap-2 bg-white/15 text-white font-medium px-5 py-2.5 rounded-lg hover:bg-white/25 transition text-sm sm:text-base backdrop-blur-sm border border-white/20"
+              className="inline-flex items-center justify-center gap-2 bg-white/20 text-white font-semibold px-6 py-3 rounded-lg hover:bg-white/30 active:bg-white/40 transition text-base sm:text-lg backdrop-blur-sm border-2 border-white/40 shadow-lg hover:shadow-xl"
             >
               Browse Items
             </Link>
@@ -211,27 +215,27 @@ export default function PromoCarousel() {
       {/* Navigation arrows */}
       <button
         onClick={prev}
-        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center transition z-20"
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 active:bg-black/70 flex items-center justify-center transition z-20 shadow-lg"
         aria-label="Previous slide"
       >
-        <ChevronLeft className="w-5 h-5 text-white" />
+        <ChevronLeft className="w-6 h-6 text-white" />
       </button>
       <button
         onClick={next}
-        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center transition z-20"
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 active:bg-black/70 flex items-center justify-center transition z-20 shadow-lg"
         aria-label="Next slide"
       >
-        <ChevronRight className="w-5 h-5 text-white" />
+        <ChevronRight className="w-6 h-6 text-white" />
       </button>
 
       {/* Dots */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20 bg-black/20 px-4 py-2 rounded-full backdrop-blur-sm">
         {slides.map((_, idx) => (
           <button
             key={idx}
             onClick={() => setCurrent(idx)}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              idx === current ? "bg-white w-5" : "bg-white/50 hover:bg-white/70 w-2"
+            className={`rounded-full transition-all duration-300 ${
+              idx === current ? "bg-white w-6 h-2.5" : "bg-white/50 hover:bg-white/70 w-2.5 h-2.5"
             }`}
             aria-label={`Go to slide ${idx + 1}`}
           />
