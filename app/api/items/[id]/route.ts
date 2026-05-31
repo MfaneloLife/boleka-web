@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || '';
+
+function normalizeImageUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== 'string' || url.trim() === '') return null;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/')) return `${R2_PUBLIC_URL}${trimmed}`;
+  return `${R2_PUBLIC_URL}/${trimmed}`;
+}
+
 function normalizeItem(item: any) {
   const imageUrls = Array.isArray(item.images)
-    ? item.images.map((image: any) => image.url).filter(Boolean)
+    ? item.images.map((image: any) => normalizeImageUrl(image.url)).filter((url: string | null): url is string => url !== null)
     : [];
 
   return {
