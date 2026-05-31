@@ -8,14 +8,11 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 interface PWAInstallContextType {
-  /** The deferred beforeinstallprompt event (only available on Android Chrome) */
   deferredPrompt: BeforeInstallPromptEvent | null;
-  /** Whether the app is already installed (standalone mode) */
   isInstalled: boolean;
-  /** Whether the install prompt can be shown (Android Chrome, not installed, not dismissed) */
   canInstall: boolean;
-  /** Trigger the native install prompt */
   installApp: () => Promise<void>;
+  needsManualInstall: boolean;
 }
 
 const PWAInstallContext = createContext<PWAInstallContextType>({
@@ -23,24 +20,35 @@ const PWAInstallContext = createContext<PWAInstallContextType>({
   isInstalled: false,
   canInstall: false,
   installApp: async () => {},
+  needsManualInstall: false,
 });
 
 export function usePWAInstall() {
   return useContext(PWAInstallContext);
 }
 
+function isAndroidChrome(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /android/i.test(ua) && /chrome/i.test(ua) && !/edge|samsung/i.test(ua);
+}
+
 export default function PWAInstallProvider({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
+    // Detect Android Chrome
+    setIsAndroid(isAndroidChrome());
+
     // Check if already installed (display-mode: standalone)
     if (typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
     }
 
-    // Listen for the beforeinstallprompt event (Android Chrome only)
+    // Listen for the beforeinstallprompt event (Android Chrome)
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -62,19 +70,27 @@ export default function PWAInstallProvider({ children }: { children: React.React
   }, []);
 
   const installApp = useCallback(async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
+    if (deferredPrompt) {
+      // Native Android PWA install prompt
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setIsInstalled(true);
+        setDeferredPrompt(null);
+      }
+    } else {
+      // Fallback: show user how to install manually from Chrome menu
+      alert("Tap ⋮ (3 dots) in Chrome → 'Add to Home Screen' to install BOLEKA");
     }
   }, [deferredPrompt]);
 
-  const canInstall = deferredPrompt !== null && !isInstalled;
+  // Show button if: not installed AND (deferred prompt available OR on Android Chrome)
+  const canInstall = !isInstalled && (deferredPrompt !== null || isAndroid);
+  // Needs manual instructions if on Android but deferred prompt hasn't fired yet
+  const needsManualInstall = !isInstalled && deferredPrompt === null && isAndroid;
 
   return (
-    <PWAInstallContext.Provider value={{ deferredPrompt, isInstalled, canInstall, installApp }}>
+    <PWAInstallContext.Provider value={{ deferredPrompt, isInstalled, canInstall, installApp, needsManualInstall }}>
       {children}
     </PWAInstallContext.Provider>
   );
