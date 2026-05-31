@@ -1,31 +1,96 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 
+interface Slide {
+  image: string;
+  title: string;
+  subtitle: string;
+}
+
+const slides: Slide[] = [
+  {
+    image:
+      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80&auto=format&fit=crop",
+    title: "Home & Garden Tools",
+    subtitle: "List an item for free and start earning",
+  },
+  {
+    image:
+      "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=600&q=80&auto=format&fit=crop",
+    title: "Books & Textbooks",
+    subtitle: "List an item for free and start earning",
+  },
+  {
+    image:
+      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&q=80&auto=format&fit=crop",
+    title: "Event & Catering Equipment",
+    subtitle: "List an item for free and start earning",
+  },
+];
+
 export default function PromoCarousel() {
+  const [current, setCurrent] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const next = useCallback(() => {
+    setCurrent((prev) => (prev + 1) % slides.length);
+  }, []);
+
+  const prev = useCallback(() => {
+    setCurrent((prev) => (prev - 1 + slides.length) % slides.length);
+  }, []);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(next, 4000);
+    return () => clearInterval(timer);
+  }, [isPaused, next]);
+
+  const slide = slides[current];
+
   return (
-    <section className="relative w-full overflow-hidden h-52 sm:h-72">
-      {/* Home & Garden tools image */}
+    <section
+      className="relative w-full overflow-hidden rounded-xl"
+      style={{ aspectRatio: "3/4", maxHeight: "480px" }}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Image */}
       <Image
-        src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200&q=80&auto=format&fit=crop"
-        alt="Home & garden tools"
+        src={slide.image}
+        alt={slide.title}
         fill
-        className="object-cover"
+        className="object-cover transition-opacity duration-500"
         priority
-        sizes="100vw"
+        sizes="(max-width: 640px) 100vw, 600px"
       />
 
-      {/* Dark overlay for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/60 to-emerald-800/40" />
-
-      {/* Text overlay */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] mb-2">
-          Home & Garden Tools
+      {/* Text overlay — no gradient, just shadowed text at bottom */}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center text-center px-4 pb-8">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] mb-1">
+          {slide.title}
         </h2>
-        <p className="text-base sm:text-lg text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]">
-          List an item for free and start earning
+        <p className="text-sm sm:text-base text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+          {slide.subtitle}
         </p>
+      </div>
+
+      {/* Dots */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+        {slides.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => setCurrent(idx)}
+            className={`rounded-full transition-all duration-300 ${
+              idx === current
+                ? "bg-white w-6 h-2"
+                : "bg-white/50 hover:bg-white/70 w-2 h-2"
+            }`}
+            aria-label={`Go to slide ${idx + 1}`}
+          />
+        ))}
       </div>
     </section>
   );
