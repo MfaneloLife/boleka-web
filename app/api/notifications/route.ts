@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Return empty notifications for now
-    return NextResponse.json({ notifications: [] });
+    // Return empty array directly (frontend expects array, not { notifications: [] })
+    return NextResponse.json([]);
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return NextResponse.json(

@@ -10,13 +10,10 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
+    // Default to authenticated user if no userId provided (for "My Reviews" page)
+    const userId = searchParams.get('userId') || session.userId;
     const type = searchParams.get('type') as 'received' | 'given' | undefined;
     const limit = parseInt(searchParams.get('limit') || '10');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-    }
 
     const reviews = await ReviewService.getUserReviews(userId, type, limit);
     return NextResponse.json(reviews);
