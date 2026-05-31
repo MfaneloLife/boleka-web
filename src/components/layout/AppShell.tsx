@@ -11,14 +11,12 @@ import {
   Wallet,
   MessageSquare,
   Settings,
-  Package,
   LogIn,
   UserPlus,
   PlusCircle,
   Menu,
   X,
   Heart,
-  LayoutDashboard,
   ClipboardList,
   ShoppingBag,
   Bell,
@@ -39,7 +37,6 @@ const publicNav = [
 ];
 
 const accountItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Messages", href: "/messages", icon: MessageSquare },
   { name: "My Requests", href: "/dashboard/requests", icon: ClipboardList },
   { name: "Orders", href: "/dashboard/orders", icon: ShoppingBag },
