@@ -60,17 +60,6 @@
       "purpose": "any maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/home.jpg",
-      "sizes": "1080x1920",
-      "type": "image/jpeg",
-      "form_factor": "narrow",
-      "label": "BOLEKA Home"
-    }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false,
   "shortcuts": [
     {
       "name": "Browse Items",
