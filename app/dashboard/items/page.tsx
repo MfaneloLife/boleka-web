@@ -57,9 +57,20 @@ export default function MyShopPage() {
     address: '',
   });
 
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+
   useEffect(() => {
     if (isLoaded && user) fetchItems();
   }, [isLoaded, user]);
+
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCategories(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchItems = async () => {
     try {
@@ -245,12 +256,20 @@ export default function MyShopPage() {
             <div>
               <label className="text-sm font-semibold text-gray-700">Category</label>
               <select value={formData.category} onChange={e => setFormData(p => ({ ...p, category: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors">
-                <option value="electronics">Electronics</option>
-                <option value="home">Home & Garden</option>
-                <option value="fashion">Fashion</option>
-                <option value="sports">Sports & Leisure</option>
-                <option value="vehicles">Vehicles</option>
-                <option value="other">Other</option>
+                {categories.length > 0 ? (
+                  categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="electronics">Electronics</option>
+                    <option value="home">Home & Garden</option>
+                    <option value="fashion">Fashion</option>
+                    <option value="sports">Sports & Leisure</option>
+                    <option value="vehicles">Vehicles</option>
+                    <option value="other">Other</option>
+                  </>
+                )}
               </select>
             </div>
             <div>

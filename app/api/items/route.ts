@@ -36,7 +36,15 @@ export async function GET(req: NextRequest) {
       ownerId = ownerIdParam;
     }
 
-    const where: any = {};
+    const where: any = {
+      isActive: true,
+    };
+
+    // When fetching public items (no owner filter), exclude out-of-stock items
+    if (!ownerId) {
+      where.quantity = { gt: 0 };
+    }
+
     if (ownerId) where.userId = ownerId;
     if (category) where.category = category;
     if (location) {

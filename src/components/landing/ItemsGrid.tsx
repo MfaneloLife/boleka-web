@@ -11,6 +11,7 @@ interface Item {
   price: number;
   category: string;
   condition: string;
+  quantity: number;
   imageUrl: string | null;
   imageUrls: string[];
   location: string | null;
@@ -89,6 +90,11 @@ export default function ItemsGrid() {
               <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 px-2 py-0.5 rounded-full">
                 R{item.price.toFixed(0)}/day
               </div>
+              {item.quantity <= 0 && (
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  Out of Stock
+                </div>
+              )}
             </div>
             {/* Details */}
             <div className="p-2.5">

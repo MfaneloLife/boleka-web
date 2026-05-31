@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyITN, calculateSplitPayment } from '@/src/lib/payfast';
+import { decrementItemQuantity } from '@/src/lib/order-service';
 
 /**
  * POST /api/payment/payfast-notify
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     const split = calculateSplitPayment(amountPaid);
 
     // Update the booking in the database
-    await prisma.booking.update({
+    const booking = await prisma.booking.update({
       where: { id: orderId },
       data: {
         status: 'PAID',
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest) {
         notes: `PayFast payment: ${pfPaymentId} | Platform (5%): R${split.platformAmount.toFixed(2)} | Vendor (95%): R${split.vendorAmount.toFixed(2)}`
       }
     });
+
+    // Decrement item quantity after payment confirmed
+    await decrementItemQuantity(booking.itemId);
 
     console.log('PayFast payment processed successfully:', {
       orderId,
