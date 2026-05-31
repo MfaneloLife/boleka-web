@@ -95,9 +95,8 @@ export default function MyShopPage() {
   };
 
   const uploadToR2 = async (files: File[]): Promise<string[]> => {
-    const urls: string[] = [];
     setUploadError(null);
-    for (const file of files) {
+    const uploads = files.map(async (file) => {
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -105,15 +104,18 @@ export default function MyShopPage() {
         const res = await fetch('/api/upload/r2', { method: 'POST', body: formData });
         if (res.ok) {
           const data = await res.json();
-          urls.push(data.url);
+          return data.url as string;
         } else {
           setUploadError(`Failed to upload ${file.name}. Skipping.`);
+          return null;
         }
       } catch {
         setUploadError(`Network error uploading ${file.name}. Skipping.`);
+        return null;
       }
-    }
-    return urls;
+    });
+    const results = await Promise.all(uploads);
+    return results.filter((url): url is string => url !== null);
   };
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
