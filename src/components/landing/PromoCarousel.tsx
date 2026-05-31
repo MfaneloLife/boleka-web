@@ -11,7 +11,6 @@ interface Slide {
   title: string;
   subtitle: string;
   category: string;
-  /** Tailwind gradient from … to … */
   gradient: string;
   textSide: "left" | "right";
 }
@@ -118,16 +117,6 @@ const slides: Slide[] = [
   },
 ];
 
-function slideLink(slide: Slide): string {
-  if (slide.category === "promo") return "/auth/signup";
-  return `/dashboard/items/new?category=${slide.category}`;
-}
-
-function slideLabel(slide: Slide): string {
-  if (slide.category === "promo") return "Start Listing Free →";
-  return "List Now — It's Free";
-}
-
 export default function PromoCarousel() {
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -150,8 +139,9 @@ export default function PromoCarousel() {
 
   return (
     <section
-      className="relative overflow-hidden w-screen md:rounded-2xl md:mx-4 mt-4 shadow-xl min-h-72 sm:min-h-96 md:h-80 flex flex-col justify-center md:w-auto"
+      className="relative overflow-hidden -mx-4 w-screen mt-4 shadow-xl flex flex-col justify-center md:w-auto md:mx-4 md:rounded-2xl md:h-96"
       style={{
+        minHeight: "calc(75vh + 3cm)",
         paddingTop: "1.5cm",
         paddingBottom: "1.5cm",
       }}
@@ -163,18 +153,23 @@ export default function PromoCarousel() {
         src={slide.image}
         alt={slide.alt}
         fill
-        className="object-cover transition-all duration-700 -z-10"
+        className="object-cover transition-all duration-700"
         priority
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 800px"
+        sizes="100vw"
+        unoptimized={false}
+        onError={(e) => {
+          // Fallback: hide broken image so gradient + scrim still show
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
       />
 
-      {/* Gradient overlay - enhanced for readability */}
+      {/* Gradient overlay */}
       <div
-        className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} -z-5`}
+        className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`}
       />
 
-      {/* Extra dark scrim for readability */}
-      <div className="absolute inset-0 bg-black/35 -z-5" />
+      {/* Dark scrim for text readability */}
+      <div className="absolute inset-0 bg-black/45" />
 
       {/* Content */}
       <div
@@ -182,24 +177,25 @@ export default function PromoCarousel() {
           slide.textSide === "right" ? "items-end text-right" : "items-start text-left"
         }`}
       >
-        <span className="inline-block bg-white/25 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
+        <span className="inline-block bg-white/25 backdrop-blur-md text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
           {slide.alt}
         </span>
 
-        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] max-w-xl leading-tight">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] max-w-xl leading-tight">
           {slide.title}
         </h2>
 
-        <p className="text-base sm:text-lg text-white max-w-xl drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] leading-relaxed">
+        <p className="text-base sm:text-lg text-white/95 max-w-xl drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)] leading-relaxed">
           {slide.subtitle}
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 mt-2">
+          {/* Primary CTA — List an Item → starts signup flow */}
           <Link
-            href={slideLink(slide)}
+            href="/auth/login"
             className="inline-flex items-center justify-center gap-2 bg-white text-gray-900 font-bold px-6 py-3 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition text-base sm:text-lg shadow-xl hover:shadow-2xl"
           >
-            {slideLabel(slide)}
+            List an Item — It's Free
           </Link>
           {slide.category !== "promo" && (
             <Link
