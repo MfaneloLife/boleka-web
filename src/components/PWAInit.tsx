@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import PWAInstallPrompt from "@/src/components/PWAInstallPrompt";
 
 export default function PWAInit() {
   useEffect(() => {
@@ -18,5 +17,6 @@ export default function PWAInit() {
     }
   }, []);
 
-  return <PWAInstallPrompt />;
+  // No popup — install is handled via sidebar button using PWAInstallContext
+  return null;
 }

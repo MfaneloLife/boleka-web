@@ -12,7 +12,6 @@ import ItemsGrid from "@/src/components/landing/ItemsGrid";
 import ShopsTab from "@/src/components/landing/ShopsTab";
 import FavouritesTab from "@/src/components/landing/FavouritesTab";
 import FloatingCTA from "@/src/components/landing/FloatingCTA";
-import AppBanner from "@/src/components/landing/AppBanner";
 
 type Tab = "discover" | "shops" | "favourites";
 
@@ -44,7 +43,6 @@ export default function Home() {
       {activeTab === "favourites" && <FavouritesTab />}
 
       <FloatingCTA />
-      <AppBanner />
       </div>
     </AppShell>
   );

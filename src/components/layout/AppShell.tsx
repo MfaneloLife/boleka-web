@@ -26,7 +26,9 @@ import {
   HelpCircle,
   User,
   ChevronRight,
+  Download,
 } from "lucide-react";
+import { usePWAInstall } from "@/src/context/PWAInstallContext";
 
 // ── Navigation definitions ──
 const publicNav = [
@@ -84,6 +86,8 @@ function SidebarContent({
   expandedSection: string | null;
   toggleSection: (section: string) => void;
 }) {
+  const { canInstall, installApp } = usePWAInstall();
+
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     if (href.startsWith("/?")) return pathname === "/";
@@ -169,6 +173,17 @@ function SidebarContent({
           <PlusCircle className="w-5 h-5" />
           List an Item — It's Free
         </Link>
+
+        {/* Install App button (Android only) */}
+        {canInstall && (
+          <button
+            onClick={() => { installApp(); onClose(); }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 transition-all w-full mt-2"
+          >
+            <Download className="w-5 h-5" />
+            Install App
+          </button>
+        )}
 
         {/* Account Section (signed in only) */}
         <SignedIn>
@@ -284,15 +299,6 @@ export default function AppShell({ children, variant = "public", onTabChange }: 
       }
     },
     [onTabChange]
-  );
-
-  const isActive = useCallback(
-    (href: string) => {
-      if (href === "/") return pathname === "/";
-      if (href.startsWith("/?")) return pathname === "/";
-      return pathname?.startsWith(href.split("?")[0]);
-    },
-    [pathname]
   );
 
   const isDashboard = variant === "dashboard";
