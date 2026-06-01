@@ -1,0 +1,79 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'public/manifest.json'
+      - 'public/sw.js'
+      - 'public/icons/**'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Generate TWA Project
+        run: |
+          bubblewrap init --manifest https://boleka-web8.vercel.app/manifest.json
+          
+          # Create keystore
+          keytool -genkey -v \
+            -keystore android.keystore \
+            -alias boleka-key \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass boleka123 \
+            -keypass boleka123 \
+            -dname "CN=BOLEKA, OU=App, O=BOLEKA, L=Cape Town, ST=Western Cape, C=ZA"
+
+      - name: Build APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+          
+          # Sign the APK
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+            -keystore ../android.keystore \
+            -storepass boleka123 \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
+            boleka-key
+            
+          zipalign -v 4 \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
+            ../boleka.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boleka-apk
+          path: boleka.apk
+
+      - name: Upload to R2
+        run: |
+          # Upload APK to Cloudflare R2 for direct download
+          curl -X PUT \
+            -H "Authorization: Bearer ${{ secrets.R2_API_TOKEN }}" \
+            --data-binary @boleka.apk \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.R2_ACCOUNT_ID }}/r2/buckets/bolekaweb/objects/boleka.apk"

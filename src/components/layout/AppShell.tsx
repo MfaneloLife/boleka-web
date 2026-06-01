@@ -52,6 +52,7 @@ const accountItems = [
 const moreItems = [
   { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Get the App", href: "/install", icon: Download },
   { name: "Help & Support", href: "/support", icon: HelpCircle },
   { name: "Safety Tips", href: "/safety", icon: Shield },
 ];

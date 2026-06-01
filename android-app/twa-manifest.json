@@ -1,0 +1,45 @@
+{
+  "packageId": "com.boleka.app",
+  "host": "boleka-web8.vercel.app",
+  "name": "BOLEKA - Rent & Share",
+  "launcherName": "BOLEKA",
+  "display": "standalone",
+  "themeColor": "#f97316",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://boleka-web8.vercel.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://boleka-web8.vercel.app/icons/icon-512x512.png",
+  "monochromeIconUrl": "https://boleka-web8.vercel.app/icons/icon-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "alias": "boleka-key",
+    "path": "./android.keystore"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Browse Items",
+      "shortName": "Browse",
+      "url": "/search",
+      "iconUrl": "https://boleka-web8.vercel.app/icons/icon-96x96.png"
+    },
+    {
+      "name": "Dashboard",
+      "shortName": "Dashboard",
+      "url": "/dashboard",
+      "iconUrl": "https://boleka-web8.vercel.app/icons/icon-96x96.png"
+    },
+    {
+      "name": "Messages",
+      "shortName": "Chat",
+      "url": "/messages",
+      "iconUrl": "https://boleka-web8.vercel.app/icons/icon-96x96.png"
+    }
+  ],
+  "features": {
+    "playBilling": false,
+    "locationDelegation": true
+  }
+}
