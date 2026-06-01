@@ -61,7 +61,6 @@ export default function ConversationPage({ params }: { params: { requestId: stri
         if (response.status === 401) throw new Error('Please log in to view this conversation.');
         if (response.status === 403) throw new Error('You do not have access to this conversation.');
         if (response.status === 404) throw new Error('This conversation was not found.');
-        // Try to get error message from response body
         const text = await response.text();
         if (text) {
           try {
@@ -96,19 +95,55 @@ export default function ConversationPage({ params }: { params: { requestId: stri
     fetchConversation();
   }, [isLoaded, isSignedIn, params.requestId]);
 
+  /** Compress an image file and convert to base64 (max 800px, JPEG 70% quality) */
+  const compressToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          if (typeof reader.result === 'string') resolve(reader.result.split(',')[1]);
+          else reject(new Error('Failed to convert file'));
+        };
+        reader.onerror = () => reject(reader.error);
+        return;
+      }
+
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement('canvas');
+        const MAX = 800;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX) { h = (h * MAX) / w; w = MAX; }
+        if (h > MAX) { w = (w * MAX) / h; h = MAX; }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas context failed')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+        resolve(base64);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+      img.src = url;
+    });
+  };
+
   const handleSendMessage = async (content: string, file?: File) => {
     if ((!content.trim() && !file) || !user) return;
     setError(null);
 
     try {
-      const payload: { content: string; imageBase64?: string; imageType?: string } = {
+      const payload: { content: string; imageBase64?: string } = {
         content: content.trim()
       };
 
       if (file) {
-        const base64 = await fileToBase64(file);
-        payload.imageBase64 = base64;
-        payload.imageType = file.type;
+        const compressedBase64 = await compressToBase64(file);
+        payload.imageBase64 = compressedBase64;
       }
 
       const response = await fetch(`/api/messages/${params.requestId}`, {
@@ -139,22 +174,6 @@ export default function ConversationPage({ params }: { params: { requestId: stri
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send your message. Please try again.');
     }
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        } else {
-          reject(new Error('Failed to convert file to base64'));
-        }
-      };
-      reader.onerror = error => reject(error);
-    });
   };
 
   const scrollToBottom = () => {

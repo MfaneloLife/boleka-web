@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 
 function getR2Client() {
@@ -13,6 +13,32 @@ function getR2Client() {
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
     },
   });
+}
+
+/** Extract the R2 object key from an image URL */
+function getKeyFromUrl(imageUrl: string): string | null {
+  try {
+    const url = new URL(imageUrl);
+    return url.pathname.startsWith('/') ? url.pathname.slice(1) : url.pathname;
+  } catch {
+    return null;
+  }
+}
+
+/** Delete an image from R2 by its URL */
+async function deleteR2Image(imageUrl: string): Promise<void> {
+  const key = getKeyFromUrl(imageUrl);
+  if (!key) return;
+  try {
+    const r2 = getR2Client();
+    const command = new DeleteObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME || 'bolekaweb',
+      Key: key,
+    });
+    await r2.send(command);
+  } catch (err) {
+    console.error('Failed to delete R2 image:', key, err);
+  }
 }
 
 export async function GET(
@@ -159,4 +185,79 @@ export async function POST(
       image: newMessage.sender.image,
     },
   }, { status: 201 });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { requestId: string } }
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const messageId = searchParams.get('messageId');
+
+  if (!messageId) {
+    // Delete ALL old messages with images (cleanup — called by cron)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const oldMessages = await prisma.message.findMany({
+      where: {
+        imageUrl: { not: null },
+        createdAt: { lt: thirtyDaysAgo },
+      },
+      select: { id: true, imageUrl: true, senderId: true },
+    });
+
+    // Delete images from R2
+    for (const msg of oldMessages) {
+      if (msg.imageUrl) {
+        await deleteR2Image(msg.imageUrl);
+      }
+    }
+
+    // Delete the message records
+    const deleted = await prisma.message.deleteMany({
+      where: {
+        imageUrl: { not: null },
+        createdAt: { lt: thirtyDaysAgo },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      deleted: deleted.count,
+      cleanedImages: oldMessages.length,
+    });
+  }
+
+  // Delete a specific message
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+  });
+
+  if (!message) {
+    return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+  }
+
+  if (message.senderId !== userId) {
+    return NextResponse.json({ error: 'You can only delete your own messages' }, { status: 403 });
+  }
+
+  if (!message.imageUrl && !message.content) {
+    return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+  }
+
+  // Delete image from R2 if exists
+  if (message.imageUrl) {
+    await deleteR2Image(message.imageUrl);
+  }
+
+  // Delete from database
+  await prisma.message.delete({ where: { id: messageId } });
+
+  return NextResponse.json({ success: true });
 }
