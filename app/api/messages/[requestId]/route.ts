@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import crypto from 'crypto';
+
+function getR2Client() {
+  return new S3Client({
+    region: 'auto',
+    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+    },
+  });
+}
 
 export async function GET(
   request: NextRequest,
@@ -99,12 +112,36 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
+  // Upload image to R2 if provided
+  let imageUrl: string | null = null;
+  if (imageBase64) {
+    try {
+      const r2 = getR2Client();
+      const buffer = Buffer.from(imageBase64, 'base64');
+      const ext = 'jpg'; // Default to jpg for compressed images
+      const key = `messages/${params.requestId}/${crypto.randomUUID()}.${ext}`;
+      
+      const command = new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME || 'bolekaweb',
+        Key: key,
+        Body: buffer,
+        ContentType: 'image/jpeg',
+      });
+      
+      await r2.send(command);
+      imageUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+    } catch (uploadError) {
+      console.error('Failed to upload message image to R2:', uploadError);
+      // Continue without image - don't fail the whole message
+    }
+  }
+
   const newMessage = await prisma.message.create({
     data: {
       requestId: params.requestId,
       senderId: userId,
       content: content ?? '[Image]',
-      imageUrl: null,
+      imageUrl: imageUrl,
     },
     include: {
       sender: { select: { id: true, name: true, image: true } },

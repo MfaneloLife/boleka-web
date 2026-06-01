@@ -8,18 +8,22 @@ import Link from 'next/link';
 function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
+  const requestId = searchParams.get('requestId');
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     if (countdown === 0) {
-      router.push(`/orders/${orderId}`);
+      if (requestId) {
+        router.push(`/messages/${requestId}`);
+      } else {
+        router.push('/messages');
+      }
     }
     const timer = setInterval(() => {
       setCountdown(prev => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [countdown, orderId, router]);
+  }, [countdown, requestId, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -39,9 +43,9 @@ function PaymentSuccessContent() {
             </p>
           </div>
           
-          {orderId && (
+          {requestId && (
             <p className="text-sm text-gray-600 mb-6">
-              Order ID: <span className="font-mono font-medium">#{orderId.slice(-8)}</span>
+              Request ID: <span className="font-mono font-medium">#{requestId.slice(-8)}</span>
             </p>
           )}
 
@@ -51,10 +55,10 @@ function PaymentSuccessContent() {
           
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href={orderId ? `/orders/${orderId}` : '/orders'}
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              href={requestId ? `/messages/${requestId}` : '/messages'}
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 transition-colors"
             >
-              View Order
+              View Conversation
             </Link>
             <Link
               href="/"

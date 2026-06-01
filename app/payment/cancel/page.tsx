@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 function PaymentCancelContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
+  const requestId = searchParams.get('requestId');
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -21,20 +21,20 @@ function PaymentCancelContent() {
           
           <p className="text-sm text-gray-600 mb-6">
             Your payment was cancelled. No charges have been made.
-            {orderId && (
+            {requestId && (
               <>
-                <br />You can try again from your order page.
+                <br />You can try again from the conversation.
               </>
             )}
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {orderId && (
+            {requestId && (
               <Link
-                href={`/orders/${orderId}`}
-                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                href={`/messages/${requestId}`}
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 transition-colors"
               >
-                Try Again
+                Return to Conversation
               </Link>
             )}
             <Link

@@ -31,34 +31,37 @@ export async function POST(
     return NextResponse.json({ error: 'Item not found' }, { status: 404 });
   }
 
-  if (Number(item.price) !== Number(amount)) {
-    return NextResponse.json({ error: 'Payment amount does not match item price' }, { status: 400 });
-  }
+    if (Number(amount) <= 0) {
+      return NextResponse.json({ error: 'Invalid payment amount' }, { status: 400 });
+    }
 
-  const payment = await prisma.payment.create({
-    data: {
-      requestId: requestRecord.id,
-      payerId: userId,
+    const payment = await prisma.payment.create({
+      data: {
+        requestId: requestRecord.id,
+        payerId: userId,
+        amount: Number(amount),
+        status: 'PENDING',
+        method: 'PAYFAST',
+      },
+    });
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    const formData = generatePaymentFormData({
       amount: Number(amount),
-      status: 'PENDING',
-      method: 'PAYFAST',
-    },
-  });
+      itemName: itemName || item.title,
+      itemDescription: item.description || undefined,
+      email: user?.email || userId,
+      firstName: user?.name?.split(' ')[0] || '',
+      lastName: user?.name?.split(' ').slice(1).join(' ') || '',
+      customStr1: payment.id,        // Payment ID
+      customStr2: requestRecord.id,  // Request ID (for lookup)
+      customStr3: requestRecord.requesterId, // Payer ID
+    });
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+    const paymentUrl = process.env.NODE_ENV === 'production'
+      ? 'https://www.payfast.co.za/eng/process'
+      : 'https://sandbox.payfast.co.za/eng/process';
 
-  const formData = generatePaymentFormData({
-    amount: Number(amount),
-    itemName: itemName || item.title,
-    email: user?.email || userId,
-    firstName: user?.name?.split(' ')[0] || '',
-    lastName: user?.name?.split(' ').slice(1).join(' ') || '',
-    customStr1: payment.id,
-  });
-
-  const paymentUrl = process.env.NODE_ENV === 'production'
-    ? 'https://www.payfast.co.za/eng/process'
-    : 'https://sandbox.payfast.co.za/eng/process';
-
-  return NextResponse.json({ success: true, paymentUrl, formData });
+    return NextResponse.json({ success: true, paymentUrl, formData, requestId: requestRecord.id });
 }

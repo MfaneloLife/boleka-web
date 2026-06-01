@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyITN, calculateSplitPayment } from '@/src/lib/payfast';
-import { decrementItemQuantity } from '@/src/lib/order-service';
+import { validatePayment } from '@/lib/payfast';
 
 /**
  * POST /api/payment/payfast-notify
  * PayFast ITN (Instant Transaction Notification) webhook handler
  * 
- * This is called by PayFast when payment status changes.
- * It updates the order status and records the split payment details.
+ * Custom fields sent from our payment route:
+ *   custom_str1 = Payment ID
+ *   custom_str2 = Request ID  
+ *   custom_str3 = Payer ID
  * 
- * Flow: User pays via PayFast → PayFast sends ITN → We update order → Vendor gets 95%, Platform gets 5%
+ * Flow: User pays via PayFast → PayFast sends ITN → We update Payment status → Update Request status
  */
 export async function POST(request: NextRequest) {
   try {
-    // PayFast sends data as form-urlencoded
     const formData = await request.formData();
     const data: Record<string, string> = {};
     
@@ -22,66 +22,84 @@ export async function POST(request: NextRequest) {
       data[key] = value.toString();
     });
 
-    // Log the ITN for debugging
     console.log('PayFast ITN received:', {
       payment_status: data['payment_status'],
       pf_payment_id: data['pf_payment_id'],
-      custom_str1: data['custom_str1'], // Order ID
+      custom_str1: data['custom_str1'], // Payment ID
+      custom_str2: data['custom_str2'], // Request ID
       amount_gross: data['amount_gross'],
     });
 
-    // Verify the ITN
-    const verification = await verifyITN(data);
+    // Verify the ITN with PayFast
+    const verification = await validatePayment(data);
     
     if (!verification.valid) {
-      console.error('PayFast ITN verification failed:', verification.status);
-      return NextResponse.json({ error: 'Verification failed' }, { status: 400 });
+      console.error('PayFast ITN verification failed:', verification.message);
+      return new NextResponse('OK', { status: 200 }); // Always return OK
     }
 
-    // Extract order details from custom fields
-    const orderId = data['custom_str1'];
-    const userId = data['custom_str2'];
-    const vendorId = data['custom_str3'];
+    const paymentId = data['custom_str1'];
+    const requestId = data['custom_str2'];
     const amountPaid = parseFloat(data['amount_gross'] || '0');
     const pfPaymentId = data['pf_payment_id'] || '';
 
-    if (!orderId) {
-      console.error('PayFast ITN missing order ID');
-      return NextResponse.json({ error: 'Missing order ID' }, { status: 400 });
+    if (!paymentId) {
+      console.error('PayFast ITN missing payment ID');
+      return new NextResponse('OK', { status: 200 });
     }
 
-    // Calculate split payment amounts
-    const split = calculateSplitPayment(amountPaid);
-
-    // Update the booking in the database
-    const booking = await prisma.booking.update({
-      where: { id: orderId },
+    // Update the Payment record to COMPLETED
+    await prisma.payment.update({
+      where: { id: paymentId },
       data: {
-        status: 'PAID',
-        totalPrice: amountPaid,
-        platformCommission: split.platformAmount,
-        vendorPayoutAmount: split.vendorAmount,
-        commissionPaid: true,
-        notes: `PayFast payment: ${pfPaymentId} | Platform (5%): R${split.platformAmount.toFixed(2)} | Vendor (95%): R${split.vendorAmount.toFixed(2)}`
+        status: 'COMPLETED',
+        amount: amountPaid,
       }
     });
 
-    // Decrement item quantity after payment confirmed
-    await decrementItemQuantity(booking.itemId);
+    // Update the Request status to PAID
+    if (requestId) {
+      await prisma.request.update({
+        where: { id: requestId },
+        data: {
+          status: 'PAID',
+          totalPrice: amountPaid,
+        }
+      });
 
-    console.log('PayFast payment processed successfully:', {
-      orderId,
+      // Get the request to find the item
+      const requestRecord = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { itemId: true },
+      });
+
+      // Decrement item quantity
+      if (requestRecord?.itemId) {
+        try {
+          const item = await prisma.item.findUnique({ where: { id: requestRecord.itemId } });
+          if (item && item.quantity > 0) {
+            await prisma.item.update({
+              where: { id: requestRecord.itemId },
+              data: { quantity: { decrement: 1 } },
+            });
+            console.log(`[PayFast ITN] Decremented quantity for item ${requestRecord.itemId}`);
+          }
+        } catch (err) {
+          console.error('[PayFast ITN] Failed to decrement quantity:', err);
+        }
+      }
+    }
+
+    console.log('PayFast ITN processed successfully:', {
+      paymentId,
+      requestId,
       amountPaid,
-      platformCommission: split.platformAmount,
-      vendorPayout: split.vendorAmount,
       pfPaymentId
     });
 
-    // PayFast expects "OK" response for ITN
     return new NextResponse('OK', { status: 200 });
   } catch (error) {
     console.error('PAYFAST_ITN_ERROR', error);
-    // Always return OK to prevent PayFast from retrying unnecessarily
     return new NextResponse('OK', { status: 200 });
   }
 }

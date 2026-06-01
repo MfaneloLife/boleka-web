@@ -50,7 +50,12 @@ export default function PaymentForm({
       }
 
       const data = await response.json();
-      setFormData(data.formData);
+      const formDataWithUrls = {
+        ...data.formData,
+        return_url: `${window.location.origin}/payment/success?requestId=${requestId}`,
+        cancel_url: `${window.location.origin}/payment/cancel?requestId=${requestId}`,
+      };
+      setFormData(formDataWithUrls);
       setPaymentUrl(data.paymentUrl);
 
       // Auto-submit the form to PayFast
