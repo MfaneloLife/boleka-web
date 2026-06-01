@@ -6,6 +6,39 @@ import { useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { Plus, Package, Edit, Eye, Trash2, Upload, ImageIcon, X, Loader2, Truck, Hand } from 'lucide-react';
 
+/** Compress an image to max 1920px and ~1MB before upload */
+async function compressImage(file: File): Promise<File> {
+  // Skip small files or non-images
+  if (file.size < 500 * 1024 || !file.type.startsWith('image/')) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      const maxDim = 1920;
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(file); return; }
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 interface ItemImage {
   id: string;
   url: string;
@@ -96,7 +129,9 @@ export default function MyShopPage() {
 
   const uploadToR2 = async (files: File[]): Promise<string[]> => {
     setUploadError(null);
-    const uploads = files.map(async (file) => {
+    // Compress all images first to stay under Vercel's 4.5MB body limit
+    const compressed = await Promise.all(files.map(compressImage));
+    const uploads = compressed.map(async (file) => {
       try {
         const formData = new FormData();
         formData.append('file', file);
