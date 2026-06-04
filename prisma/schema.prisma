@@ -64,6 +64,7 @@ model User {
   messagesSent    Message[]    @relation("SenderMessages")
   paymentsMade    Payment[]    @relation("PayerPayments")
   favourites      Favourite[]
+  bankAccounts    BankAccount[]
 }
 
 // Item model with delivery logic
@@ -374,4 +375,21 @@ model Payment {
 
   @@index([requestId])
   @@index([payerId])
+}
+
+model BankAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  bankName       String
+  accountHolder  String
+  accountNumber  String
+  branchCode     String
+  accountType    String   @default("savings") // 'cheque' | 'savings' | 'transmission'
+  verified       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

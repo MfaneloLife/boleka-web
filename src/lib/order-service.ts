@@ -235,6 +235,70 @@ export class OrderService {
     });
   }
 
+  /**
+   * Generate a return QR code for the vendor to show to the buyer.
+   * Buyer scans this QR to return the item.
+   * Only the vendor can generate this QR.
+   */
+  static async generateReturnQR(orderId: string, vendorId: string): Promise<{ qrData: string; expiresAt: Date }> {
+    const booking = await prisma.booking.findUnique({ where: { id: orderId }, include: { item: true } });
+    if (!booking) throw new Error('Order not found');
+    if (booking.item.userId !== vendorId) throw new Error('Unauthorized: Only the vendor can generate return QR');
+    if (booking.status !== 'COMPLETED') throw new Error('Order must be COMPLETED to generate return QR');
+    if (booking.returnStatus === 'RETURNED') throw new Error('Item has already been returned');
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 120 * 1000);
+    const qrData = JSON.stringify({
+      orderId,
+      action: 'return',
+      vendorId: booking.item.userId,
+      timestamp: now.getTime(),
+      expiresAt: expiresAt.getTime()
+    });
+
+    await prisma.booking.update({
+      where: { id: orderId },
+      data: { qrCode: qrData, qrCodeExpiresAt: expiresAt }
+    });
+
+    return { qrData, expiresAt };
+  }
+
+  /**
+   * Buyer scans the vendor's return QR code to mark the item as returned.
+   * Only the buyer (renter/userId on the booking) can scan the return QR.
+   */
+  static async completeReturnWithQR(qrCode: string, scannerId: string): Promise<void> {
+    let qrData: any;
+    try { qrData = JSON.parse(qrCode); } catch { throw new Error('Invalid QR code format'); }
+
+    if (qrData.action !== 'return') {
+      throw new Error('This is not a return QR code');
+    }
+
+    const booking = await prisma.booking.findUnique({ where: { id: qrData.orderId }, include: { item: true } });
+    if (!booking) throw new Error('Order not found');
+    if (booking.userId !== scannerId) throw new Error('Unauthorized: Only the buyer can scan the return QR');
+    if (booking.qrCodeExpiresAt && new Date() > booking.qrCodeExpiresAt) throw new Error('Return QR code has expired');
+    if (booking.qrCode !== qrCode) throw new Error('Invalid return QR code');
+    if (booking.status !== 'COMPLETED') throw new Error('Order must be COMPLETED to return');
+    if (booking.returnStatus === 'RETURNED') throw new Error('Item already returned');
+
+    const now = new Date();
+    await prisma.booking.update({
+      where: { id: qrData.orderId },
+      data: {
+        returnStatus: 'RETURNED',
+        returnedAt: now,
+        qrCodeScannedAt: now,
+        notes: booking.notes
+          ? `${booking.notes} | Item returned via QR at ${now.toISOString()}`
+          : `Item returned via QR at ${now.toISOString()}`
+      }
+    });
+  }
+
   static async getExpiredOrders(): Promise<Order[]> {
     const now = new Date();
     const bookings = await prisma.booking.findMany({

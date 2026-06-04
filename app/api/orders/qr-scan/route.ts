@@ -4,9 +4,9 @@ import { OrderService } from '@/src/lib/order-service';
 
 /**
  * POST /api/orders/qr-scan
- * Vendor scans the renter's QR code to complete the order
- * This triggers: PAID → COMPLETED status change
- * and initiates the payout split (5% platform commission)
+ * Unified QR scan endpoint:
+ * - Completion QR: vendor scans renter's QR → PAID → COMPLETED (triggers payout split)
+ * - Return QR: buyer scans vendor's return QR → COMPLETED → RETURNED
  */
 export async function POST(request: NextRequest) {
   try {
@@ -32,30 +32,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid QR code: missing orderId' }, { status: 400 });
     }
 
-    // Complete the order using QR code scan
+    // Check if this is a return QR code
+    if (qrData.action === 'return') {
+      // Buyer scans vendor's return QR to mark item as returned
+      await OrderService.completeReturnWithQR(qrCode, userId);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Item returned successfully via QR scan.',
+        orderId: qrData.orderId,
+        action: 'return'
+      });
+    }
+
+    // Default: vendor scans renter's QR to complete the order
     await OrderService.completeOrderWithQR(qrCode, userId);
 
     return NextResponse.json({
       success: true,
       message: 'Order completed successfully. Payout split calculated (95% vendor / 5% platform).',
-      orderId: qrData.orderId
+      orderId: qrData.orderId,
+      action: 'complete'
     });
   } catch (error) {
     console.error('QR_SCAN_ERROR', error);
     
-    const message = error instanceof Error ? error.message : 'Failed to complete order via QR scan';
+    const message = error instanceof Error ? error.message : 'Failed to process QR scan';
     
-    // Map common errors to appropriate status codes
     if (message.includes('expired')) {
       return NextResponse.json({ error: message }, { status: 410 }); // Gone
     }
     if (message.includes('not found')) {
       return NextResponse.json({ error: message }, { status: 404 });
     }
-    if (message.includes('Unauthorized') || message.includes('vendor')) {
+    if (message.includes('Unauthorized')) {
       return NextResponse.json({ error: message }, { status: 403 });
     }
     if (message.includes('Invalid')) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    if (message.includes('not a return QR')) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
     
