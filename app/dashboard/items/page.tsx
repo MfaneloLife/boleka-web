@@ -364,6 +364,9 @@ export default function MyShopPage() {
                     <option value="fashion">Fashion</option>
                     <option value="sports">Sports & Leisure</option>
                     <option value="vehicles">Vehicles</option>
+                    <option value="beauty">Beauty</option>
+                    <option value="event-catering">Event & Catering</option>
+                    <option value="sport-kit">Sport Kit</option>
                     <option value="other">Other</option>
                   </>
                 )}

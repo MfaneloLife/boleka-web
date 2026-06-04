@@ -31,7 +31,7 @@ interface ProfileData {
   hasBusinessProfile: boolean;
 }
 
-type SectionKey = 'personal' | 'location' | 'business' | 'preferences' | 'account';
+type SectionKey = 'personal' | 'location' | 'preferences' | 'account';
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -43,7 +43,6 @@ export default function SettingsPage() {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     personal: false,
     location: false,
-    business: false,
     preferences: false,
     account: false,
   });
@@ -53,8 +52,6 @@ export default function SettingsPage() {
   const [form, setForm] = useState({
     name: '', phone: '', bio: '', dateOfBirth: '',
     country: 'ZA', region: '', city: '', suburb: '', address: '',
-    businessName: '', businessDescription: '',
-    returnWindowHours: 48, lateFeePerDay: 50,
     language: 'en',
   });
 
@@ -89,10 +86,6 @@ export default function SettingsPage() {
           city: data.city || '',
           suburb: data.suburb || '',
           address: data.address || '',
-          businessName: data.businessName || '',
-          businessDescription: data.businessDescription || '',
-          returnWindowHours: data.returnWindowHours || 48,
-          lateFeePerDay: data.lateFeePerDay || 50,
           language: data.language || 'en',
         });
       }
@@ -120,11 +113,6 @@ export default function SettingsPage() {
         payload.city = form.city;
         payload.suburb = form.suburb;
         payload.address = form.address;
-      } else if (section === 'business') {
-        payload.businessName = form.businessName;
-        payload.businessDescription = form.businessDescription;
-        payload.returnWindowHours = Number(form.returnWindowHours);
-        payload.lateFeePerDay = Number(form.lateFeePerDay);
       } else if (section === 'preferences') {
         payload.language = form.language;
       }
@@ -200,7 +188,6 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 mt-0.5">
             {section === 'personal' && 'Name, phone, bio, date of birth'}
             {section === 'location' && 'Country, region, city, address'}
-            {section === 'business' && 'Business name, description, rental policies'}
             {section === 'preferences' && 'Language, notifications'}
             {section === 'account' && 'Privacy, security, delete account'}
           </p>
@@ -365,48 +352,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* ===== 3. BUSINESS PROFILE ===== */}
-        <SectionToggle section="business" label="Business Profile" icon={Store} />
-        {openSections.business && (
-          <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4 animate-fadeIn">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-700">Set up your business profile to list items as a vendor. This information will be shown to renters.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputField label="Business Name" value={form.businessName} onChange={v => setForm(p => ({ ...p, businessName: v }))} placeholder="Your business name" />
-              <InputField label="Contact Number" value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} placeholder="+27 XX XXX XXXX" type="tel" />
-            </div>
-            <TextareaField label="Business Description" value={form.businessDescription} onChange={v => setForm(p => ({ ...p, businessDescription: v }))} placeholder="Describe what your business offers..." />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-gray-600">Return Window (hours)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.returnWindowHours}
-                  onChange={e => setForm(p => ({ ...p, returnWindowHours: Number(e.target.value) }))}
-                  className="w-full mt-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600">Late Fee (per day, ZAR)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.lateFeePerDay}
-                  onChange={e => setForm(p => ({ ...p, lateFeePerDay: Number(e.target.value) }))}
-                  className="w-full mt-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none bg-white"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <SaveButton section="business" />
-            </div>
-          </div>
-        )}
-
-        {/* ===== 4. PREFERENCES ===== */}
+        {/* ===== 3. PREFERENCES ===== */}
         <SectionToggle section="preferences" label="Preferences" icon={Bell} />
         {openSections.preferences && (
           <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4 animate-fadeIn">
@@ -447,16 +393,6 @@ export default function SettingsPage() {
         <SectionToggle section="account" label="Account" icon={Shield} />
         {openSections.account && (
           <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50 rounded-xl overflow-hidden animate-fadeIn">
-            <a href="/auth/profile-setup" className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-gray-400" />
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Vendor Profile Setup</span>
-                  <p className="text-xs text-gray-400 mt-0.5">Complete your vendor registration</p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-300" />
-            </a>
             <div className="flex items-center justify-between px-5 py-4 opacity-50 cursor-not-allowed">
               <div className="flex items-center gap-3">
                 <Shield className="w-5 h-5 text-gray-400" />
@@ -480,12 +416,6 @@ export default function SettingsPage() {
               📍 {[profile.city, profile.suburb, profile.region, profile.country].filter(Boolean).join(', ')}
             </span>
           </div>
-          {profile.businessName && (
-            <div className="flex items-center gap-2 mt-2">
-              <Store className="w-4 h-4 text-orange-500" />
-              <span className="text-sm text-gray-600">🏪 {profile.businessName}</span>
-            </div>
-          )}
         </div>
       )}
     </div>

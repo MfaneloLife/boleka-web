@@ -46,7 +46,6 @@ const accountItems = [
   { name: "Wallet", href: "/dashboard/wallet", icon: Wallet },
   { name: "Rewards", href: "/dashboard/rewards", icon: Award },
   { name: "Reviews", href: "/dashboard/reviews", icon: Star },
-  { name: "Profile", href: "/dashboard/profile", icon: User },
 ];
 
 const moreItems = [
