@@ -34,7 +34,8 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const category = url.searchParams.get('category');
     const location = url.searchParams.get('location');
-    const searchTerm = url.searchParams.get('search') || '';
+    // 'q' is the free-text search query; 'search' is kept for backward compatibility
+    const searchTerm = url.searchParams.get('q') || url.searchParams.get('search') || '';
     const ownerIdParam = url.searchParams.get('ownerId');
     const minPrice = url.searchParams.get('minPrice');
     const maxPrice = url.searchParams.get('maxPrice');
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { title: { contains: searchTerm, mode: 'insensitive' } },
         { description: { contains: searchTerm, mode: 'insensitive' } },
+        { tags: { contains: searchTerm, mode: 'insensitive' } },
       ];
     }
     if (minPrice && maxPrice) {

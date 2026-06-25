@@ -75,13 +75,15 @@ export async function GET(
     },
   });
 
-  return NextResponse.json({
+    return NextResponse.json({
     request: {
       id: requestRecord.id,
       item: {
         id: requestRecord.item.id,
         title: requestRecord.item.title,
         imageUrls: requestRecord.item.images.map((image) => image.url),
+        price: requestRecord.item.price,
+        userId: requestRecord.item.userId,
       },
       requester: {
         id: requestRecord.requester.id,
@@ -94,6 +96,11 @@ export async function GET(
         image: requestRecord.owner.image,
       },
       status: requestRecord.status,
+      totalPrice: requestRecord.totalPrice,
+      finalValue: requestRecord.finalValue,
+      paymentMethod: requestRecord.paymentMethod,
+      startDate: requestRecord.startDate?.toISOString() ?? null,
+      endDate: requestRecord.endDate?.toISOString() ?? null,
       updatedAt: requestRecord.updatedAt.toISOString(),
     },
     messages: messages.map((message) => ({

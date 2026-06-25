@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Search, ArrowLeft, ImageIcon } from "lucide-react";
 import AppShell from "@/src/components/layout/AppShell";
+import { slugToLabel } from "@/lib/search-filters";
 
 interface Item {
   id: string;
@@ -26,39 +27,34 @@ interface Item {
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const query = searchParams.get("q") || searchParams.get("category") || "";
+
+  // Separate free-text query ("q") from category filter ("category")
+  const searchQuery = searchParams.get("q") || "";
+  const categorySlug = searchParams.get("category") || "";
+
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const displayTitle = searchQuery
+    ? `"${searchQuery}"${categorySlug ? ` in ${slugToLabel(categorySlug)}` : ""}`
+    : categorySlug
+      ? slugToLabel(categorySlug)
+      : "Browse Items";
+
   useEffect(() => {
-    if (query) fetchItems();
+    if (searchQuery || categorySlug) fetchItems();
     else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
-
-  const slugToCategory = (slug: string): string => {
-    const map: Record<string, string> = {
-      home: "home",
-      beauty: "beauty",
-      technology: "technology",
-      events: "Events & Catering",
-      "events catering": "Events & Catering",
-      tools: "Home & Garden Tools",
-      "home garden tools": "Home & Garden Tools",
-      books: "books",
-      design: "Local Design",
-      "local design": "Local Design",
-    };
-    return map[slug.toLowerCase()] || slug;
-  };
+  }, [searchQuery, categorySlug]);
 
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const categoryParam = slugToCategory(query);
-      const res = await fetch(
-        `/api/items?search=${encodeURIComponent(categoryParam)}&category=${encodeURIComponent(categoryParam)}`
-      );
+      const params = new URLSearchParams();
+      if (searchQuery) params.set("q", searchQuery);
+      if (categorySlug) params.set("category", categorySlug);
+
+      const res = await fetch(`/api/items?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setItems(data.items || []);
@@ -69,8 +65,6 @@ export default function SearchPage() {
       setLoading(false);
     }
   };
-
-  const categoryLabel = slugToCategory;
 
   return (
     <AppShell>
@@ -83,7 +77,7 @@ export default function SearchPage() {
             </button>
             <div>
               <h1 className="text-lg font-bold text-gray-900 truncate capitalize">
-                {query ? categoryLabel(query) : "Browse Items"}
+                {displayTitle}
               </h1>
               <p className="text-xs text-gray-500">
                 {loading ? "Searching..." : `${items.length} item${items.length !== 1 ? "s" : ""} found`}
@@ -105,7 +99,7 @@ export default function SearchPage() {
               <Search className="w-16 h-16 mx-auto text-gray-300 mb-4" />
               <h2 className="text-lg font-semibold text-gray-900 mb-1">No items found</h2>
               <p className="text-sm text-gray-500 mb-6">
-                {query ? `No items available in "${categoryLabel(query)}" yet.` : "Try searching for something."}
+                {displayTitle !== "Browse Items" ? `No items found for "${displayTitle}".` : "Try searching for something."}
               </p>
               <Link
                 href="/"

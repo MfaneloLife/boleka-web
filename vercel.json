@@ -5,7 +5,7 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "env": {
-    "NEXT_PUBLIC_APP_URL": "https://boleka-web8.vercel.app",
+    "NEXT_PUBLIC_APP_URL": "https://eboleka.co.za",
     "PAYFAST_MERCHANT_ID": "17739107",
     "PAYFAST_MERCHANT_KEY": "m2hpqzhb9yvsr",
     "PAYFAST_PASS_PHRASE": "",
@@ -15,5 +15,11 @@
     "R2_SECRET_ACCESS_KEY": "36fe08adb6e40ab3bde32ffabec0d66df3cf55cec5fe2e8df1cc94062497d05e",
     "R2_BUCKET_NAME": "bolekaweb",
     "R2_PUBLIC_URL": "https://pub-0bf9994c37384a93b6f02dc5dc60ec44.r2.dev"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/process-payouts",
+      "schedule": "0 2 * * 2"
+    }
+  ]
 }

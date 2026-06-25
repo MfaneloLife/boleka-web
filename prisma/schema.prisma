@@ -65,6 +65,8 @@ model User {
   paymentsMade    Payment[]    @relation("PayerPayments")
   favourites      Favourite[]
   bankAccounts    BankAccount[]
+  wallet          Wallet?
+  payouts         Payout[]
 }
 
 // Item model with delivery logic
@@ -74,6 +76,9 @@ model Item {
   description String?
   category    String
   condition   String
+
+  // Search tags (comma-separated keywords stored as a single string for SQLite/PostgreSQL compatibility)
+  tags        String   @default("")
 
   // New fields as per requirements
   quantity    Int      @default(1)
@@ -314,16 +319,18 @@ model UserRewards {
 }
 
 model Request {
-  id          String        @id @default(cuid())
-  itemId      String
-  requesterId String
-  ownerId     String
-  status      RequestStatus @default(PENDING)
-  startDate   DateTime?
-  endDate     DateTime?
-  totalPrice  Float?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String         @id @default(cuid())
+  itemId        String
+  requesterId   String
+  ownerId       String
+  status        RequestStatus  @default(PENDING)
+  startDate     DateTime?
+  endDate       DateTime?
+  totalPrice    Float?
+  finalValue    Float?
+  paymentMethod PaymentMethod?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   item      Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
   requester User    @relation("RequesterRequests", fields: [requesterId], references: [id], onDelete: Cascade)
@@ -338,11 +345,19 @@ model Request {
 
 enum RequestStatus {
   PENDING
+  NEGOTIATING
   ACCEPTED
   REJECTED
   COMPLETED
   PAID
   CANCELLED
+  SUCCESSFUL
+}
+
+enum PaymentMethod {
+  CASH
+  EFT
+  ONLINE
 }
 
 model Message {
@@ -392,4 +407,87 @@ model BankAccount {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ============================================================================
+// Wallet & Payout Models — Boleka peer-to-peer escrow payout engine
+// ============================================================================
+//
+// Wallet.payoutStatus is the core anti-fraud double-spending lock:
+//   - "AVAILABLE"  : wallet is idle; eligible for checkout credit & Tuesday cron
+//   - "PROCESSING" : cron has claimed this wallet; skip it in any parallel run
+//   - "SETTLED"    : payout was successfully dispatched; clear for next cycle
+//
+// The R50 minimum payout threshold is enforced at the application layer
+// (see lib/wallet-validation.ts and app/api/cron/process-payouts/route.ts).
+// The flat R8.70 Payfast network fee is deducted from availableBalance
+// before the payout API call so that Boleka's 10 % platform cut stays
+// completely protected.
+// ============================================================================
+
+enum WalletPayoutStatus {
+  AVAILABLE
+  PROCESSING
+  SETTLED
+}
+
+model Wallet {
+  id               String              @id @default(cuid())
+  userId           String              @unique
+
+  // Balances (all in ZAR)
+  availableBalance Float               @default(0)
+  pendingBalance   Float               @default(0)
+  totalSales       Float               @default(0)
+  paidOut          Float               @default(0)
+
+  // Anti-fraud state machine flag
+  payoutStatus     WalletPayoutStatus  @default(AVAILABLE)
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payouts          Payout[]
+
+  @@index([userId])
+  @@index([payoutStatus])
+}
+
+model Payout {
+  id               String   @id @default(cuid())
+  walletId         String
+  userId           String
+
+  // Gross amount requested (before network fee)
+  grossAmount      Float
+  // R8.70 flat network fee deducted from availableBalance
+  networkFee       Float    @default(8.70)
+  // Net amount actually sent to the bank account
+  netAmount        Float
+
+  // Bank routing snapshot at time of payout
+  bankName         String
+  accountHolder    String
+  accountNumber    String
+  branchCode       String
+  accountType      String
+
+  // Payfast transaction reference (returned by Payout API)
+  payfastReference String?
+  // Internal state: PROCESSING → SETTLED | FAILED
+  status           String   @default("PROCESSING")
+
+  // Error payload for manual review when a payout fails
+  errorMessage     String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  wallet           Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([status])
 }

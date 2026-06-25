@@ -35,7 +35,8 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
         alert(data.error || "Failed to create request");
         return;
       }
-      router.push("/messages");
+      const data = await res.json();
+      router.push(`/messages/${data.id}`);
     } catch {
       alert("Something went wrong. Please try again.");
     } finally {
