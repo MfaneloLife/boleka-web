@@ -21,7 +21,8 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
   const handleRequest = async () => {
     if (!isLoaded) return;
     if (!user) {
-      router.push("/auth/login");
+      const intendedUrl = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`);
       return;
     }
 
@@ -35,6 +36,11 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
       });
       if (!res.ok) {
         const data = await res.json();
+        // 409 Conflict means the user already has an active request — redirect to it
+        if (res.status === 409 && data.existingRequestId) {
+          router.push(`/requests/${data.existingRequestId}`);
+          return;
+        }
         setError(data.error || "Failed to create request");
         return;
       }

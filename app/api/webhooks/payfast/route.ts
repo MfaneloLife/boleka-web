@@ -50,6 +50,7 @@ interface PayfastItnPayload {
   custom_str1?: string; // listingId
   custom_str2?: string; // hostPayout (90 % of rental price — used for verification)
   custom_str3?: string; // renterId  — audit trail
+  custom_str4?: string; // requestId — links payment back to the Request
   signature?: string;
   [key: string]: string | undefined;
 }
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
     custom_str1: listingId,
     custom_str2: expectedHostPayoutRaw,
     custom_str3: renterId,
+    custom_str4: requestId,
     signature: receivedSignature,
   } = payload as PayfastItnPayload;
 
@@ -224,7 +226,49 @@ export async function POST(request: NextRequest) {
       );
     });
 
-    // --- 9. Return clean 200 to Payfast ----------------------------------
+    // --- 9. Update the associated Request to SUCCESSFUL if requestId provided
+    if (requestId) {
+      try {
+        await prisma.$transaction(async (tx: Omit<Prisma.TransactionClient, '$transaction'>) => {
+          const req = await tx.request.findUnique({
+            where: { id: requestId },
+            select: { id: true, status: true },
+          });
+
+          if (req && req.status === 'NEGOTIATING') {
+            await tx.request.update({
+              where: { id: requestId },
+              data: {
+                status: 'SUCCESSFUL',
+                paymentMethod: 'ONLINE',
+                finalValue: grossAmount,
+              },
+            });
+
+            await tx.payment.create({
+              data: {
+                requestId,
+                payerId: renterId ?? 'unknown',
+                amount: grossAmount,
+                method: 'ONLINE',
+                status: 'COMPLETED',
+              },
+            });
+
+            console.info(
+              `[payfast-webhook] Request ${requestId} updated to SUCCESSFUL via Payfast ITN`,
+            );
+          }
+        });
+      } catch (reqError) {
+        console.error(
+          `[payfast-webhook] Failed to update Request ${requestId} status:`,
+          reqError,
+        );
+      }
+    }
+
+    // --- 10. Return clean 200 to Payfast ----------------------------------
     return NextResponse.json({ status: 'credited', hostPayout });
   } catch (error) {
     console.error(

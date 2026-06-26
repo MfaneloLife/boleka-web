@@ -51,7 +51,8 @@ export default function MessagesPage() {
     if (!isLoaded) return;
 
     if (!isSignedIn) {
-      window.location.href = '/auth/login';
+      const intendedUrl = window.location.pathname + window.location.search;
+      window.location.href = `/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`;
       return;
     }
 

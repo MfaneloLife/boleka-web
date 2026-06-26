@@ -131,14 +131,17 @@ export function getFilteredRentals(
 // ---------------------------------------------------------------------------
 
 export const CATEGORY_SLUG_MAP: Record<string, string> = {
-  home: 'Home',
-  beauty: 'Beauty',
-  technology: 'Technology',
-  events: 'Events & Catering',
-  tools: 'Home & Garden Tools',
-  books: 'Books & Magazine',
-  design: 'Local Design',
-  'sport-kit': 'Sport Kit',
+  'electronics-tech': 'Electronics & Technology',
+  'home-garden': 'Home & Garden Tools',
+  'events-catering': 'Events & Catering',
+  'sports-leisure': 'Sports & Fitness Kit',
+  'camping-outdoor': 'Camping & Outdoor',
+  'books-media': 'Books & Media',
+  'clothing-fashion': 'Fashion & Beauty',
+  'vehicles-transport': 'Vehicles & Trailers',
+  'toys-games': 'Toys & Games',
+  'local-design-crafts': 'Local Design & Art',
+  other: 'Other',
 };
 
 export const slugToLabel = (slug: string): string =>

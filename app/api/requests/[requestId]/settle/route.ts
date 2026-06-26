@@ -88,7 +88,10 @@ export async function POST(
   // 10 % platform commission
   const platformCommission = Math.round(settledAmount * 0.1 * 100) / 100;
 
-  // Execute settlement in a transaction
+  // 90 % host payout
+  const hostPayout = Math.round((settledAmount - platformCommission) * 100) / 100;
+
+  // Execute settlement + wallet credit in a single transaction
   const [updatedRequest, payment] = await prisma.$transaction([
     prisma.request.update({
       where: { id: requestId },
@@ -109,6 +112,22 @@ export async function POST(
     }),
   ]);
 
+  // Credit the host's wallet atomically
+  await prisma.wallet.upsert({
+    where: { userId: requestRecord.ownerId },
+    create: {
+      userId: requestRecord.ownerId,
+      availableBalance: hostPayout,
+      pendingBalance: 0,
+      totalSales: hostPayout,
+      payoutStatus: 'AVAILABLE',
+    },
+    update: {
+      availableBalance: { increment: hostPayout },
+      totalSales: { increment: hostPayout },
+    },
+  });
+
   return NextResponse.json({
     receipt: {
       bookingReference: updatedRequest.id,
@@ -116,7 +135,7 @@ export async function POST(
       itemTitle: requestRecord.item.title,
       finalAmount: settledAmount,
       platformCommission,
-      vendorPayout: Math.round((settledAmount - platformCommission) * 100) / 100,
+      vendorPayout: hostPayout,
       paymentMethod: updatedRequest.paymentMethod,
       settledAt: updatedRequest.updatedAt.toISOString(),
     },

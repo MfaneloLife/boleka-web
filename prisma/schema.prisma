@@ -55,7 +55,6 @@ model User {
 
   // Relationships
   items     Item[]
-  bookings  Booking[]
   reviews   Review[]
   rentalAgreements RentalAgreement[]
   rewards   UserRewards?
@@ -107,7 +106,6 @@ model Item {
 
   // Relationships
   user        User     @relation(fields: [userId], references: [id])
-  bookings    Booking[]
   reviews     Review[]
   rentalAgreements RentalAgreement[]
   images      ItemImage[]
@@ -157,66 +155,6 @@ model ItemImage {
 
   @@unique([itemId, order]) // Ensure unique order per item
   @@index([itemId])
-}
-
-// Booking model with status enum
-model Booking {
-  id        String   @id @default(cuid())
-
-  // Booking details
-  userId    String
-  itemId    String
-
-  // Status field with enum as per requirements
-  status    BookingStatus @default(PENDING)
-
-  // Rental/Purchase period
-  startDate DateTime
-  endDate   DateTime?
-
-  // Financial details
-  totalPrice Float
-  platformFee Float @default(0)
-  deliveryFee Float @default(0)
-
-  // Payout split tracking (5% platform commission)
-  platformCommission Float @default(0)
-  vendorPayoutAmount Float @default(0)
-  commissionPaid     Boolean @default(false)
-
-  // Delivery/Collection preferences
-  deliveryMethod String? // 'collection' | 'delivery'
-
-  // QR Code for completion/payout release
-  qrCode         String?   @db.Text
-  qrCodeExpiresAt DateTime?
-  qrCodeScannedAt DateTime?
-
-  // Return tracking for rentals
-  returnStatus String @default("NOT_RETURNED") // 'NOT_RETURNED', 'RETURNED'
-  returnedAt   DateTime?
-
-  // Additional details
-  notes     String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id])
-  item      Item     @relation(fields: [itemId], references: [id])
-
-  @@index([userId])
-  @@index([itemId])
-}
-
-// Booking status enum as per requirements
-enum BookingStatus {
-  PENDING
-  PAID
-  FROZEN
-  COMPLETED
-  CANCELLED
 }
 
 // Review model
@@ -331,6 +269,15 @@ model Request {
   paymentMethod PaymentMethod?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+
+  // QR Code for completion — renter generates, vendor scans
+  qrCode         String?   @db.Text
+  qrCodeExpiresAt DateTime?
+  qrCodeScannedAt DateTime?
+
+  // Return tracking for rentals
+  returnStatus String @default("NOT_RETURNED") // 'NOT_RETURNED', 'RETURNED'
+  returnedAt   DateTime?
 
   item      Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
   requester User    @relation("RequesterRequests", fields: [requesterId], references: [id], onDelete: Cascade)

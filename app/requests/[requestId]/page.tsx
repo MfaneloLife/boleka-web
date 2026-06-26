@@ -98,7 +98,8 @@ export default function RequestWaitingPage() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
-      router.push("/auth/login");
+      const intendedUrl = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`);
       return;
     }
     fetchRequest();
@@ -135,7 +136,7 @@ export default function RequestWaitingPage() {
         <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
         <p className="text-gray-500 mb-6">{error || "Request not found"}</p>
         <Link
-          href="/search"
+          href="/"
           className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 transition"
         >
           Browse Items
@@ -222,10 +223,10 @@ export default function RequestWaitingPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/search"
+              href="/"
               className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition"
             >
-              Browse More Items
+              Discover Items
             </Link>
           </div>
         </div>
@@ -313,10 +314,10 @@ export default function RequestWaitingPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href="/search"
+              href="/"
               className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 transition"
             >
-              Browse More Items
+              Discover Items
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
             <Link

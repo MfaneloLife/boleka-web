@@ -368,15 +368,17 @@ export default function MyShopPage() {
                   ))
                 ) : (
                   <>
-                    <option value="electronics">Electronics</option>
-                    <option value="home">Home & Garden</option>
-                    <option value="fashion">Fashion</option>
-                    <option value="sports">Sports & Leisure</option>
-                    <option value="vehicles">Vehicles</option>
-                    <option value="beauty">Beauty</option>
-                    <option value="event-catering">Event & Catering</option>
-                    <option value="sport-kit">Sport Kit</option>
-                    <option value="other">Other</option>
+                    <option value="ELECTRONICS_TECH">Electronics & Technology</option>
+                    <option value="HOME_GARDEN">Home & Garden Tools</option>
+                    <option value="EVENTS_CATERING">Events & Catering</option>
+                    <option value="SPORTS_LEISURE">Sports & Fitness Kit</option>
+                    <option value="CAMPING_OUTDOOR">Camping & Outdoor</option>
+                    <option value="BOOKS_MEDIA">Books & Media</option>
+                    <option value="CLOTHING_FASHION">Fashion & Beauty</option>
+                    <option value="VEHICLES_TRANSPORT">Vehicles & Trailers</option>
+                    <option value="TOYS_GAMES">Toys & Games</option>
+                    <option value="LOCAL_DESIGN_CRAFTS">Local Design & Art</option>
+                    <option value="OTHER">Other</option>
                   </>
                 )}
               </select>

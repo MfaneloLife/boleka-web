@@ -37,12 +37,9 @@ import CryptoJS from 'crypto-js';
 // Zod validation schema
 // ---------------------------------------------------------------------------
 const checkoutSchema = z.object({
-  listingId: z
-    .string({ required_error: 'listingId is required' })
-    .min(1, 'listingId cannot be empty'),
-  renterId: z
-    .string({ required_error: 'renterId is required' })
-    .min(1, 'renterId cannot be empty'),
+  requestId: z
+    .string({ required_error: 'requestId is required' })
+    .min(1, 'requestId cannot be empty'),
 });
 
 // ---------------------------------------------------------------------------
@@ -130,27 +127,43 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { listingId, renterId } = parsed.data;
+  const { requestId } = parsed.data;
 
-  // --- 4. Fetch listing from the database --------------------------------
+  // --- 4. Fetch the request with its item --------------------------------
   try {
-    const listing = await prisma.item.findUnique({
-      where: { id: listingId },
-      select: {
-        id: true,
-        title: true,
-        price: true,
-        userId: true,
-        isActive: true,
+    const requestRecord = await prisma.request.findUnique({
+      where: { id: requestId },
+      include: {
+        item: {
+          select: { id: true, title: true, price: true, userId: true, isActive: true },
+        },
       },
     });
 
-    if (!listing) {
+    if (!requestRecord) {
       return NextResponse.json(
-        { error: 'Listing not found' },
+        { error: 'Request not found' },
         { status: 404 },
       );
     }
+
+    // Only the renter may initiate payment
+    if (userId !== requestRecord.requesterId) {
+      return NextResponse.json(
+        { error: 'Only the renter can initiate payment' },
+        { status: 403 },
+      );
+    }
+
+    // Must be in NEGOTIATING status with a finalValue set
+    if (requestRecord.status !== 'NEGOTIATING') {
+      return NextResponse.json(
+        { error: `Cannot pay for a request with status "${requestRecord.status}". The owner must confirm a final price first.` },
+        { status: 409 },
+      );
+    }
+
+    const listing = requestRecord.item;
 
     if (!listing.isActive) {
       return NextResponse.json(
@@ -160,7 +173,8 @@ export async function POST(request: NextRequest) {
     }
 
     // --- 5. Compute billing split ------------------------------------------
-    const totalPaidByRenter = listing.price; // nothing hidden
+    const settledAmount = requestRecord.finalValue ?? listing.price;
+    const totalPaidByRenter = settledAmount;
     const bolekaCommission = Math.round(totalPaidByRenter * 0.1 * 100) / 100;
     const hostPayout = Math.round(totalPaidByRenter * 0.9 * 100) / 100;
 
@@ -169,8 +183,11 @@ export async function POST(request: NextRequest) {
     const merchantId = PAYFAST_MERCHANT_ID;
     const merchantKey = PAYFAST_MERCHANT_KEY;
 
-    // Unique payment reference — we use listingId + timestamp for idempotency
-    const paymentId = `${listingId}_${Date.now()}_${renterId.slice(0, 8)}`;
+    const listingId = listing.id;
+    const renterId = requestRecord.requesterId;
+
+    // Unique payment reference — we use requestId + timestamp for idempotency
+    const paymentId = `${requestId}_${Date.now()}`;
 
     // The item name shown on the Payfast checkout page
     const itemName = listing.title.length > 100
@@ -201,12 +218,14 @@ export async function POST(request: NextRequest) {
       //   custom_str1 → listingId      (which listing was paid for)
       //   custom_str2 → hostPayout     (expected 90 % payout for verification)
       //   custom_str3 → renterId       (who paid — audit trail)
+      //   custom_str4 → requestId      (links payment back to the request)
       // The host (owner) is looked up from the listing inside the webhook
       // so the renter cannot tamper with payout routing.
       // ------------------------------------------------------------------
       custom_str1: listingId,
       custom_str2: hostPayout.toFixed(2),
       custom_str3: renterId,
+      custom_str4: requestId,
     };
 
     // --- 7. Generate the Payfast MD5 signature ----------------------------

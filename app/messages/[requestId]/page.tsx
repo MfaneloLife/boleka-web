@@ -108,7 +108,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   /* ---- state ---- */
   const [requestData, setRequestData] = useState<RequestData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /* Manager Tools (owner price-update) */
@@ -124,6 +124,8 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   const [receipt, setReceipt] = useState<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pollingRef = useRef(false);              // tracks whether a poll is in flight
+  const mountedRef = useRef(true);               // prevents state updates after unmount
 
   /* ---- derived values ---- */
   const currentUserId = user?.id ?? '';
@@ -138,9 +140,15 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   const displayedPrice = requestData?.finalValue ?? requestData?.totalPrice;
 
   /* ---- fetch conversation ---- */
-  const fetchConversation = useCallback(async () => {
+  const fetchConversation = useCallback(async (isPolling = false) => {
+    // Prevent overlapping poll requests
+    if (isPolling && pollingRef.current) return;
+    if (isPolling) pollingRef.current = true;
+
     try {
-      setIsLoading(true);
+      if (!isPolling) {
+        setIsInitialLoading(true);
+      }
       setError(null);
       const response = await fetch(`/api/messages/${params.requestId}`);
       if (!response.ok) {
@@ -162,29 +170,42 @@ export default function ConversationPage({ params }: { params: { requestId: stri
       const text = await response.text();
       if (!text) throw new Error('Received empty response from server.');
       const data = JSON.parse(text);
-      setMessages(data.messages || []);
-      setRequestData(data.request || null);
+      if (mountedRef.current) {
+        setMessages(data.messages || []);
+        setRequestData(data.request || null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      }
     } finally {
-      setIsLoading(false);
+      if (!isPolling && mountedRef.current) {
+        setIsInitialLoading(false);
+      }
+      if (isPolling) pollingRef.current = false;
     }
   }, [params.requestId]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
-      window.location.href = '/auth/login';
+      const intendedUrl = window.location.pathname + window.location.search;
+      window.location.href = `/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`;
       return;
     }
-    fetchConversation();
+    fetchConversation(false);
   }, [isLoaded, isSignedIn, params.requestId, fetchConversation]);
 
   /* ---- polling for real-time-ish updates when in negotiation ---- */
   useEffect(() => {
     if (!isNegotiating && !isPending && !isAccepted) return;
     const interval = setInterval(() => {
-      fetchConversation();
+      fetchConversation(true);
     }, 7000);
     return () => clearInterval(interval);
   }, [isNegotiating, isPending, isAccepted, fetchConversation]);
@@ -334,70 +355,87 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   })();
 
   /* ---- loading ---- */
-  if (!isLoaded || isLoading) {
+  if (!isLoaded || isInitialLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[70vh]">
+      <div className="flex justify-center items-center h-dvh">
         <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
       </div>
     );
   }
   if (!isSignedIn) return null;
 
+  /* ---- error state (no data at all) ---- */
+  if (error && !requestData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-dvh gap-4 px-6 text-center">
+        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center">
+          <X className="w-8 h-8 text-red-400" />
+        </div>
+        <p className="text-gray-900 font-semibold text-lg">Failed to Load Conversation</p>
+        <p className="text-sm text-gray-500 max-w-sm">{error}</p>
+        <button
+          onClick={() => fetchConversation(false)}
+          className="px-6 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   /* ================================================================ */
   /*  RENDER                                                           */
   /* ================================================================ */
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-50">
+    <div className="flex flex-col h-dvh bg-gray-50">
       {/* ---- Top Bar (mobile / shared) ---- */}
-      {requestData && (
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm shrink-0">
-          <Link
-            href="/messages"
-            className="text-gray-500 hover:text-gray-700 transition-colors shrink-0"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div className="flex-shrink-0 h-10 w-10 relative">
-            {otherParty?.image ? (
-              <Image
-                src={otherParty.image}
-                alt={otherParty.name || 'User'}
-                className="rounded-full object-cover"
-                width={40}
-                height={40}
-              />
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
-                <span className="text-sm font-semibold text-orange-600">
-                  {otherParty?.name ? otherParty.name.charAt(0).toUpperCase() : 'U'}
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-gray-900 truncate">
-              {otherParty?.name || 'User'}
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm shrink-0">
+        <Link
+          href="/messages"
+          className="text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex-shrink-0 h-10 w-10 relative">
+          {otherParty?.image ? (
+            <Image
+              src={otherParty.image}
+              alt={otherParty?.name || 'User'}
+              className="rounded-full object-cover"
+              width={40}
+              height={40}
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
+              <span className="text-sm font-semibold text-orange-600">
+                {otherParty?.name ? otherParty.name.charAt(0).toUpperCase() : 'U'}
+              </span>
             </div>
-            <div className="text-xs text-gray-500 truncate">
-              {requestData.item.title}
-            </div>
-          </div>
-          {/* Status badge */}
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium capitalize shrink-0 border ${statusBadgeClass(
-              requestData.status
-            )}`}
-          >
-            {statusLabel(requestData.status, requestData.finalValue)}
-          </span>
-          {/* Price pill */}
-          {displayedPrice && (
-            <span className="text-sm font-bold text-orange-600 shrink-0 ml-1">
-              R {displayedPrice.toFixed(2)}
-            </span>
           )}
         </div>
-      )}
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-gray-900 truncate">
+            {otherParty?.name || 'User'}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {requestData?.item?.title ?? 'Loading item…'}
+          </div>
+        </div>
+        {/* Status badge */}
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-medium capitalize shrink-0 border ${statusBadgeClass(
+            requestData?.status ?? ''
+          )}`}
+        >
+          {statusLabel(requestData?.status ?? '', requestData?.finalValue ?? null)}
+        </span>
+        {/* Price pill */}
+        {displayedPrice != null && (
+          <span className="text-sm font-bold text-orange-600 shrink-0 ml-1">
+            R {displayedPrice.toFixed(2)}
+          </span>
+        )}
+      </div>
 
       {/* ---- Error banner ---- */}
       {error && (
@@ -546,8 +584,8 @@ export default function ConversationPage({ params }: { params: { requestId: stri
             )}
           </div>
 
-          {/* Message input */}
-          <div className="bg-white border-t border-gray-100 p-4 shadow-lg shrink-0">
+          {/* Message input (pb-safe for modern mobile devices with home indicator) */}
+          <div className="bg-white border-t border-gray-100 p-4 pb-safe shadow-lg shrink-0">
             <div className="max-w-4xl mx-auto">
               <MessageInput onSendMessage={handleSendMessage} />
             </div>

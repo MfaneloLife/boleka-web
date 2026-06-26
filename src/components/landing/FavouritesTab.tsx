@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/nextjs";
-import { Heart, ImageIcon, Loader2, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { SignedIn, SignedOut, useClerk, useUser } from "@clerk/nextjs";
+import { Heart, ImageIcon, Loader2, Trash2, Search } from "lucide-react";
 
 interface FavItem {
   id: string;
@@ -20,6 +21,8 @@ interface FavItem {
 
 export default function FavouritesTab() {
   const { isLoaded, isSignedIn } = useUser();
+  const { openSignIn } = useClerk();
+  const router = useRouter();
   const [favourites, setFavourites] = useState<FavItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,17 +47,20 @@ export default function FavouritesTab() {
   };
 
   const handleUnfavourite = async (itemId: string) => {
+    // Optimistic removal
+    setFavourites((prev) => prev.filter((f) => f.item.id !== itemId));
     try {
       const res = await fetch("/api/favourites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itemId }),
       });
-      if (res.ok) {
-        setFavourites((prev) => prev.filter((f) => f.item.id !== itemId));
+      if (!res.ok) {
+        // Revert on failure
+        fetchFavourites();
       }
-    } catch (err) {
-      console.error("unfavourite error:", err);
+    } catch {
+      fetchFavourites();
     }
   };
 
@@ -63,16 +69,29 @@ export default function FavouritesTab() {
       <h2 className="text-xl font-semibold text-gray-900 mb-6">Your favourite items</h2>
 
       <SignedOut>
-        <div className="text-center py-10">
-          <div className="flex justify-center mb-4">
-            <Heart className="w-12 h-12 text-gray-300" />
+        <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+            <Heart className="w-8 h-8 text-gray-300" />
           </div>
-          <p className="text-gray-600 mb-6">Please log in to see your favourites.</p>
-          <SignInButton mode="modal">
-            <button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold px-6 py-2.5 rounded-xl transition shadow-md">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">No favourites yet</h3>
+          <p className="text-sm text-gray-500 max-w-xs mb-6">
+            Explore items and tap the heart icon to save things you love!
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => openSignIn()}
+              className="inline-flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition shadow-sm"
+            >
               Sign up / Login
             </button>
-          </SignInButton>
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition"
+            >
+              <Search className="w-4 h-4" />
+              Explore Items
+            </Link>
+          </div>
         </div>
       </SignedOut>
 
@@ -83,10 +102,21 @@ export default function FavouritesTab() {
             <p className="text-gray-400 text-sm">Loading favourites...</p>
           </div>
         ) : favourites.length === 0 ? (
-          <div className="text-center py-10">
-            <Heart className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500">Items you favourite will appear here.</p>
-            <p className="text-gray-400 text-sm mt-1">Tap the heart icon on any item to save it.</p>
+          <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+              <Heart className="w-8 h-8 text-gray-300" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No favourites yet</h3>
+            <p className="text-sm text-gray-500 max-w-xs mb-6">
+              Explore items and tap the heart icon to save things you love!
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition shadow-sm"
+            >
+              <Search className="w-4 h-4" />
+              Explore Items
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -85,6 +85,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Item not found' }, { status: 404 });
   }
 
+  // Prevent duplicate active requests for the same item by the same user.
+  // "Active" = any status that isn't terminal (REJECTED, CANCELLED, COMPLETED).
+  const existingActive = await prisma.request.findFirst({
+    where: {
+      itemId: item.id,
+      requesterId: userId,
+      status: { notIn: ['REJECTED', 'CANCELLED', 'COMPLETED'] },
+    },
+  });
+
+  if (existingActive) {
+    return NextResponse.json(
+      {
+        error: 'You already have an active request for this item.',
+        existingRequestId: existingActive.id,
+      },
+      { status: 409 }
+    );
+  }
+
   const newRequest = await prisma.request.create({
     data: {
       itemId: item.id,

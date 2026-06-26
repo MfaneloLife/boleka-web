@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Loader2, Package, MapPin } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { Loader2, Package, MapPin, Heart } from "lucide-react";
 
 interface Item {
   id: string;
@@ -24,9 +26,16 @@ interface Item {
 }
 
 export default function ItemsGrid() {
+  const router = useRouter();
+  const { user, isLoaded: authLoaded } = useUser();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Map of itemId → favourited boolean */
+  const [favMap, setFavMap] = useState<Record<string, boolean>>({});
+  /** Set of itemIds being toggled (optimistic in-flight) */
+  const toggling = useRef<Set<string>>(new Set());
 
+  /* ---------- fetch items ---------- */
   useEffect(() => {
     const fetchItems = async () => {
       try {
@@ -43,6 +52,66 @@ export default function ItemsGrid() {
     };
     fetchItems();
   }, []);
+
+  /* ---------- fetch user's favourite item IDs ---------- */
+  useEffect(() => {
+    if (!authLoaded || !user) return;
+    const fetchFavourites = async () => {
+      try {
+        const res = await fetch("/api/favourites");
+        if (res.ok) {
+          const data: { item: { id: string } }[] = await res.json();
+          const map: Record<string, boolean> = {};
+          data.forEach((fav) => { map[fav.item.id] = true; });
+          setFavMap(map);
+        }
+      } catch {
+        // silent
+      }
+    };
+    fetchFavourites();
+  }, [authLoaded, user]);
+
+  /* ---------- toggle favourite (optimistic) ---------- */
+  const handleToggleFav = async (e: React.MouseEvent, itemId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      const intendedUrl = `/`;
+      router.push(`/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`);
+      return;
+    }
+
+    // Prevent double-taps while API is in flight for this item
+    if (toggling.current.has(itemId)) return;
+    toggling.current.add(itemId);
+
+    const currentlyFav = favMap[itemId] ?? false;
+
+    // Optimistic update
+    setFavMap((prev) => ({ ...prev, [itemId]: !currentlyFav }));
+
+    try {
+      const res = await fetch("/api/favourites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        // Reconcile with server truth
+        setFavMap((prev) => ({ ...prev, [itemId]: body.favourited }));
+      } else {
+        // Revert on failure
+        setFavMap((prev) => ({ ...prev, [itemId]: currentlyFav }));
+      }
+    } catch {
+      setFavMap((prev) => ({ ...prev, [itemId]: currentlyFav }));
+    } finally {
+      toggling.current.delete(itemId);
+    }
+  };
 
   if (loading) {
     return (
@@ -95,6 +164,20 @@ export default function ItemsGrid() {
                   Out of Stock
                 </div>
               )}
+              {/* Floating heart button */}
+              <button
+                onClick={(e) => handleToggleFav(e, item.id)}
+                className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:bg-white hover:shadow-md"
+                aria-label={favMap[item.id] ? "Remove from favourites" : "Add to favourites"}
+              >
+                <Heart
+                  className={`w-4 h-4 transition-all duration-200 ${
+                    favMap[item.id]
+                      ? "fill-orange-500 stroke-orange-500 scale-110"
+                      : "fill-none stroke-slate-500 hover:stroke-orange-400 hover:scale-110"
+                  }`}
+                />
+              </button>
             </div>
             {/* Details */}
             <div className="p-2.5">
