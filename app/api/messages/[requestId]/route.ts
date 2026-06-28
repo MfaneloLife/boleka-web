@@ -181,6 +181,26 @@ export async function POST(
     },
   });
 
+  // Create notification for the other party
+  const recipientId = userId === requestRecord.requesterId
+    ? requestRecord.ownerId
+    : requestRecord.requesterId;
+
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: recipientId,
+        type: 'MESSAGE_RECEIVED',
+        title: 'New message received',
+        message: content?.substring(0, 100) ?? 'Image sent',
+        relatedId: params.requestId,
+      },
+    });
+  } catch (notifErr) {
+    console.error('Failed to create notification:', notifErr);
+    // Don't fail the message send if notification creation fails
+  }
+
   return NextResponse.json({
     id: newMessage.id,
     content: newMessage.content,

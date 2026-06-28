@@ -128,6 +128,21 @@ export async function POST(
     },
   });
 
+  // Notify the host that payment was received
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: requestRecord.ownerId,
+        type: 'PAYMENT_RECEIVED',
+        title: 'Payment received',
+        message: `R ${settledAmount.toFixed(2)} received for "${requestRecord.item.title}". Payout: R ${hostPayout.toFixed(2)}`,
+        relatedId: requestId,
+      },
+    });
+  } catch (notifErr) {
+    console.error('Failed to create notification:', notifErr);
+  }
+
   return NextResponse.json({
     receipt: {
       bookingReference: updatedRequest.id,

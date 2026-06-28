@@ -123,5 +123,20 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  // Create notification for the item owner
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: item.userId,
+        type: 'REQUEST_CREATED',
+        title: 'New rental request',
+        message: message?.substring(0, 100) ?? 'Someone wants to rent your item',
+        relatedId: newRequest.id,
+      },
+    });
+  } catch (notifErr) {
+    console.error('Failed to create notification:', notifErr);
+  }
+
   return NextResponse.json({ id: newRequest.id }, { status: 201 });
 }

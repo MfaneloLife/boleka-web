@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
-// Since there's no separate Notification model, we'll use a temporary approach
-// Notifications are stored in-memory or fetched from related models
-// TODO: Add a Notification model to Prisma schema when needed
-
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -13,8 +9,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Return empty array directly (frontend expects array, not { notifications: [] })
-    return NextResponse.json([]);
+    const { searchParams } = new URL(request.url);
+
+    // If ?count=true, return only the unread count
+    if (searchParams.get('count') === 'true') {
+      const count = await prisma.notification.count({
+        where: { userId, isRead: false },
+      });
+      return NextResponse.json({ count });
+    }
+
+    const notifications = await prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return NextResponse.json(notifications);
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return NextResponse.json(
@@ -32,16 +43,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
-    // For now, return the notification data without persisting
-    return NextResponse.json({ 
-      notification: {
-        id: Date.now().toString(),
-        ...body,
-        userId,
-        createdAt: new Date().toISOString()
-      }
-    }, { status: 201 });
+    const { type, title, message, relatedId } = body;
+
+    if (!type || !title || !message) {
+      return NextResponse.json(
+        { error: 'type, title, and message are required' },
+        { status: 400 }
+      );
+    }
+
+    const notification = await prisma.notification.create({
+      data: { userId, type, title, message, relatedId: relatedId ?? null },
+    });
+
+    return NextResponse.json({ notification }, { status: 201 });
   } catch (error) {
     console.error('Error creating notification:', error);
     return NextResponse.json(
@@ -58,7 +73,21 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // No-op for now
+    const body = await request.json();
+    const { notificationId, markAll } = body;
+
+    if (markAll) {
+      await prisma.notification.updateMany({
+        where: { userId, isRead: false },
+        data: { isRead: true },
+      });
+    } else if (notificationId) {
+      await prisma.notification.update({
+        where: { id: notificationId },
+        data: { isRead: true },
+      });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating notifications:', error);
