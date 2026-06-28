@@ -166,19 +166,19 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {/* Header */}
-        <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-            <h1 className="text-xl font-semibold text-gray-900 mb-2 sm:mb-0">Notifications</h1>
+        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
+            <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Notifications</h1>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-between xs:justify-end gap-3">
               {/* Filter tabs */}
-              <div className="flex bg-gray-100 p-1 rounded-md">
+              <div className="flex bg-gray-100 p-0.5 rounded-md">
                 <button
                   onClick={() => setActiveFilter('all')}
-                  className={`px-3 py-1 text-sm font-medium rounded-md ${
+                  className={`px-2.5 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors ${
                     activeFilter === 'all'
                       ? 'bg-white text-gray-800 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
@@ -188,7 +188,7 @@ export default function NotificationsPage() {
                 </button>
                 <button
                   onClick={() => setActiveFilter('unread')}
-                  className={`px-3 py-1 text-sm font-medium rounded-md ${
+                  className={`px-2.5 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors ${
                     activeFilter === 'unread'
                       ? 'bg-white text-gray-800 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
@@ -201,10 +201,10 @@ export default function NotificationsPage() {
               {/* Mark all as read */}
               <button
                 onClick={markAllAsRead}
-                className="text-sm text-orange-600 hover:text-orange-800 disabled:opacity-40"
+                className="text-xs sm:text-sm text-orange-600 hover:text-orange-800 disabled:opacity-40 shrink-0"
                 disabled={notifications.every(n => n.isRead)}
               >
-                Mark all as read
+                Mark all read
               </button>
             </div>
           </div>
@@ -213,9 +213,9 @@ export default function NotificationsPage() {
         {/* Notification list */}
         <div className="divide-y divide-gray-100">
           {isLoading ? (
-            <div className="px-6 py-12 text-center text-gray-500">
+            <div className="px-4 py-10 sm:px-6 sm:py-12 text-center text-gray-500">
               <svg
-                className="animate-spin h-8 w-8 mx-auto mb-4 text-orange-500"
+                className="animate-spin h-7 w-7 sm:h-8 sm:w-8 mx-auto mb-3 sm:mb-4 text-orange-500"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -234,15 +234,15 @@ export default function NotificationsPage() {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              Loading notifications...
+              Loading...
             </div>
           ) : notifications.length === 0 ? (
-            <div className="px-6 py-12 text-center text-gray-500">
-              <svg className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="px-4 py-10 sm:px-6 sm:py-12 text-center text-gray-500">
+              <svg className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <p className="text-lg font-medium">No notifications yet</p>
-              <p className="mt-1">We'll notify you when something happens</p>
+              <p className="text-base sm:text-lg font-medium">No notifications yet</p>
+              <p className="text-xs sm:text-sm mt-1">We'll notify you when something happens</p>
             </div>
           ) : (
             notifications.map((notification) => (
@@ -250,27 +250,27 @@ export default function NotificationsPage() {
                 key={notification.id}
                 href={getNotificationLink(notification)}
                 onClick={() => !notification.isRead && markAsRead(notification.id)}
-                className={`block px-6 py-4 hover:bg-gray-50 transition-colors ${
+                className={`block px-4 py-3 sm:px-6 sm:py-4 hover:bg-gray-50 transition-colors ${
                   !notification.isRead ? 'bg-orange-50' : ''
                 }`}
               >
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 mr-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
                     {getNotificationIcon(notification.type)}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:justify-between">
-                      <p className={`text-sm font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col xs:flex-row xs:justify-between xs:items-baseline gap-0.5">
+                      <p className={`text-sm font-medium truncate ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
                         {notification.title}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1 sm:mt-0">
+                      <p className="text-[11px] sm:text-xs text-gray-400 shrink-0">
                         {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                       </p>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-0.5 line-clamp-2">{notification.message}</p>
                   </div>
                   {!notification.isRead && (
-                    <div className="ml-4 flex-shrink-0">
+                    <div className="flex-shrink-0 mt-1.5">
                       <span className="inline-block h-2 w-2 rounded-full bg-orange-500"></span>
                     </div>
                   )}
