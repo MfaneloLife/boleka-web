@@ -8,7 +8,7 @@ const categories = [
     label: "Electronics & Technology",
     slug: "electronics-tech",
     icon: Monitor,
-    img: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=600&h=450&fit=crop",
+    img: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&h=450&fit=crop",
   },
   {
     label: "Home & Garden Tools",
@@ -32,7 +32,7 @@ const categories = [
     label: "Camping & Outdoor",
     slug: "camping-outdoor",
     icon: Tent,
-    img: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=600&q=80&auto=format&fit=crop",
+    img: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=600&h=450&fit=crop",
   },
   {
     label: "Books & Media",
@@ -50,19 +50,19 @@ const categories = [
     label: "Vehicles & Trailers",
     slug: "vehicles-transport",
     icon: CarFront,
-    img: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&h=450&fit=crop",
+    img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&h=450&fit=crop",
   },
   {
     label: "Toys & Games",
     slug: "toys-games",
     icon: Puzzle,
-    img: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&h=450&fit=crop",
+    img: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=600&h=450&fit=crop",
   },
   {
     label: "Local Design & Art",
     slug: "local-design-crafts",
     icon: Palette,
-    img: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&h=450&fit=crop",
+    img: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=600&h=450&fit=crop",
   },
   {
     label: "Other",

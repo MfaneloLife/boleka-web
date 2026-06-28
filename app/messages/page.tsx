@@ -25,18 +25,14 @@ interface Conversation {
     image: string | null;
   };
   status: string;
-  messages: {
+  lastMessage: {
     id: string;
     content: string;
     createdAt: string;
-    sender: {
-      id: string;
-      name: string;
-    };
-  }[];
-  _count: {
-    messages: number;
-  };
+    senderId: string;
+    senderName: string;
+  } | null;
+  messageCount: number;
   updatedAt: string;
 }
 
@@ -130,7 +126,7 @@ export default function MessagesPage() {
           <ul className="divide-y divide-gray-100">
             {conversations.map((conversation) => {
               const otherParty = getOtherParty(conversation);
-              const lastMessage = conversation.messages[0];
+              const lastMessage = conversation.lastMessage;
               
               return (
                 <li key={conversation.id}>
@@ -171,15 +167,15 @@ export default function MessagesPage() {
                           <span className="text-[11px] text-gray-400 whitespace-nowrap">
                             {lastMessage ? formatDate(lastMessage.createdAt) : formatDate(conversation.updatedAt)}
                           </span>
-                          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-600">
-                            {conversation._count.messages}
-                          </span>
+                            <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-600">
+                              {conversation.messageCount}
+                            </span>
                         </div>
                       </div>
                       {lastMessage && (
                         <div className="mt-2">
                           <p className="text-sm text-gray-500 truncate">
-                            <span className="font-medium text-gray-700">{lastMessage.sender.name}: </span>
+                            <span className="font-medium text-gray-700">{lastMessage.senderName}: </span>
                             {lastMessage.content}
                           </p>
                         </div>
