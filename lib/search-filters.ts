@@ -147,6 +147,15 @@ export const CATEGORY_SLUG_MAP: Record<string, string> = {
 export const slugToLabel = (slug: string): string =>
   CATEGORY_SLUG_MAP[norm(slug)] ?? slug;
 
+/** Convert a display label back to its slug (reverse lookup). */
+export const labelToSlug = (label: string): string => {
+  const n = norm(label);
+  const entry = Object.entries(CATEGORY_SLUG_MAP).find(
+    ([slug, display]) => norm(display) === n
+  );
+  return entry ? entry[0] : label.toLowerCase().replace(/\s+/g, "-");
+};
+
 // ---------------------------------------------------------------------------
 // Mock dataset & self-contained tests (run with `npx tsx lib/search-filters.ts`)
 // ---------------------------------------------------------------------------

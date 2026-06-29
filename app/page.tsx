@@ -1,49 +1,57 @@
-"use client";
+import { Metadata } from "next";
+import HomeClient from "./HomeClient";
 
-import { useState } from "react";
-import AppShell from "@/src/components/layout/AppShell";
-import SearchBar from "@/src/components/landing/SearchBar";
-import TabNav from "@/src/components/landing/TabNav";
-import CategoryGrid from "@/src/components/landing/CategoryGrid";
-import HeroBanner from "@/src/components/landing/HeroBanner";
-import PromoCarousel from "@/src/components/landing/PromoCarousel";
-import BrandsSection from "@/src/components/landing/BrandsSection";
-import ItemsGrid from "@/src/components/landing/ItemsGrid";
-import ShopsTab from "@/src/components/landing/ShopsTab";
-import FavouritesTab from "@/src/components/landing/FavouritesTab";
-import FloatingCTA from "@/src/components/landing/FloatingCTA";
-
-type Tab = "discover" | "shops" | "favourites";
+export const metadata: Metadata = {
+  title: "BOLEKA — Rent & Sell Items in South Africa | Peer-to-Peer Marketplace",
+  description:
+    "BOLEKA is South Africa's peer-to-peer rental and selling platform. Rent cameras, tools, electronics, party equipment and more near you. List your items for rent or sale.",
+  keywords: [
+    "rent items South Africa",
+    "peer to peer rental",
+    "sell items online SA",
+    "rent tools",
+    "rent cameras",
+    "rent electronics",
+    "rent party equipment",
+    "marketplace South Africa",
+    "eboleka",
+    "boleka",
+  ],
+  openGraph: {
+    title: "BOLEKA — Rent & Sell Items in South Africa",
+    description:
+      "Rent cameras, tools, electronics, party equipment and more near you. List your items for rent or sale. South Africa's peer-to-peer marketplace.",
+    type: "website",
+    locale: "en_ZA",
+    siteName: "BOLEKA",
+    url: "https://eboleka.co.za",
+    images: [
+      {
+        url: "/logo.png",
+        width: 512,
+        height: 512,
+        alt: "BOLEKA Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BOLEKA — Rent & Sell Items in South Africa",
+    description:
+      "Rent cameras, tools, electronics, party equipment and more near you. South Africa's peer-to-peer marketplace.",
+    images: ["/logo.png"],
+  },
+  alternates: {
+    canonical: "https://eboleka.co.za",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    "max-image-preview": "large",
+    "max-snippet": -1,
+  },
+};
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>("discover");
-
-  const handleTabChange = (tab: string) => {
-    if (tab === "discover" || tab === "shops" || tab === "favourites") {
-      setActiveTab(tab);
-    }
-  };
-
-  return (
-    <AppShell onTabChange={handleTabChange}>
-      <div className="flex flex-col pb-20">
-      <SearchBar />
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
-
-      {activeTab === "discover" && (
-        <>
-          <PromoCarousel />
-          <CategoryGrid />
-          <ItemsGrid />
-          <BrandsSection />
-        </>
-      )}
-
-      {activeTab === "shops" && <ShopsTab />}
-      {activeTab === "favourites" && <FavouritesTab />}
-
-      <FloatingCTA />
-      </div>
-    </AppShell>
-  );
+  return <HomeClient />;
 }

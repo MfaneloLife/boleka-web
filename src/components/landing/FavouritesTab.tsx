@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignedIn, SignedOut, useClerk, useUser } from "@clerk/nextjs";
 import { Heart, ImageIcon, Loader2, Trash2, Search } from "lucide-react";
+import ShareButton from "@/src/components/ShareButton";
 
 interface FavItem {
   id: string;
@@ -141,16 +142,19 @@ export default function FavouritesTab() {
                     <p className="text-[10px] text-gray-400 mt-0.5 truncate">{fav.item.owner.name}</p>
                   </div>
                 </Link>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleUnfavourite(fav.item.id);
-                  }}
-                  className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
-                  title="Remove from favourites"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                </button>
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ShareButton itemId={fav.item.id} compact className="w-7 h-7 bg-white/90 shadow-sm" />
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleUnfavourite(fav.item.id);
+                    }}
+                    className="w-7 h-7 flex items-center justify-center bg-white/90 rounded-full shadow-sm hover:bg-red-50"
+                    title="Remove from favourites"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

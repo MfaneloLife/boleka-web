@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Loader2, Package, MapPin, Heart } from "lucide-react";
+import ShareButton from "@/src/components/ShareButton";
 
 interface Item {
   id: string;
@@ -164,20 +165,23 @@ export default function ItemsGrid() {
                   Out of Stock
                 </div>
               )}
-              {/* Floating heart button */}
-              <button
-                onClick={(e) => handleToggleFav(e, item.id)}
-                className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:bg-white hover:shadow-md"
-                aria-label={favMap[item.id] ? "Remove from favourites" : "Add to favourites"}
-              >
-                <Heart
-                  className={`w-4 h-4 transition-all duration-200 ${
-                    favMap[item.id]
-                      ? "fill-orange-500 stroke-orange-500 scale-110"
-                      : "fill-none stroke-slate-500 hover:stroke-orange-400 hover:scale-110"
-                  }`}
-                />
-              </button>
+              {/* Floating action buttons */}
+              <div className="absolute top-2 right-2 z-10 flex gap-1.5">
+                <ShareButton itemId={item.id} compact />
+                <button
+                  onClick={(e) => handleToggleFav(e, item.id)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:bg-white hover:shadow-md"
+                  aria-label={favMap[item.id] ? "Remove from favourites" : "Add to favourites"}
+                >
+                  <Heart
+                    className={`w-4 h-4 transition-all duration-200 ${
+                      favMap[item.id]
+                        ? "fill-orange-500 stroke-orange-500 scale-110"
+                        : "fill-none stroke-slate-500 hover:stroke-orange-400 hover:scale-110"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
             {/* Details */}
             <div className="p-2.5">

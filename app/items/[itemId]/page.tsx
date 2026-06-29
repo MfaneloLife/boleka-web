@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Star } from "lucide-react";
 import ItemPageClient from "./ItemPageClient";
+import ItemImageGallery from "@/src/components/ItemImageGallery";
 import AppShellClient from "@/src/components/layout/AppShellClient";
 
 // Force dynamic so every request gets fresh data
@@ -107,20 +108,24 @@ export default async function ItemPage({ params }: ItemPageProps) {
   const location = [item.user?.city, item.user?.region].filter(Boolean).join(", ");
 
   // ── JSON-LD Structured Data for Google Rich Results ──
-  const jsonLd = {
+  const baseUrl = "https://eboleka.co.za";
+
+  // Product schema
+  const productLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: item.title,
     description: item.description || "",
     image: images.length > 0 ? images : "/icons/icon-512x512.png",
     sku: item.id,
+    category: item.category,
     brand: {
       "@type": "Brand",
       name: "BOLEKA",
     },
     offers: {
       "@type": "Offer",
-      url: `https://boleka.com/items/${item.id}`,
+      url: `${baseUrl}/items/${item.id}`,
       priceCurrency: "ZAR",
       price: item.price,
       availability: item.isActive ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
@@ -141,12 +146,61 @@ export default async function ItemPage({ params }: ItemPageProps) {
       : {}),
   };
 
+  // BreadcrumbList schema
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: baseUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Items",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: item.title,
+        item: `${baseUrl}/items/${item.id}`,
+      },
+    ],
+  };
+
+  // Also add category breadcrumb if we have a matching category page
+  if (item.category) {
+    const categorySlug = item.category.toLowerCase().replace(/\s+/g, "-");
+    breadcrumbLd.itemListElement.splice(2, 0, {
+      "@type": "ListItem",
+      position: 2,
+      name: item.category,
+      item: `${baseUrl}/categories/${categorySlug}`,
+    });
+    // Adjust positions after insertion
+    breadcrumbLd.itemListElement[3].position = 3;
+    breadcrumbLd.itemListElement[4] = {
+      "@type": "ListItem",
+      position: 4,
+      name: item.title,
+      item: `${baseUrl}/items/${item.id}`,
+    };
+  }
+
   return (
     <>
       {/* JSON-LD structured data injected into <head> */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
       <AppShellClient>
@@ -166,42 +220,7 @@ export default async function ItemPage({ params }: ItemPageProps) {
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="md:flex">
               {/* ── Image Gallery ── */}
-              <div className="md:w-1/2">
-                <div className="relative h-72 sm:h-96 w-full bg-gray-100">
-                  {images.length > 0 ? (
-                    <Image
-                      src={firstImage}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                      priority
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-gray-400">No image available</span>
-                    </div>
-                  )}
-                </div>
-                {images.length > 1 && (
-                  <div className="flex overflow-x-auto gap-2 p-3">
-                    {images.map((url, i) => (
-                      <div
-                        key={i}
-                        className="w-20 h-20 flex-shrink-0 relative rounded-lg overflow-hidden border-2 border-transparent hover:border-orange-400 transition"
-                      >
-                        <Image
-                          src={url}
-                          alt={`${item.title} - image ${i + 1}`}
-                          fill
-                          className="object-cover"
-                          sizes="80px"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ItemImageGallery images={images} title={item.title} />
 
               {/* ── Item Details ── */}
               <div className="md:w-1/2 p-6">

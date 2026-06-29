@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Share2, Check } from "lucide-react";
 
 interface ItemPageClientProps {
   itemId: string;
@@ -15,6 +15,7 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
   const { user, isLoaded } = useUser();
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const isOwner = isLoaded && user && user.id === ownerId;
 
@@ -91,6 +92,49 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
             )}
           </button>
         )}
+
+        {/* Share button */}
+        <button
+          onClick={async () => {
+            const url = `${window.location.origin}/items/${itemId}`;
+            const shareData: ShareData = {
+              title: "Check out this item on BOLEKA",
+              text: "Check out this item on BOLEKA",
+              url,
+            };
+
+            // Use Web Share API if available (mobile, Safari, Chrome)
+            if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+              try {
+                await navigator.share(shareData);
+              } catch {
+                // User cancelled or share failed — do nothing
+              }
+            } else {
+              // Fallback: copy link to clipboard
+              try {
+                await navigator.clipboard.writeText(url);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              } catch {
+                setCopied(false);
+              }
+            }
+          }}
+          className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition w-full sm:w-auto"
+        >
+          {copied ? (
+            <>
+              <Check className="w-4 h-4 text-green-600" />
+              Link copied!
+            </>
+          ) : (
+            <>
+              <Share2 className="w-4 h-4" />
+              Share
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
