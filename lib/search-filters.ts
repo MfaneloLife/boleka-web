@@ -141,6 +141,7 @@ export const CATEGORY_SLUG_MAP: Record<string, string> = {
   'vehicles-transport': 'Vehicles & Trailers',
   'toys-games': 'Toys & Games',
   'local-design-crafts': 'Local Design & Art',
+  pets: 'Pets',
   other: 'Other',
 };
 

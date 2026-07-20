@@ -441,6 +441,7 @@ export default function EditItemPage() {
                   <option value="VEHICLES_TRANSPORT">Vehicles & Trailers</option>
                   <option value="TOYS_GAMES">Toys & Games</option>
                   <option value="LOCAL_DESIGN_CRAFTS">Local Design & Art</option>
+                  <option value="PETS">Pets</option>
                   <option value="OTHER">Other</option>
                 </>
               )}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Monitor, Wrench, UtensilsCrossed, Dumbbell, Tent, BookOpen, Sparkles, CarFront, Puzzle, Palette, Ellipsis } from "lucide-react";
+import { Monitor, Wrench, UtensilsCrossed, Dumbbell, Tent, BookOpen, Sparkles, CarFront, Puzzle, Palette, PawPrint, Ellipsis } from "lucide-react";
 
 const categories = [
   {
@@ -63,6 +63,12 @@ const categories = [
     slug: "local-design-crafts",
     icon: Palette,
     img: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=600&h=450&fit=crop",
+  },
+  {
+    label: "Pets",
+    slug: "pets",
+    icon: PawPrint,
+    img: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&h=450&fit=crop",
   },
   {
     label: "Other",

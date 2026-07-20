@@ -33,6 +33,7 @@ export const UNIFIED_CATEGORIES = [
   { id: 'VEHICLES_TRANSPORT',   name: 'Vehicles & Trailers',      slug: 'vehicles-transport' },
   { id: 'TOYS_GAMES',           name: 'Toys & Games',             slug: 'toys-games' },
   { id: 'LOCAL_DESIGN_CRAFTS',  name: 'Local Design & Art',       slug: 'local-design-crafts' },
+  { id: 'PETS',                 name: 'Pets',                     slug: 'pets' },
   { id: 'OTHER',                name: 'Other',                    slug: 'other' },
 ] as const;
 
