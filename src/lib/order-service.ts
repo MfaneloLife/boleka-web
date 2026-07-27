@@ -318,6 +318,152 @@ export class OrderService {
     return result.count;
   }
 
+  /**
+   * Initiate a cash payment request. Creates a pending Payment record and
+   * sets the Request to CASH_PAYMENT_PENDING. The buyer then generates a QR
+   * code and shows it to the vendor, who scans it to confirm cash received.
+   */
+  static async initiateCashPayment(requestId: string, userId: string, amount: number): Promise<{ paymentId: string }> {
+    const requestRecord = await prisma.request.findUnique({
+      where: { id: requestId },
+      include: { item: true },
+    });
+
+    if (!requestRecord) throw new Error('Request not found');
+    if (requestRecord.requesterId !== userId) throw new Error('Only the buyer can initiate cash payment');
+
+    const result = await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
+        data: {
+          requestId: requestRecord.id,
+          payerId: userId,
+          amount: Number(amount),
+          status: 'PENDING',
+          method: 'CASH',
+        },
+      });
+
+      await tx.request.update({
+        where: { id: requestId },
+        data: { status: 'CASH_PAYMENT_PENDING' },
+      });
+
+      return { payment };
+    });
+
+    return { paymentId: result.payment.id };
+  }
+
+  /**
+   * Generate a cash payment confirmation QR code for the buyer to show
+   * to the vendor. The vendor scans this QR to confirm cash receipt.
+   */
+  static async generateCashPaymentQR(requestId: string, userId: string): Promise<{ qrData: string; expiresAt: Date }> {
+    const requestRecord = await prisma.request.findUnique({ where: { id: requestId } });
+    if (!requestRecord) throw new Error('Request not found');
+    if (requestRecord.requesterId !== userId) throw new Error('Unauthorized: Only the buyer can generate this QR');
+    if (requestRecord.status !== 'CASH_PAYMENT_PENDING') throw new Error('Request must be in CASH_PAYMENT_PENDING status');
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 120 * 1000); // 120 seconds
+
+    const qrData = JSON.stringify({
+      action: 'cash_payment_confirm',
+      requestId,
+      amount: requestRecord.totalPrice,
+      buyerId: userId,
+      ownerId: requestRecord.ownerId,
+      itemId: requestRecord.itemId,
+      timestamp: now.getTime(),
+      expiresAt: expiresAt.getTime(),
+    });
+
+    return { qrData, expiresAt };
+  }
+
+  /**
+   * Vendor scans the buyer's cash payment QR code to confirm cash received.
+   * This marks the Payment as PAID, Request as PAID, creates a Booking,
+   * and decrements item quantity.
+   */
+  static async confirmCashPaymentWithQR(qrCode: string, scannerId: string): Promise<{ requestId: string; bookingId: string; paymentId: string }> {
+    let qrData: any;
+    try { qrData = JSON.parse(qrCode); } catch { throw new Error('Invalid QR code format'); }
+
+    if (qrData.action !== 'cash_payment_confirm') throw new Error('This is not a cash payment confirmation QR code');
+    if (!qrData.requestId) throw new Error('Invalid QR code: missing requestId');
+
+    // Check expiry
+    if (qrData.expiresAt && Date.now() > qrData.expiresAt) throw new Error('Cash payment QR code has expired');
+
+    const requestRecord = await prisma.request.findUnique({
+      where: { id: qrData.requestId },
+      include: { item: true },
+    });
+
+    if (!requestRecord) throw new Error('Request not found');
+    if (requestRecord.ownerId !== scannerId) throw new Error('Unauthorized: Only the item owner can confirm cash payment');
+    if (requestRecord.status !== 'CASH_PAYMENT_PENDING') throw new Error('Request is not in CASH_PAYMENT_PENDING status');
+
+    const amount = requestRecord.totalPrice || 0;
+    const now = new Date();
+    const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Mark the pending payment as PAID
+      const pendingPayment = await tx.payment.findFirst({
+        where: { requestId: qrData.requestId, status: 'PENDING', method: 'CASH' },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!pendingPayment) throw new Error('No pending cash payment found for this request');
+
+      const payment = await tx.payment.update({
+        where: { id: pendingPayment.id },
+        data: { status: 'PAID' },
+      });
+
+      // Update Request status to PAID
+      await tx.request.update({
+        where: { id: qrData.requestId },
+        data: { status: 'PAID' },
+      });
+
+      // Create a Booking record for the return flow
+      const booking = await tx.booking.create({
+        data: {
+          userId: requestRecord.requesterId,
+          itemId: requestRecord.itemId,
+          status: 'COMPLETED',
+          startDate: now,
+          endDate,
+          totalPrice: amount,
+          platformFee: 0,
+          platformCommission: 0,
+          vendorPayoutAmount: amount,
+          returnStatus: 'NOT_RETURNED',
+          notes: `Cash payment for request #${requestRecord.id.slice(-8)} | Confirmed via QR by vendor at ${now.toISOString()}`,
+        },
+      });
+
+      // Decrement item quantity
+      if (requestRecord.item && requestRecord.item.quantity > 0) {
+        await tx.item.update({
+          where: { id: requestRecord.item.id },
+          data: { quantity: { decrement: 1 } },
+        });
+      }
+
+      return { booking, payment };
+    });
+
+    return {
+      requestId: requestRecord.id,
+      bookingId: result.booking.id,
+      paymentId: result.payment.id,
+    };
+  }
+
   private static bookingToOrder(booking: any): Order {
     return {
       id: booking.id, userId: booking.userId, userName: booking.user?.name || '',

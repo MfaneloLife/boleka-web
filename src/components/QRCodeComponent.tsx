@@ -167,6 +167,25 @@ const QRCodeComponent: React.FC<QRCodeComponentProps> = ({ order, onOrderComplet
     );
   }
 
+  // 🚫 CASH_PAYMENT_PENDING: QR code generated via PaymentFlow directly
+  if (order.status === OrderStatus.CASH_PAYMENT_PENDING) {
+    return (
+      <div className="bg-purple-50 border border-purple-200 rounded-md p-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <ClockIcon className="h-5 w-5 text-purple-400" />
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-purple-800">Cash Payment Pending</h3>
+            <div className="mt-2 text-sm text-purple-700">
+              <p>Use the <strong>Payment</strong> section above to generate a QR code for the vendor.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // 🚫 Not in PAYMENT_RECEIVED state
   if (order.status !== OrderStatus.PAYMENT_RECEIVED) {
     return (

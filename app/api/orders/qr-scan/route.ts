@@ -28,6 +28,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid QR code format' }, { status: 400 });
     }
 
+    // Cash payment confirmation QR codes use requestId instead of orderId
+    if (qrData.action === 'cash_payment_confirm') {
+      if (!qrData.requestId) {
+        return NextResponse.json({ error: 'Invalid QR code: missing requestId' }, { status: 400 });
+      }
+      const result = await OrderService.confirmCashPaymentWithQR(qrCode, userId);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Cash payment confirmed. Booking created and item quantity decremented.',
+        requestId: result.requestId,
+        bookingId: result.bookingId,
+        paymentId: result.paymentId,
+        action: 'cash_payment_confirm'
+      });
+    }
+
     if (!qrData.orderId) {
       return NextResponse.json({ error: 'Invalid QR code: missing orderId' }, { status: 400 });
     }

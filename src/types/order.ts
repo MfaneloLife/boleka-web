@@ -2,6 +2,7 @@ export enum OrderStatus {
   AWAITING_APPROVAL = 'awaiting_approval',
   AWAITING_PAYMENT = 'awaiting_payment', 
   CASH_PAYMENT = 'cash_payment',
+  CASH_PAYMENT_PENDING = 'cash_payment_pending',
   PAYMENT_RECEIVED = 'payment_received',
   FROZEN = 'frozen',
   COMPLETED = 'completed',
@@ -141,6 +142,8 @@ export function getOrderStatusDisplay(status: OrderStatus): string {
       return 'Awaiting Payment';
     case OrderStatus.CASH_PAYMENT:
       return 'Cash Payment';
+    case OrderStatus.CASH_PAYMENT_PENDING:
+      return 'Cash Payment Pending';
     case OrderStatus.PAYMENT_RECEIVED:
       return 'Payment Received';
     case OrderStatus.COMPLETED:
@@ -162,6 +165,8 @@ export function getNextPossibleStatuses(currentStatus: OrderStatus): OrderStatus
     case OrderStatus.AWAITING_PAYMENT:
       return [OrderStatus.PAYMENT_RECEIVED, OrderStatus.CANCELLED];
     case OrderStatus.CASH_PAYMENT:
+      return [OrderStatus.PAYMENT_RECEIVED, OrderStatus.CANCELLED];
+    case OrderStatus.CASH_PAYMENT_PENDING:
       return [OrderStatus.PAYMENT_RECEIVED, OrderStatus.CANCELLED];
     case OrderStatus.PAYMENT_RECEIVED:
       return [OrderStatus.COMPLETED];

@@ -93,6 +93,9 @@ model Item {
   allowDelivery   Boolean @default(true)
   deliveryFee     Float   @default(0)
 
+  // Legacy column still in DB
+  tags        String[] @default([])
+
   // Status
   isActive    Boolean  @default(true)
   userId      String
@@ -322,6 +325,12 @@ model Request {
   startDate   DateTime?
   endDate     DateTime?
   totalPrice  Float?
+
+  // Legacy columns still in DB
+  finalValue    Float?
+  paymentMethod String?
+  returnStatus  String?
+
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -336,6 +345,7 @@ model Request {
   @@index([ownerId])
 }
 
+// Includes legacy enum values still in the DB
 enum RequestStatus {
   PENDING
   ACCEPTED
@@ -343,6 +353,9 @@ enum RequestStatus {
   COMPLETED
   PAID
   CANCELLED
+  CASH_PAYMENT_PENDING
+  NEGOTIATING
+  SUCCESSFUL
 }
 
 model Message {
@@ -375,6 +388,31 @@ model Payment {
 
   @@index([requestId])
   @@index([payerId])
+}
+
+// Legacy tables still in DB
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model BankAccount {

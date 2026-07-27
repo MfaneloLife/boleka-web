@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Order, OrderStatus, PaymentMethod } from '../types/order';
 import { OrderService } from '../lib/order-service';
-import { CreditCardIcon, BanknotesIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { CreditCardIcon, BanknotesIcon, ClockIcon, CheckCircleIcon, QrCodeIcon, ArrowPathIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number): string => {
@@ -17,12 +18,17 @@ interface PaymentFlowProps {
 const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) => {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(order.paymentMethod);
-  const [showPayFastForm, setShowPayFastForm] = useState(false);
+  const [paymentMethod] = useState<PaymentMethod>(order.paymentMethod);
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletChecking, setWalletChecking] = useState(true);
   const [walletAvailable, setWalletAvailable] = useState<number | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Cash payment QR flow state
+  const [cashStep, setCashStep] = useState<'initiate' | 'qr' | 'complete'>('initiate');
+  const [cashQR, setCashQR] = useState<{ qrData: string; qrImage: string } | null>(null);
+  const [cashQRTime, setCashQRTime] = useState<number>(0);
 
   // Fetch wallet summary to know if we can offer wallet payment
   useEffect(() => {
@@ -124,27 +130,92 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
     }
   };
 
-  const handleCashPayment = async () => {
+  /**
+   * Initiate cash payment (creates pending record, does NOT mark as PAID).
+   * After initiation, the buyer generates a QR code and shows it to the vendor
+   * who scans it to confirm cash receipt.
+   */
+  const handleCashPaymentInitiate = async () => {
     try {
       setLoading(true);
-      // Call server to record cash payment and mark order as payment received
+      setError(null);
       const res = await fetch('/api/payment/cash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id }),
+        body: JSON.stringify({ requestId: order.id, amount: order.totalAmount }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to confirm cash payment');
+        throw new Error(data.error || 'Failed to initiate cash payment');
       }
-      onPaymentComplete();
-      
-    } catch (error) {
-      console.error('Error confirming cash payment:', error);
-      alert('Failed to confirm cash payment. Please try again.');
+      setCashStep('qr');
+    } catch (err) {
+      console.error('Error initiating cash payment:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate cash payment. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * Generate the cash payment confirmation QR code for the buyer.
+   */
+  const handleGenerateCashQR = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch('/api/payment/cash/generate-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: order.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate QR code');
+      }
+      const data = await res.json();
+
+      // Generate QR code image
+      let qrImage = '';
+      try {
+        const QRCodeLib = await import('qrcode');
+        qrImage = await QRCodeLib.toDataURL(data.qrData, {
+          width: 256,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' }
+        });
+      } catch (e) {
+        console.error('QR image generation error:', e);
+      }
+
+      setCashQR({ qrData: data.qrData, qrImage });
+      setCashQRTime(120);
+    } catch (err) {
+      console.error('Error generating cash payment QR:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate QR code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Countdown timer for cash QR code
+  useEffect(() => {
+    if (cashQRTime <= 0) return;
+    const interval = setInterval(() => {
+      setCashQRTime(prev => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cashQRTime]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getPaymentDueStatus = () => {
@@ -165,6 +236,153 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
   };
 
   const paymentDueStatus = getPaymentDueStatus();
+
+  // Show CASH_PAYMENT_PENDING status section
+  if (order.status === OrderStatus.CASH_PAYMENT_PENDING) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-purple-50 border border-purple-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <BanknotesIcon className="h-5 w-5 text-purple-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-purple-800">
+                Cash Payment Pending
+              </h3>
+              <div className="mt-2 text-sm text-purple-700">
+                <p>Generate a QR code and show it to the vendor when you meet in person.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* QR Code Generation Section */}
+        <div className="bg-white border border-gray-200 rounded-md p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+            <QrCodeIcon className="h-5 w-5 mr-2 text-purple-600" />
+            Cash Payment QR Code
+          </h3>
+
+          {!cashQR ? (
+            <div className="text-center">
+              <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
+                <QrCodeIcon className="mx-auto h-20 w-20 text-gray-300 mb-4" />
+                <p className="text-sm text-gray-600 mb-4">
+                  Generate a QR code to show the vendor after paying cash.
+                  The QR code will expire after <strong>120 seconds</strong> for security.
+                </p>
+              </div>
+              <button
+                onClick={handleGenerateCashQR}
+                disabled={loading}
+                className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-colors"
+              >
+                {loading ? (
+                  <>
+                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <QrCodeIcon className="h-5 w-5 mr-2" />
+                    Generate QR Code
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="text-center">
+              {/* QR Code Image */}
+              <div className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-4 inline-block shadow-sm">
+                {cashQR.qrImage ? (
+                  <Image
+                    src={cashQR.qrImage}
+                    alt="Cash Payment QR Code"
+                    width={256}
+                    height={256}
+                    className="rounded-lg"
+                    priority
+                  />
+                ) : (
+                  <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="text-xs font-mono break-all bg-gray-200 p-4 rounded max-w-[240px] max-h-[240px] overflow-hidden">
+                      {cashQR.qrData}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Timer */}
+              <div className="flex items-center justify-center mb-3">
+                <ClockIcon className={`h-5 w-5 mr-2 ${cashQRTime <= 30 ? 'text-red-500' : 'text-orange-500'}`} />
+                <span className={`text-lg font-bold ${cashQRTime <= 30 ? 'text-red-600' : 'text-orange-600'}`}>
+                  {formatTime(cashQRTime)}
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full max-w-xs mx-auto bg-gray-200 rounded-full h-2 mb-4">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-1000 ${
+                    cashQRTime <= 30 ? 'bg-red-500' : cashQRTime <= 60 ? 'bg-orange-500' : 'bg-purple-500'
+                  }`}
+                  style={{ width: `${(cashQRTime / 120) * 100}%` }}
+                />
+              </div>
+
+              <p className="text-sm text-gray-600 mb-4">
+                Show this QR code to the vendor after paying cash.
+                The vendor will scan it to confirm your payment.
+                {cashQRTime <= 30 && (
+                  <span className="text-red-600 font-medium block mt-1">
+                    QR code is about to expire!
+                  </span>
+                )}
+              </p>
+
+              <button
+                onClick={handleGenerateCashQR}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-colors"
+              >
+                <ArrowPathIcon className="h-4 w-4 mr-2" />
+                Generate New Code
+              </button>
+
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  <strong>Instructions:</strong>
+                  <br />1. Meet the vendor in person
+                  <br />2. Pay the cash amount: <strong>{formatCurrency(order.totalAmount)}</strong>
+                  <br />3. Show this QR code to the vendor
+                  <br />4. Vendor scans it to confirm receipt
+                  <br />5. Your order will be marked as completed
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <XCircleIcon className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (order.status === OrderStatus.PAYMENT_RECEIVED) {
     return (
@@ -298,25 +516,37 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ order, onPaymentComplete }) =
         {order.paymentMethod === PaymentMethod.CASH ? (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Please confirm that you understand you will pay {formatCurrency(order.totalAmount)} in cash when collecting your items.
+              By clicking below, you confirm you intend to pay {formatCurrency(order.totalAmount)} in cash.
+              You will generate a QR code to show to the vendor when you meet in person.
+              The vendor will scan your QR to confirm they received the cash.
             </p>
             <button
-              onClick={handleCashPayment}
+              onClick={handleCashPaymentInitiate}
               disabled={loading}
               className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
             >
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Confirming...
+                  Initiating...
                 </>
               ) : (
                 <>
                   <BanknotesIcon className="h-5 w-5 mr-2" />
-                  Confirm Cash Payment
+                  Initiate Cash Payment
                 </>
               )}
             </button>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <div className="flex">
+                  <XCircleIcon className="h-5 w-5 text-red-400 flex-shrink-0" />
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

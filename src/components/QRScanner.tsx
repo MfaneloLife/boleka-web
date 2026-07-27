@@ -28,16 +28,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onOrderComplete, className = '' }
       } catch {
         setResult({
           success: false,
-          message: 'Invalid QR code format. Please scan a valid order QR code.'
-        });
-        return;
-      }
-
-      // Validate QR code structure
-      if (!qrData.orderId || !qrData.userId) {
-        setResult({
-          success: false,
-          message: 'Invalid QR code structure. Missing required fields.'
+          message: 'Invalid QR code format. Please scan a valid QR code.'
         });
         return;
       }
@@ -51,7 +42,27 @@ const QRScanner: React.FC<QRScannerProps> = ({ onOrderComplete, className = '' }
         return;
       }
 
-      // Complete the order via API
+      // Check if this is a cash payment confirmation QR code
+      if (qrData.action === 'cash_payment_confirm') {
+        if (!qrData.requestId) {
+          setResult({
+            success: false,
+            message: 'Invalid cash payment QR code. Missing request ID.'
+          });
+          return;
+        }
+      } else {
+        // Validate standard order QR code structure
+        if (!qrData.orderId || !qrData.userId) {
+          setResult({
+            success: false,
+            message: 'Invalid QR code structure. Missing required fields.'
+          });
+          return;
+        }
+      }
+
+      // Process via unified QR scan API
       const res = await fetch('/api/orders/qr-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,17 +72,31 @@ const QRScanner: React.FC<QRScannerProps> = ({ onOrderComplete, className = '' }
       const scanResult = await res.json();
 
       if (!res.ok) {
-        throw new Error(scanResult.error || 'Failed to complete order');
+        throw new Error(scanResult.error || 'Failed to process QR code');
       }
 
-      setResult({
-        success: true,
-        message: `Order #${qrData.orderId.slice(-8)} completed successfully! Payout: 95% vendor / 5% platform.`,
-        orderId: qrData.orderId
-      });
+      if (qrData.action === 'cash_payment_confirm') {
+        setResult({
+          success: true,
+          message: `Cash payment confirmed! Amount: R${qrData.amount?.toFixed(2) || 'N/A'}. Booking created and item quantity updated.`,
+          orderId: scanResult.requestId
+        });
+      } else if (qrData.action === 'return') {
+        setResult({
+          success: true,
+          message: `Item returned successfully via QR scan.`,
+          orderId: qrData.orderId
+        });
+      } else {
+        setResult({
+          success: true,
+          message: `Order #${qrData.orderId.slice(-8)} completed successfully! Payout: 95% vendor / 5% platform.`,
+          orderId: qrData.orderId
+        });
+      }
 
       if (onOrderComplete) {
-        onOrderComplete(qrData.orderId);
+        onOrderComplete(qrData.orderId || scanResult.requestId || scanResult.orderId);
       }
 
     } catch (error) {
@@ -122,7 +147,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onOrderComplete, className = '' }
           <QrCodeIcon className="mx-auto h-12 w-12 text-blue-600 mb-2" />
           <h3 className="text-lg font-medium text-gray-900">QR Code Scanner</h3>
           <p className="text-sm text-gray-600">
-            Scan customer QR codes to complete orders and release payouts
+            Scan customer QR codes to complete orders, confirm cash payments, and release payouts
           </p>
         </div>
 
@@ -180,7 +205,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onOrderComplete, className = '' }
                 <h3 className={`text-sm font-medium ${
                   result.success ? 'text-green-800' : 'text-red-800'
                 }`}>
-                  {result.success ? 'Order Completed!' : 'Error'}
+                  {result.success ? 'Success!' : 'Error'}
                 </h3>
                 <div className={`mt-2 text-sm ${
                   result.success ? 'text-green-700' : 'text-red-700'
@@ -200,6 +225,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onOrderComplete, className = '' }
             <br />• Scanning completes the order and triggers the payout split
             <br />• <strong>Vendor receives 95%</strong> of the payment amount
             <br />• <strong>Platform receives 5%</strong> commission fee
+            <br />• For cash payments: scan the buyer's QR to confirm receipt
             <br />• If expired, ask the customer to generate a new QR code
           </p>
         </div>
