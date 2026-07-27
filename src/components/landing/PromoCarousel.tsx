@@ -12,7 +12,7 @@ interface Slide {
 const slides: Slide[] = [
   {
     image:
-      "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&q=80&auto=format&fit=crop",
+      "/images/home-garden-tools.jpg",
     title: "Home & Garden Tools",
     subtitle: "Rent drills, mowers, ladders & more",
   },

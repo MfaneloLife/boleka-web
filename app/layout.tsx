@@ -8,6 +8,7 @@ import "./globals.css";
 import Providers from "@/src/components/Providers";
 import ErrorBoundary from "@/src/components/ErrorBoundary";
 import PWAInit from "@/src/components/PWAInit";
+import JsonLdOrganization from "@/src/components/JsonLdOrganization";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -89,6 +90,8 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* JSON-LD structured data for Google Knowledge Graph & rich results */}
+        <JsonLdOrganization />
         <ErrorBoundary>
           {/* Client-side providers (Clerk) */}
           <Providers>{children}</Providers>

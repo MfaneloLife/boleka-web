@@ -55,7 +55,6 @@ model User {
 
   // Relationships
   items     Item[]
-  bookings  Booking[]
   reviews   Review[]
   rentalAgreements RentalAgreement[]
   rewards   UserRewards?
@@ -65,6 +64,9 @@ model User {
   paymentsMade    Payment[]    @relation("PayerPayments")
   favourites      Favourite[]
   bankAccounts    BankAccount[]
+  wallet          Wallet?
+  payouts         Payout[]
+  notifications   Notification[]
 }
 
 // Item model with delivery logic
@@ -74,6 +76,9 @@ model Item {
   description String?
   category    String
   condition   String
+
+  // Search tags (comma-separated keywords stored as a single string for SQLite/PostgreSQL compatibility)
+  tags        String   @default("")
 
   // New fields as per requirements
   quantity    Int      @default(1)
@@ -93,9 +98,6 @@ model Item {
   allowDelivery   Boolean @default(true)
   deliveryFee     Float   @default(0)
 
-  // Legacy column still in DB
-  tags        String[] @default([])
-
   // Status
   isActive    Boolean  @default(true)
   userId      String
@@ -105,7 +107,6 @@ model Item {
 
   // Relationships
   user        User     @relation(fields: [userId], references: [id])
-  bookings    Booking[]
   reviews     Review[]
   rentalAgreements RentalAgreement[]
   images      ItemImage[]
@@ -155,66 +156,6 @@ model ItemImage {
 
   @@unique([itemId, order]) // Ensure unique order per item
   @@index([itemId])
-}
-
-// Booking model with status enum
-model Booking {
-  id        String   @id @default(cuid())
-
-  // Booking details
-  userId    String
-  itemId    String
-
-  // Status field with enum as per requirements
-  status    BookingStatus @default(PENDING)
-
-  // Rental/Purchase period
-  startDate DateTime
-  endDate   DateTime?
-
-  // Financial details
-  totalPrice Float
-  platformFee Float @default(0)
-  deliveryFee Float @default(0)
-
-  // Payout split tracking (5% platform commission)
-  platformCommission Float @default(0)
-  vendorPayoutAmount Float @default(0)
-  commissionPaid     Boolean @default(false)
-
-  // Delivery/Collection preferences
-  deliveryMethod String? // 'collection' | 'delivery'
-
-  // QR Code for completion/payout release
-  qrCode         String?   @db.Text
-  qrCodeExpiresAt DateTime?
-  qrCodeScannedAt DateTime?
-
-  // Return tracking for rentals
-  returnStatus String @default("NOT_RETURNED") // 'NOT_RETURNED', 'RETURNED'
-  returnedAt   DateTime?
-
-  // Additional details
-  notes     String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id])
-  item      Item     @relation(fields: [itemId], references: [id])
-
-  @@index([userId])
-  @@index([itemId])
-}
-
-// Booking status enum as per requirements
-enum BookingStatus {
-  PENDING
-  PAID
-  FROZEN
-  COMPLETED
-  CANCELLED
 }
 
 // Review model
@@ -317,22 +258,27 @@ model UserRewards {
 }
 
 model Request {
-  id          String        @id @default(cuid())
-  itemId      String
-  requesterId String
-  ownerId     String
-  status      RequestStatus @default(PENDING)
-  startDate   DateTime?
-  endDate     DateTime?
-  totalPrice  Float?
-
-  // Legacy columns still in DB
+  id            String         @id @default(cuid())
+  itemId        String
+  requesterId   String
+  ownerId       String
+  status        RequestStatus  @default(PENDING)
+  startDate     DateTime?
+  endDate       DateTime?
+  totalPrice    Float?
   finalValue    Float?
-  paymentMethod String?
-  returnStatus  String?
+  paymentMethod PaymentMethod?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  // QR Code for completion — renter generates, vendor scans
+  qrCode         String?   @db.Text
+  qrCodeExpiresAt DateTime?
+  qrCodeScannedAt DateTime?
+
+  // Return tracking for rentals
+  returnStatus String @default("NOT_RETURNED") // 'NOT_RETURNED', 'RETURNED'
+  returnedAt   DateTime?
 
   item      Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
   requester User    @relation("RequesterRequests", fields: [requesterId], references: [id], onDelete: Cascade)
@@ -348,14 +294,20 @@ model Request {
 // Includes legacy enum values still in the DB
 enum RequestStatus {
   PENDING
+  NEGOTIATING
   ACCEPTED
   REJECTED
   COMPLETED
   PAID
   CANCELLED
   CASH_PAYMENT_PENDING
-  NEGOTIATING
   SUCCESSFUL
+}
+
+enum PaymentMethod {
+  CASH
+  EFT
+  ONLINE
 }
 
 model Message {
@@ -371,6 +323,22 @@ model Message {
 
   @@index([requestId])
   @@index([senderId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  relatedId String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
 }
 
 model Payment {
@@ -390,31 +358,6 @@ model Payment {
   @@index([payerId])
 }
 
-// Legacy tables still in DB
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String
-  title     String
-  message   String
-  data      Json?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-model Wallet {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  balance   Float    @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-
-  @@index([userId])
-}
-
 model BankAccount {
   id             String   @id @default(cuid())
   userId         String
@@ -430,4 +373,75 @@ model BankAccount {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ============================================================================
+// Wallet & Payout Models — Boleka peer-to-peer escrow payout engine
+// ============================================================================
+
+enum WalletPayoutStatus {
+  AVAILABLE
+  PROCESSING
+  SETTLED
+}
+
+model Wallet {
+  id               String              @id @default(cuid())
+  userId           String              @unique
+
+  // Balances (all in ZAR)
+  availableBalance Float               @default(0)
+  pendingBalance   Float               @default(0)
+  totalSales       Float               @default(0)
+  paidOut          Float               @default(0)
+
+  // Anti-fraud state machine flag
+  payoutStatus     WalletPayoutStatus  @default(AVAILABLE)
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payouts          Payout[]
+
+  @@index([userId])
+  @@index([payoutStatus])
+}
+
+model Payout {
+  id               String   @id @default(cuid())
+  walletId         String
+  userId           String
+
+  // Gross amount requested (before network fee)
+  grossAmount      Float
+  // R8.70 flat network fee deducted from availableBalance
+  networkFee       Float    @default(8.70)
+  // Net amount actually sent to the bank account
+  netAmount        Float
+
+  // Bank routing snapshot at time of payout
+  bankName         String
+  accountHolder    String
+  accountNumber    String
+  branchCode       String
+  accountType      String
+
+  // Payfast transaction reference (returned by Payout API)
+  payfastReference String?
+  // Internal state: PROCESSING → SETTLED | FAILED
+  status           String   @default("PROCESSING")
+
+  // Error payload for manual review when a payout fails
+  errorMessage     String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  wallet           Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([status])
 }

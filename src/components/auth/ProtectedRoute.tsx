@@ -14,7 +14,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     setIsClient(true);
     
     if (isLoaded && !isSignedIn) {
-      router.push('/auth/login');
+      const intendedUrl = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`);
     }
   }, [isLoaded, isSignedIn, router]);
 

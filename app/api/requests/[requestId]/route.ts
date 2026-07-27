@@ -23,6 +23,15 @@ function isValidStatusTransition(
     if (currentStatus === 'COMPLETED' && newStatus === 'PAID') {
       return true;
     }
+    if (currentStatus === 'PENDING' && newStatus === 'NEGOTIATING') {
+      return true;
+    }
+    if (currentStatus === 'ACCEPTED' && newStatus === 'NEGOTIATING') {
+      return true;
+    }
+    if (currentStatus === 'NEGOTIATING' && newStatus === 'SUCCESSFUL') {
+      return true;
+    }
   }
 
   if (isRequester) {

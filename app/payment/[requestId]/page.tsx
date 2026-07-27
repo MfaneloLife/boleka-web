@@ -29,7 +29,8 @@ export default function PaymentPage({ params }: { params: { requestId: string } 
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
-      router.push('/auth/login');
+      const intendedUrl = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`);
       return;
     }
 

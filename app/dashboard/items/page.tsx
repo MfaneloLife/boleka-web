@@ -178,6 +178,11 @@ export default function MyShopPage() {
       return;
     }
 
+    if (formData.itemType === 'BOTH' && !formData.rentalPrice) {
+      setFormError('Both selling price and rental price are required for "Both" listings.');
+      return;
+    }
+
     setUploading(true);
     try {
       let imageUrls: string[] = [...uploadedUrls];
@@ -201,8 +206,12 @@ export default function MyShopPage() {
         images: imageUrls,
       };
 
-      if (formData.itemType !== 'SELLING' && formData.rentalPrice) {
-        payload.rentalPrice = parseFloat(formData.rentalPrice);
+      if (formData.itemType === 'BOTH' || formData.itemType === 'RENTING') {
+        if (formData.itemType === 'BOTH') {
+          payload.rentalPrice = parseFloat(formData.rentalPrice);
+        } else if (formData.rentalPrice) {
+          payload.rentalPrice = parseFloat(formData.rentalPrice);
+        }
       }
 
       const res = await fetch('/api/items', {
@@ -347,7 +356,7 @@ export default function MyShopPage() {
           {/* Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-semibold text-gray-700">Title *</label>
+              <label className="text-sm font-semibold text-gray-700">Title <span className="text-red-500">*</span></label>
               <input value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="e.g. DSLR Camera" />
             </div>
             <div>
@@ -359,24 +368,27 @@ export default function MyShopPage() {
                   ))
                 ) : (
                   <>
-                    <option value="electronics">Electronics</option>
-                    <option value="home">Home & Garden</option>
-                    <option value="fashion">Fashion</option>
-                    <option value="sports">Sports & Leisure</option>
-                    <option value="vehicles">Vehicles</option>
-                    <option value="beauty">Beauty</option>
-                    <option value="event-catering">Event & Catering</option>
-                    <option value="sport-kit">Sport Kit</option>
-                    <option value="other">Other</option>
+                    <option value="ELECTRONICS_TECH">Electronics & Technology</option>
+                    <option value="HOME_GARDEN">Home & Garden Tools</option>
+                    <option value="EVENTS_CATERING">Events & Catering</option>
+                    <option value="SPORTS_LEISURE">Sports & Fitness Kit</option>
+                    <option value="CAMPING_OUTDOOR">Camping & Outdoor</option>
+                    <option value="BOOKS_MEDIA">Books & Media</option>
+                    <option value="CLOTHING_FASHION">Fashion & Beauty</option>
+                    <option value="VEHICLES_TRANSPORT">Vehicles & Trailers</option>
+                    <option value="TOYS_GAMES">Toys & Games</option>
+                    <option value="LOCAL_DESIGN_CRAFTS">Local Design & Art</option>
+                    <option value="PETS">Pets</option>
+                    <option value="OTHER">Other</option>
                   </>
                 )}
               </select>
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-700">
-                Price {formData.itemType === 'SELLING' ? '(R)' : '(R/day)'} *
+                {formData.itemType === 'SELLING' ? 'Price (R)' : formData.itemType === 'BOTH' ? 'Selling Price (R)' : 'Rental price (R/day)'} <span className="text-red-500">*</span>
               </label>
-              <input type="number" step="0.01" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="150" />
+              <input type="number" step="0.01" value={formData.price} onChange={e => setFormData(p => ({ ...p, price: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="0" />
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-700">Condition</label>
@@ -391,10 +403,10 @@ export default function MyShopPage() {
               <label className="text-sm font-semibold text-gray-700">Quantity</label>
               <input type="number" min="1" value={formData.quantity} onChange={e => setFormData(p => ({ ...p, quantity: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="1" />
             </div>
-            {formData.itemType !== 'SELLING' && (
+            {formData.itemType === 'BOTH' && (
               <div>
-                <label className="text-sm font-semibold text-gray-700">Rental price (R/day)</label>
-                <input type="number" step="0.01" value={formData.rentalPrice} onChange={e => setFormData(p => ({ ...p, rentalPrice: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="Separate rental rate (optional)" />
+                <label className="text-sm font-semibold text-gray-700">Rental price (R/day) <span className="text-red-500">*</span></label>
+                <input type="number" step="0.01" value={formData.rentalPrice} onChange={e => setFormData(p => ({ ...p, rentalPrice: e.target.value }))} className="w-full mt-1.5 px-4 py-2.5 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl placeholder:text-gray-400 focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors" placeholder="0" />
               </div>
             )}
           </div>

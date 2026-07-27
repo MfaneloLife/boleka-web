@@ -2,63 +2,102 @@
 
 import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect_url") ?? "/";
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-xl font-semibold tracking-tight text-slate-900">BOLEKA</Link>
-          </div>
+    <div className="flex min-h-dvh flex-col bg-slate-50">
+      {/* Minimal top bar */}
+      <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-xl items-center justify-between">
+          <Link href="/" className="text-lg font-bold tracking-tight text-slate-900">
+            BOLEKA
+          </Link>
           <Link
-            href="/auth/signup"
-            className="rounded-full border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 shadow-sm transition hover:bg-orange-50"
+            href={`/auth/signup${redirectUrl !== "/" ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ""}`}
+            className="rounded-full border border-orange-300 bg-white px-3 py-1.5 text-sm font-medium text-orange-600 shadow-sm transition hover:bg-orange-50"
           >
             Sign Up
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-        <section className="mb-8 rounded-3xl bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-3">
-              <p className="text-sm uppercase tracking-[0.2em] text-orange-500">Discover</p>
-              <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-                One account. All the features.
-              </h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                Sign in with Clerk to unlock renting, listing, chat, payments and vendor return terms in one shared account.
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:items-end">
-              <span className="rounded-full bg-orange-100 px-4 py-2 text-sm font-medium text-orange-700">
-                Mobile friendly UI
-              </span>
-              <span className="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700">
-                Secure payments via PayFast
-              </span>
-            </div>
+      {/* Centered card region */}
+      <main className="flex flex-1 items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          {/* Brand heading */}
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+            <p className="mt-1 text-sm text-slate-500">Sign in to your Boleka account</p>
           </div>
-        </section>
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Sign in to your account</h2>
-              <p className="text-sm text-slate-500">Use your existing account or create one with Clerk.</p>
-            </div>
-            <Link href="/" className="text-sm font-medium text-orange-600 hover:text-orange-700">
-              Back to home
+          {/* Clerk card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <SignIn
+              path="/auth/login"
+              routing="path"
+              signUpUrl={`/auth/signup${redirectUrl !== "/" ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ""}`}
+              forceRedirectUrl={redirectUrl}
+              appearance={{
+                variables: {
+                  colorPrimary: "#f97316",
+                  colorText: "#1e293b",
+                  colorTextSecondary: "#64748b",
+                  colorBackground: "#ffffff",
+                  colorInputBackground: "#f8fafc",
+                  colorBorder: "#e2e8f0",
+                  colorInputText: "#1e293b",
+                  borderRadius: "0.75rem",
+                  fontFamily: "inherit",
+                },
+                elements: {
+                  card: "shadow-none border-0 p-0",
+                  headerTitle: "text-slate-900",
+                  headerSubtitle: "text-slate-500",
+                  socialButtonsBlockButton: "rounded-xl border-slate-200 hover:bg-slate-50",
+                  socialButtonsBlockButtonText: "text-slate-700 font-medium",
+                  dividerLine: "bg-slate-200",
+                  dividerText: "text-slate-400",
+                  formFieldInput: "rounded-xl border-slate-200 focus:border-orange-400 focus:ring-orange-100",
+                  formButtonPrimary:
+                    "bg-orange-600 hover:bg-orange-700 rounded-xl text-sm font-semibold normal-case",
+                  footerActionLink: "text-orange-600 hover:text-orange-700 font-medium",
+                  identityPreviewEditButton: "text-orange-600",
+                },
+                layout: {
+                  socialButtonsPlacement: "top",
+                  socialButtonsVariant: "blockButton",
+                },
+              }}
+            />
+          </div>
+
+          <p className="mt-4 text-center text-xs text-slate-400">
+            By signing in, you agree to Boleka's{" "}
+            <Link href="/safety" className="text-orange-600 underline">
+              Terms & Safety
             </Link>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-8">
-            <SignIn path="/auth/login" routing="path" signUpUrl="/auth/signup" />
-          </div>
-        </section>
+          </p>
+        </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-dvh items-center justify-center bg-slate-50">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

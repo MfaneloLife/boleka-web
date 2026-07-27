@@ -17,7 +17,7 @@ export async function GET() {
       item: { include: { images: { orderBy: { order: 'asc' } } } },
       requester: { select: { id: true, name: true, image: true } },
       owner: { select: { id: true, name: true, image: true } },
-      messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      messages: { orderBy: { createdAt: 'desc' }, take: 1, include: { sender: { select: { id: true, name: true } } } },
       _count: { select: { messages: true } },
     },
   });
@@ -47,6 +47,7 @@ export async function GET() {
             content: conversation.messages[0].content,
             createdAt: conversation.messages[0].createdAt.toISOString(),
             senderId: conversation.messages[0].senderId,
+            senderName: conversation.messages[0].sender.name,
           }
         : null,
       messageCount: conversation._count.messages,

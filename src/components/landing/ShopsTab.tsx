@@ -146,9 +146,9 @@ export default function ShopsTab() {
         <h4 className="text-sm font-semibold text-gray-700 mb-3">Browse by category</h4>
         <div className="flex flex-wrap gap-2">
           {[
-            "Electronics", "Home & Garden", "Fashion", "Sports & Leisure",
-            "Vehicles", "Books & Media", "Events & Catering", "Tools & Equipment",
-            "Baby & Kids", "Local Design",
+            "Electronics & Technology", "Home & Garden Tools", "Fashion & Beauty", "Sports & Fitness Kit",
+            "Vehicles & Trailers", "Books & Media", "Events & Catering", "Camping & Outdoor",
+            "Toys & Games", "Local Design & Art",
           ].map((cat) => (
             <Link
               key={cat}

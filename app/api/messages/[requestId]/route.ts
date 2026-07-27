@@ -75,13 +75,15 @@ export async function GET(
     },
   });
 
-  return NextResponse.json({
+    return NextResponse.json({
     request: {
       id: requestRecord.id,
       item: {
         id: requestRecord.item.id,
         title: requestRecord.item.title,
         imageUrls: requestRecord.item.images.map((image) => image.url),
+        price: requestRecord.item.price,
+        userId: requestRecord.item.userId,
       },
       requester: {
         id: requestRecord.requester.id,
@@ -94,6 +96,11 @@ export async function GET(
         image: requestRecord.owner.image,
       },
       status: requestRecord.status,
+      totalPrice: requestRecord.totalPrice,
+      finalValue: requestRecord.finalValue,
+      paymentMethod: requestRecord.paymentMethod,
+      startDate: requestRecord.startDate?.toISOString() ?? null,
+      endDate: requestRecord.endDate?.toISOString() ?? null,
       updatedAt: requestRecord.updatedAt.toISOString(),
     },
     messages: messages.map((message) => ({
@@ -173,6 +180,26 @@ export async function POST(
       sender: { select: { id: true, name: true, image: true } },
     },
   });
+
+  // Create notification for the other party
+  const recipientId = userId === requestRecord.requesterId
+    ? requestRecord.ownerId
+    : requestRecord.requesterId;
+
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: recipientId,
+        type: 'MESSAGE_RECEIVED',
+        title: 'New message received',
+        message: content?.substring(0, 100) ?? 'Image sent',
+        relatedId: params.requestId,
+      },
+    });
+  } catch (notifErr) {
+    console.error('Failed to create notification:', notifErr);
+    // Don't fail the message send if notification creation fails
+  }
 
   return NextResponse.json({
     id: newMessage.id,
