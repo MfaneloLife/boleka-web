@@ -287,9 +287,17 @@ export default function ItemsGrid() {
                     </div>
                   )}
                   {/* Item type badge */}
-                  {item.itemType && item.itemType !== "SELLING" && (
-                    <div className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      {item.itemType === "RENTING" ? "Rent" : item.itemType === "BOTH" ? "Rent + Buy" : ""}
+                  {item.itemType && (
+                    <div
+                      className={`absolute top-2 left-2 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        item.itemType === "SELLING"
+                          ? "bg-green-600"
+                          : item.itemType === "RENTING"
+                            ? "bg-blue-600"
+                            : "bg-orange-500"
+                      }`}
+                    >
+                      {item.itemType === "SELLING" ? "Buy" : item.itemType === "RENTING" ? "Rent" : "Rent + Buy"}
                     </div>
                   )}
                   {/* Floating action buttons — top-right overlay */}
