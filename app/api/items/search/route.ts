@@ -23,6 +23,10 @@ function normalizeItem(item: any) {
     imageUrls,
     location: item.address || null,
     ownerId: item.userId || (item.user ? item.user.id : null),
+    itemType: item.itemType || null,
+    // For RENTING: price is the daily rate; for SELLING: price is the sale price;
+    // for BOTH: price is the sale price, rentalPrice is the daily rental rate.
+    rentalPrice: item.rentalPrice ?? null,
   };
 }
 

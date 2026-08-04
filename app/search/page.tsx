@@ -23,6 +23,7 @@ interface Item {
   title: string;
   description: string | null;
   price: number;
+  rentalPrice: number | null;
   itemType: string;
   category: string;
   condition: string;
@@ -369,6 +370,7 @@ function SearchPageContent() {
                         <PriceDisplay
                           itemType={item.itemType}
                           price={item.price}
+                          rentalPrice={item.rentalPrice}
                           variant="badge"
                         />
                       </div>
@@ -386,11 +388,12 @@ function SearchPageContent() {
                     <div className="p-2.5 sm:p-3">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
                       <div className="mt-0.5">
-                        <PriceDisplay
-                          itemType={item.itemType}
-                          price={item.price}
-                          variant="inline"
-                        />
+                      <PriceDisplay
+                        itemType={item.itemType}
+                        price={item.price}
+                        rentalPrice={item.rentalPrice}
+                        variant="inline"
+                      />
                       </div>
                       <div className="flex items-center gap-1.5 mt-1.5">
                         <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden shrink-0">
