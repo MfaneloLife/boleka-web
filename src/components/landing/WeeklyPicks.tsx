@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Star, Loader2, Package, MapPin, WifiOff } from "lucide-react";
 import { useOfflineItems } from "@/src/hooks/useOfflineItems";
+import PriceDisplay from "@/src/components/PriceDisplay";
 
 interface Item {
   id: string;
@@ -24,15 +25,6 @@ interface Item {
     image: string | null;
   };
   createdAt: string;
-}
-
-function priceLabel(item: Pick<Item, "itemType" | "price" | "rentalPrice">): string {
-  const isRental =
-    item.itemType === "RENTING" ||
-    item.itemType === "BOTH" ||
-    (!item.itemType && item.rentalPrice !== null && item.rentalPrice !== undefined);
-  const displayPrice = item.rentalPrice ?? item.price;
-  return isRental ? `R${displayPrice.toFixed(0)}/day` : `R${displayPrice.toFixed(0)}`;
 }
 
 /** Compute ISO week seed e.g. "2026-31" */
@@ -137,9 +129,20 @@ export default function WeeklyPicks() {
                   <Package className="w-8 h-8 text-gray-300" />
                 </div>
               )}
-              <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 px-2 py-0.5 rounded-full">
-                {priceLabel(item)}
+              <div className="absolute bottom-2 left-2 z-10">
+                <PriceDisplay
+                  itemType={item.itemType}
+                  price={item.price}
+                  rentalPrice={item.rentalPrice}
+                  variant="badge"
+                />
               </div>
+              {/* Item type badge */}
+              {item.itemType && item.itemType !== "SELLING" && (
+                <div className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {item.itemType === "RENTING" ? "Rent" : item.itemType === "BOTH" ? "Rent + Buy" : ""}
+                </div>
+              )}
             </div>
             {/* Details */}
             <div className="p-2.5">
