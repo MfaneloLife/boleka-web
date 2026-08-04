@@ -66,7 +66,7 @@ export default function FavouritesTab() {
   };
 
   return (
-    <div className="px-4 py-6 bg-white min-h-[60vh]">
+    <div className="px-4 py-6 bg-white min-h-[60vh] w-full max-w-full overflow-x-hidden">
       <h2 className="text-xl font-semibold text-gray-900 mb-6">Your favourite items</h2>
 
       <SignedOut>

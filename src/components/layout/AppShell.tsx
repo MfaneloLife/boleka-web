@@ -418,7 +418,7 @@ export default function AppShell({ children, variant = "public", onTabChange }: 
       </aside>
 
       {/* Main content area (offset by sidebar width on desktop) */}
-      <div className="flex-1 flex flex-col min-h-screen lg:pl-72">
+      <div className="flex-1 flex flex-col min-h-screen lg:pl-72 w-full max-w-full overflow-x-hidden">
         {/* Sticky top bar */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100/80">
           <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
@@ -466,7 +466,7 @@ export default function AppShell({ children, variant = "public", onTabChange }: 
         </header>
 
         {/* Page content */}
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 w-full max-w-full overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

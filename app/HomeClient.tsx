@@ -27,7 +27,7 @@ export default function HomeClient() {
 
   return (
     <AppShell onTabChange={handleTabChange}>
-      <div className="flex flex-col pb-20">
+      <div className="flex flex-col pb-20 w-full max-w-full overflow-x-hidden">
       <SearchBar />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
