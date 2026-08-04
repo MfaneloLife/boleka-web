@@ -91,7 +91,7 @@ export default function CategoryGrid() {
           return (
             <Link
               key={cat.slug}
-              href={`/?category=${cat.slug}`}
+              href={`/search?category=${cat.slug}`}
               className="relative group overflow-hidden rounded-xl aspect-[4/3] block"
             >
               {/* Background image */}
