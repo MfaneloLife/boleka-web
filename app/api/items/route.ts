@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { slugToLabel } from '@/lib/search-filters';
 
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-0bf9994c37384a93b6f02dc5dc60ec44.r2.dev';
 
@@ -77,7 +78,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (ownerId) where.userId = ownerId;
-    if (category) where.category = category;
+    if (category) {
+      // Convert slug to display label for DB matching (e.g. "electronics-tech" → "Electronics & Technology")
+      where.category = slugToLabel(category);
+    }
     if (location) {
       where.address = { contains: location, mode: 'insensitive' };
     }

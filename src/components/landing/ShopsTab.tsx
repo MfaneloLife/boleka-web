@@ -144,37 +144,39 @@ export default function ShopsTab() {
                   </div>
 
                   {shop.featuredItems.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
-                      {shop.featuredItems.map((item) => {
-                        const imageUrl = normalizeImageUrl(item.imageUrl);
-                        return (
-                          <Link
-                            key={item.id}
-                            href={`/items/${item.id}`}
-                            className="flex-shrink-0 w-28 snap-start group"
-                          >
-                            <div className="aspect-[4/5] rounded-lg bg-gray-100 overflow-hidden">
-                              {imageUrl ? (
-                                <img
-                                  src={imageUrl}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="flex items-center justify-center h-full">
-                                  <ImageIcon className="w-6 h-6 text-gray-300" />
+                    <div className="overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
+                      <div className="flex gap-2">
+                        {shop.featuredItems.map((item) => {
+                          const imageUrl = normalizeImageUrl(item.imageUrl);
+                          return (
+                            <Link
+                              key={item.id}
+                              href={`/items/${item.id}`}
+                              className="flex-shrink-0 w-28 snap-start group"
+                            >
+                              <div className="aspect-[4/5] rounded-lg bg-gray-100 overflow-hidden relative">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-center h-full">
+                                    <ImageIcon className="w-6 h-6 text-gray-300" />
+                                  </div>
+                                )}
+                                <div className="absolute bottom-1.5 left-1.5 bg-white/90 backdrop-blur-sm text-[10px] font-semibold text-gray-800 px-1.5 py-0.5 rounded-full z-10">
+                                  R{item.price.toFixed(0)}/day
                                 </div>
-                              )}
-                              <div className="absolute bottom-1.5 left-1.5 bg-white/90 backdrop-blur-sm text-[10px] font-semibold text-gray-800 px-1.5 py-0.5 rounded-full">
-                                R{item.price.toFixed(0)}/day
                               </div>
-                            </div>
-                            <p className="text-xs font-medium text-gray-900 mt-1.5 truncate">{item.title}</p>
-                            <p className="text-[10px] text-gray-400">R{item.price?.toFixed(0)}/day</p>
-                          </Link>
-                        );
-                      })}
+                              <p className="text-xs font-medium text-gray-900 mt-1.5 truncate">{item.title}</p>
+                              <p className="text-[10px] text-gray-400">R{item.price?.toFixed(0)}/day</p>
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

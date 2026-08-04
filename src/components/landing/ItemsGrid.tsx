@@ -232,8 +232,24 @@ export default function ItemsGrid() {
       )}
 
       <div className="max-w-7xl mx-auto mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Recently Listed</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Browse items available for rent</p>
+        {searchQuery ? (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Results for "{searchQuery}"{category ? ` in ${category}` : ""}
+            </h2>
+            <p className="text-sm text-gray-500 mt-0.5">{items.length} item{items.length !== 1 ? "s" : ""} found</p>
+          </>
+        ) : category ? (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900">{category}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{items.length} item{items.length !== 1 ? "s" : ""} found</p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900">Recently Listed</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Browse items available for rent</p>
+          </>
+        )}
       </div>
       {items.length === 0 ? (
         <div className="text-center py-10">
