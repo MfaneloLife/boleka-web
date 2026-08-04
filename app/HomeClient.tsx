@@ -7,6 +7,7 @@ import TabNav from "@/src/components/landing/TabNav";
 import CategoryGrid from "@/src/components/landing/CategoryGrid";
 import HeroBanner from "@/src/components/landing/HeroBanner";
 import PromoCarousel from "@/src/components/landing/PromoCarousel";
+import WeeklyPicks from "@/src/components/landing/WeeklyPicks";
 import BrandsSection from "@/src/components/landing/BrandsSection";
 import ItemsGrid from "@/src/components/landing/ItemsGrid";
 import ShopsTab from "@/src/components/landing/ShopsTab";
@@ -33,9 +34,10 @@ export default function HomeClient() {
       {activeTab === "discover" && (
         <>
           <PromoCarousel />
+          <WeeklyPicks />
           <CategoryGrid />
-          <ItemsGrid />
           <BrandsSection />
+          <ItemsGrid />
         </>
       )}
 

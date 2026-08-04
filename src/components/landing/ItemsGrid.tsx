@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Loader2, Package, MapPin, Heart } from "lucide-react";
+import { Loader2, Package, MapPin, Heart, WifiOff } from "lucide-react";
+import { useOfflineItems } from "@/src/hooks/useOfflineItems";
 import ShareButton from "@/src/components/ShareButton";
 
 interface Item {
@@ -12,6 +13,8 @@ interface Item {
   title: string;
   description: string | null;
   price: number;
+  rentalPrice: number | null;
+  itemType: string | null;
   category: string;
   condition: string;
   quantity: number;
@@ -26,33 +29,125 @@ interface Item {
   createdAt: string;
 }
 
+/** Determine the display badge for an item */
+function priceLabel(item: Pick<Item, "itemType" | "price" | "rentalPrice">): string {
+  const isRental =
+    item.itemType === "RENTING" ||
+    item.itemType === "BOTH" ||
+    (!item.itemType && item.rentalPrice !== null && item.rentalPrice !== undefined);
+  const displayPrice = item.rentalPrice ?? item.price;
+  return isRental ? `R${displayPrice.toFixed(0)}/day` : `R${displayPrice.toFixed(0)}`;
+}
+
 export default function ItemsGrid() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoaded: authLoaded } = useUser();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const nextCursorRef = useRef<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Offline caching
+  const { isOffline, showingCached, updateCache, getCachedFallback } = useOfflineItems<Item>();
+
   /** Map of itemId → favourited boolean */
   const [favMap, setFavMap] = useState<Record<string, boolean>>({});
   /** Set of itemIds being toggled (optimistic in-flight) */
   const toggling = useRef<Set<string>>(new Set());
 
-  /* ---------- fetch items ---------- */
+  // Derive filters from URL search params
+  const category = searchParams.get("category") || "";
+  const searchQuery = searchParams.get("q") || "";
+
+  /* ---------- fetch items (initial & paginated) ---------- */
+  const fetchItems = useCallback(
+    async (cursor?: string | null) => {
+      const url = new URL("/api/items", window.location.origin);
+      url.searchParams.set("limit", "12");
+      if (cursor) url.searchParams.set("cursor", cursor);
+      if (category) url.searchParams.set("category", category);
+      if (searchQuery) url.searchParams.set("q", searchQuery);
+
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    [category, searchQuery],
+  );
+
+  /* ---------- initial load + reset when filters change ---------- */
   useEffect(() => {
-    const fetchItems = async () => {
+    setItems([]);
+    nextCursorRef.current = null;
+    setHasMore(true);
+    setLoadingMore(false);
+
+    const loadInitial = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/items");
-        if (!res.ok) throw new Error("Failed to fetch");
-        const data = await res.json();
-        setItems((data.items || []).slice(0, 12));
+        const data = await fetchItems();
+        const fetchedItems: Item[] = data.items || [];
+        setItems(fetchedItems);
+        updateCache(fetchedItems);
+        nextCursorRef.current = data.nextCursor ?? null;
+        setHasMore(!!data.nextCursor);
       } catch {
-        // Silently fail — not critical for landing page
+        // Try falling back to cache
+        const cached = getCachedFallback();
+        if (cached.length > 0) {
+          setItems(cached);
+          setHasMore(false);
+        }
       } finally {
         setLoading(false);
       }
     };
-    fetchItems();
-  }, []);
+    loadInitial();
+  }, [fetchItems, updateCache, getCachedFallback]);
+
+  /* ---------- infinite scroll observer ---------- */
+  useEffect(() => {
+    if (!hasMore || loading) return;
+
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && !loadingMore && hasMore) {
+          const cursor = nextCursorRef.current;
+          if (!cursor) return;
+
+          setLoadingMore(true);
+          fetchItems(cursor)
+            .then((data) => {
+              const newItems: Item[] = data.items || [];
+              setItems((prev) => {
+                const merged = [...prev, ...newItems];
+                updateCache(merged);
+                return merged;
+              });
+              nextCursorRef.current = data.nextCursor ?? null;
+              setHasMore(!!data.nextCursor);
+            })
+            .catch(() => {
+              // silent — keep existing items
+            })
+            .finally(() => {
+              setLoadingMore(false);
+            });
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, fetchItems, updateCache]);
 
   /* ---------- fetch user's favourite item IDs ---------- */
   useEffect(() => {
@@ -79,7 +174,7 @@ export default function ItemsGrid() {
     e.stopPropagation();
 
     if (!user) {
-      const intendedUrl = `/`;
+      const intendedUrl = "/";
       router.push(`/auth/login?redirect_url=${encodeURIComponent(intendedUrl)}`);
       return;
     }
@@ -101,10 +196,8 @@ export default function ItemsGrid() {
       });
       if (res.ok) {
         const body = await res.json();
-        // Reconcile with server truth
         setFavMap((prev) => ({ ...prev, [itemId]: body.favourited }));
       } else {
-        // Revert on failure
         setFavMap((prev) => ({ ...prev, [itemId]: currentlyFav }));
       }
     } catch {
@@ -128,83 +221,98 @@ export default function ItemsGrid() {
     );
   }
 
-  if (items.length === 0) return null;
-
   return (
     <section className="px-4 py-8 bg-white">
+      {/* Offline banner */}
+      {(isOffline || showingCached) && (
+        <div className="max-w-7xl mx-auto mb-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
+          <WifiOff className="w-4 h-4 flex-shrink-0" />
+          <span>You are offline. Showing cached items.</span>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Recently Listed</h2>
         <p className="text-sm text-gray-500 mt-0.5">Browse items available for rent</p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-w-7xl mx-auto">
-        {items.map((item) => (
-          <Link
-            key={item.id}
-            href={`/items/${item.id}`}
-            className="group bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all hover:-translate-y-0.5"
-          >
-            {/* Image */}
-            <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-              {item.imageUrl || item.imageUrls?.[0] ? (
-                <img
-                  src={item.imageUrl || item.imageUrls[0]}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Package className="w-8 h-8 text-gray-300" />
-                </div>
-              )}
-              <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 px-2 py-0.5 rounded-full">
-                R{item.price.toFixed(0)}/day
-              </div>
-              {item.quantity <= 0 && (
-                <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Out of Stock
-                </div>
-              )}
-              {/* Floating action buttons */}
-              <div className="absolute top-2 right-2 z-10 flex gap-1.5">
-                <ShareButton itemId={item.id} compact />
-                <button
-                  onClick={(e) => handleToggleFav(e, item.id)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:bg-white hover:shadow-md"
-                  aria-label={favMap[item.id] ? "Remove from favourites" : "Add to favourites"}
-                >
-                  <Heart
-                    className={`w-4 h-4 transition-all duration-200 ${
-                      favMap[item.id]
-                        ? "fill-orange-500 stroke-orange-500 scale-110"
-                        : "fill-none stroke-slate-500 hover:stroke-orange-400 hover:scale-110"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-            {/* Details */}
-            <div className="p-2.5">
-              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-orange-600 transition-colors">
-                {item.title}
-              </p>
-              <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
-                <MapPin className="w-3 h-3" />
-                <span className="truncate">{item.location || "South Africa"}</span>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-      {items.length >= 12 && (
-        <div className="text-center mt-6">
-          <Link
-            href="/search"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700 transition"
-          >
-            View all items →
-          </Link>
+      {items.length === 0 ? (
+        <div className="text-center py-10">
+          <Package className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">
+            No items found{category ? ` in this category` : ""}{searchQuery ? ` for "${searchQuery}"` : ""}.
+          </p>
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-w-7xl mx-auto">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                href={`/items/${item.id}`}
+                className="group bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all hover:-translate-y-0.5"
+              >
+                {/* Image — taller portrait aspect ratio (Yaga style) */}
+                <div className="aspect-[4/5] bg-gray-100 relative overflow-hidden rounded-t-xl">
+                  {item.imageUrl || item.imageUrls?.[0] ? (
+                    <img
+                      src={item.imageUrl || item.imageUrls[0]}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <Package className="w-8 h-8 text-gray-300" />
+                    </div>
+                  )}
+                  {/* Price badge — bottom-left overlay */}
+                  <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 px-2 py-0.5 rounded-full">
+                    {priceLabel(item)}
+                  </div>
+                  {item.quantity <= 0 && (
+                    <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      Out of Stock
+                    </div>
+                  )}
+                  {/* Floating action buttons — top-right overlay */}
+                  <div className="absolute top-2 right-2 z-10 flex gap-1.5">
+                    <ShareButton itemId={item.id} compact />
+                    <button
+                      onClick={(e) => handleToggleFav(e, item.id)}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:bg-white hover:shadow-md"
+                      aria-label={favMap[item.id] ? "Remove from favourites" : "Add to favourites"}
+                    >
+                      <Heart
+                        className={`w-4 h-4 transition-all duration-200 ${
+                          favMap[item.id]
+                            ? "fill-orange-500 stroke-orange-500 scale-110"
+                            : "fill-none stroke-slate-500 hover:stroke-orange-400 hover:scale-110"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+                {/* Details */}
+                <div className="p-2.5">
+                  <p className="text-sm font-medium text-gray-900 truncate group-hover:text-orange-600 transition-colors">
+                    {item.title}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                    <MapPin className="w-3 h-3" />
+                    <span className="truncate">{item.location || "South Africa"}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Infinite scroll sentinel & loading indicator */}
+          {hasMore && !isOffline && (
+            <div ref={sentinelRef} className="flex justify-center py-8">
+              {loadingMore && <Loader2 className="w-6 h-6 animate-spin text-orange-500" />}
+            </div>
+          )}
+        </>
       )}
     </section>
   );

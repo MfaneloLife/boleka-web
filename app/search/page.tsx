@@ -3,15 +3,18 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Search, ArrowLeft, ImageIcon } from "lucide-react";
+import { Loader2, Search, ArrowLeft, ImageIcon, WifiOff } from "lucide-react";
 import AppShell from "@/src/components/layout/AppShell";
 import { slugToLabel } from "@/lib/search-filters";
+import { useOfflineItems } from "@/src/hooks/useOfflineItems";
 
 interface Item {
   id: string;
   title: string;
   description: string | null;
   price: number;
+  rentalPrice: number | null;
+  itemType: string | null;
   category: string;
   condition: string;
   imageUrl: string | null;
@@ -24,6 +27,15 @@ interface Item {
   };
 }
 
+function priceLabel(item: Pick<Item, "itemType" | "price" | "rentalPrice">): string {
+  const isRental =
+    item.itemType === "RENTING" ||
+    item.itemType === "BOTH" ||
+    (!item.itemType && item.rentalPrice !== null && item.rentalPrice !== undefined);
+  const displayPrice = item.rentalPrice ?? item.price;
+  return isRental ? `R${displayPrice.toFixed(2)}/day` : `R${displayPrice.toFixed(2)}`;
+}
+
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -34,6 +46,8 @@ export default function SearchPage() {
 
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { isOffline, showingCached, updateCache, getCachedFallback } = useOfflineItems<Item>();
 
   const displayTitle = searchQuery
     ? `"${searchQuery}"${categorySlug ? ` in ${slugToLabel(categorySlug)}` : ""}`
@@ -57,10 +71,17 @@ export default function SearchPage() {
       const res = await fetch(`/api/items?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setItems(data.items || []);
+        const fetchedItems: Item[] = data.items || [];
+        setItems(fetchedItems);
+        updateCache(fetchedItems);
+      } else {
+        throw new Error("Failed to fetch");
       }
-    } catch (err) {
-      console.error("search error:", err);
+    } catch {
+      const cached = getCachedFallback();
+      if (cached.length > 0) {
+        setItems(cached);
+      }
     } finally {
       setLoading(false);
     }
@@ -87,6 +108,14 @@ export default function SearchPage() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 py-6">
+          {/* Offline banner */}
+          {(isOffline || showingCached) && (
+            <div className="max-w-7xl mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
+              <WifiOff className="w-4 h-4 flex-shrink-0" />
+              <span>You are offline. Showing cached items.</span>
+            </div>
+          )}
+
           {/* Loading */}
           {loading ? (
             <div className="text-center py-20">
@@ -117,7 +146,8 @@ export default function SearchPage() {
                   href={`/items/${item.id}`}
                   className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group"
                 >
-                  <div className="aspect-square bg-gray-100 relative">
+                  {/* Image — taller portrait aspect ratio (Yaga style) */}
+                  <div className="aspect-[4/5] bg-gray-100 relative overflow-hidden rounded-t-xl">
                     {item.imageUrl ? (
                       <img
                         src={item.imageUrl}
@@ -135,10 +165,14 @@ export default function SearchPage() {
                         <ImageIcon className="w-10 h-10 text-gray-300" />
                       </div>
                     )}
+                    {/* Price badge */}
+                    <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 px-2 py-0.5 rounded-full">
+                      {priceLabel(item)}
+                    </div>
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">R{item.price.toFixed(2)}/day</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{priceLabel(item)}</p>
                     <div className="flex items-center gap-1.5 mt-1.5">
                       <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden shrink-0">
                         {item.user?.image ? (

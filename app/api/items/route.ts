@@ -17,7 +17,7 @@ function normalizeImageUrl(url: string | null | undefined): string | null {
 
 function normalizeItem(item: any) {
   const imageUrls = Array.isArray(item.images)
-    ? item.images.map((image: any) => normalizeImageUrl(image.url)).filter((url): url is string => url !== null)
+    ? item.images.map((image: { url: string }) => normalizeImageUrl(image.url)).filter((url: string | null): url is string => url !== null)
     : [];
 
   return {
@@ -26,7 +26,21 @@ function normalizeItem(item: any) {
     imageUrls,
     location: item.address || null,
     ownerId: item.userId || (item.user ? item.user.id : null),
+    itemType: item.itemType || null,
+    rentalPrice: item.rentalPrice ?? null,
   };
+}
+
+/**
+ * Convert a weekly seed string (e.g. "2026-15") to a float in [0, 1).
+ * Uses djb2 to produce a deterministic float for PostgreSQL SETSEED.
+ */
+function hashToFloat(seed: string): number {
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    h = ((h << 5) + h + seed.charCodeAt(i)) | 0;
+  }
+  return (Math.abs(h) % 1_000_000) / 1_000_000;
 }
 
 export async function GET(req: NextRequest) {
@@ -39,6 +53,8 @@ export async function GET(req: NextRequest) {
     const ownerIdParam = url.searchParams.get('ownerId');
     const minPrice = url.searchParams.get('minPrice');
     const maxPrice = url.searchParams.get('maxPrice');
+    const weeklyMode = url.searchParams.get('weekly') === 'true';
+    const seedParam = url.searchParams.get('seed') || '';
 
     let ownerId: string | null = null;
     if (ownerIdParam === 'me') {
@@ -80,6 +96,34 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── WEEKLY PICKS mode ──
+    if (weeklyMode && seedParam) {
+      const seedNumber = hashToFloat(seedParam);
+
+      // Seed PostgreSQL's RANDOM() so ORDER BY RANDOM() is deterministic for the week
+      await prisma.$executeRawUnsafe(`SELECT setseed(${seedNumber})`);
+
+      const picks = await prisma.item.findMany({
+        where,
+        take: 8,
+        include: {
+          user: { select: { id: true, name: true, image: true } },
+          images: { orderBy: { order: 'asc' } },
+        },
+        orderBy: { id: 'asc' },
+      });
+
+      return NextResponse.json({
+        items: picks.map(normalizeItem),
+        nextCursor: null,
+      });
+    }
+
+    // ── Normal paginated mode ──
+    const cursorParam = url.searchParams.get('cursor');
+    const limitParam = url.searchParams.get('limit');
+    const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 12, 50) : 12;
+
     const items = await prisma.item.findMany({
       where,
       include: {
@@ -95,10 +139,18 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: limit + 1, // fetch one extra to detect if there's a next page
+      ...(cursorParam ? { skip: 1, cursor: { id: cursorParam } } : {}),
     });
 
-    return NextResponse.json({ items: items.map(normalizeItem) });
+    const hasMore = items.length > limit;
+    const resultItems = hasMore ? items.slice(0, limit) : items;
+    const nextCursor = hasMore ? resultItems[resultItems.length - 1]?.id : null;
+
+    return NextResponse.json({
+      items: resultItems.map(normalizeItem),
+      nextCursor,
+    });
   } catch (error) {
     console.error('items.error', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

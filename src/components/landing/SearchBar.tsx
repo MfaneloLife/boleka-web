@@ -1,17 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function SearchBar() {
-  const [query, setQuery] = useState("");
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const [query, setQuery] = useState(searchParams.get("q") || "");
+
+  // Sync input if external URL changes (e.g. browser back/forward)
+  useEffect(() => {
+    setQuery(searchParams.get("q") || "");
+  }, [searchParams]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    const trimmed = query.trim();
+    const params = new URLSearchParams(searchParams.toString());
+    if (trimmed) {
+      params.set("q", trimmed);
+    } else {
+      params.delete("q");
     }
+    // Preserve category if selected
+    const qs = params.toString();
+    router.push(qs ? `/?${qs}` : "/");
   };
 
   return (
