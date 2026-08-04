@@ -126,7 +126,27 @@ export async function GET(req: NextRequest) {
     // ── Normal paginated mode ──
     const cursorParam = url.searchParams.get('cursor');
     const limitParam = url.searchParams.get('limit');
+    const sort = url.searchParams.get('sort') || 'newest';
     const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 12, 50) : 12;
+
+    // Determine sort order
+    let orderBy: any = { createdAt: 'desc' };
+    switch (sort) {
+      case 'price_asc':
+        orderBy = { price: 'asc' };
+        break;
+      case 'price_desc':
+        orderBy = { price: 'desc' };
+        break;
+      case 'newest':
+        orderBy = { createdAt: 'desc' };
+        break;
+      case 'relevance':
+      default:
+        // When searching, relevance = newest (can add scoring later)
+        orderBy = { createdAt: 'desc' };
+        break;
+    }
 
     const items = await prisma.item.findMany({
       where,
@@ -142,7 +162,7 @@ export async function GET(req: NextRequest) {
           orderBy: { order: 'asc' },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       take: limit + 1, // fetch one extra to detect if there's a next page
       ...(cursorParam ? { skip: 1, cursor: { id: cursorParam } } : {}),
     });
