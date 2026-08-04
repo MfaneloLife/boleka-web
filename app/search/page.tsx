@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import AppShell from "@/src/components/layout/AppShell";
 import { CATEGORY_SLUG_MAP, slugToLabel } from "@/lib/search-filters";
+import PriceDisplay from "@/src/components/PriceDisplay";
 
 interface Item {
   id: string;
@@ -364,27 +365,33 @@ function SearchPageContent() {
                         </div>
                       )}
                       {/* Price badge */}
-                      <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 px-2 py-0.5 rounded-full">
-                        R{item.price.toFixed(0)}
-                        {item.itemType === "SELLING" ? "" : "/day"}
+                      <div className="absolute bottom-2 left-2 z-10">
+                        <PriceDisplay
+                          itemType={item.itemType}
+                          price={item.price}
+                          variant="badge"
+                        />
                       </div>
                       {/* Item type badge */}
-                      {item.itemType && (
+                      {item.itemType && item.itemType !== "SELLING" && (
                         <div className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {item.itemType === "SELLING"
-                            ? "Sale"
-                            : item.itemType === "RENTING"
-                              ? "Rent"
-                              : "Both"}
+                          {item.itemType === "RENTING"
+                            ? "Rent"
+                            : item.itemType === "BOTH"
+                              ? "Rent + Buy"
+                              : ""}
                         </div>
                       )}
                     </div>
                     <div className="p-2.5 sm:p-3">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        R{item.price.toFixed(2)}
-                        {item.itemType === "SELLING" ? "" : "/day"}
-                      </p>
+                      <div className="mt-0.5">
+                        <PriceDisplay
+                          itemType={item.itemType}
+                          price={item.price}
+                          variant="inline"
+                        />
+                      </div>
                       <div className="flex items-center gap-1.5 mt-1.5">
                         <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden shrink-0">
                           {item.user?.image ? (

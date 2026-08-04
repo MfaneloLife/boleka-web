@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { Store, Star, ImageIcon, Loader2 } from "lucide-react";
+import PriceDisplay from "@/src/components/PriceDisplay";
 
 interface Shop {
   id: string;
@@ -129,7 +130,12 @@ export default function ShopsTab() {
                             )}
                           </div>
                           <p className="text-xs font-medium text-gray-900 mt-1.5 truncate">{item.title}</p>
-                          <p className="text-xs text-gray-500">R{item.price?.toFixed(2)}/day</p>
+                          <div className="mt-0.5">
+                            <PriceDisplay
+                              price={item.price}
+                              variant="inline"
+                            />
+                          </div>
                         </Link>
                       ))}
                     </div>

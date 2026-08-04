@@ -7,6 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import { Loader2, Package, MapPin, Heart, WifiOff } from "lucide-react";
 import { useOfflineItems } from "@/src/hooks/useOfflineItems";
 import ShareButton from "@/src/components/ShareButton";
+import PriceDisplay from "@/src/components/PriceDisplay";
 
 interface Item {
   id: string;
@@ -27,16 +28,6 @@ interface Item {
     image: string | null;
   };
   createdAt: string;
-}
-
-/** Determine the display badge for an item */
-function priceLabel(item: Pick<Item, "itemType" | "price" | "rentalPrice">): string {
-  const isRental =
-    item.itemType === "RENTING" ||
-    item.itemType === "BOTH" ||
-    (!item.itemType && item.rentalPrice !== null && item.rentalPrice !== undefined);
-  const displayPrice = item.rentalPrice ?? item.price;
-  return isRental ? `R${displayPrice.toFixed(0)}/day` : `R${displayPrice.toFixed(0)}`;
 }
 
 export default function ItemsGrid() {
@@ -282,12 +273,23 @@ export default function ItemsGrid() {
                     </div>
                   )}
                   {/* Price badge — bottom-left overlay */}
-                  <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 px-2 py-0.5 rounded-full">
-                    {priceLabel(item)}
+                  <div className="absolute bottom-2 left-2 z-10">
+                    <PriceDisplay
+                      itemType={item.itemType}
+                      price={item.price}
+                      rentalPrice={item.rentalPrice}
+                      variant="badge"
+                    />
                   </div>
                   {item.quantity <= 0 && (
                     <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                       Out of Stock
+                    </div>
+                  )}
+                  {/* Item type badge */}
+                  {item.itemType && item.itemType !== "SELLING" && (
+                    <div className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {item.itemType === "RENTING" ? "Rent" : item.itemType === "BOTH" ? "Rent + Buy" : ""}
                     </div>
                   )}
                   {/* Floating action buttons — top-right overlay */}

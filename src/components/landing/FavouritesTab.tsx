@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { SignedIn, SignedOut, useClerk, useUser } from "@clerk/nextjs";
 import { Heart, ImageIcon, Loader2, Trash2, Search } from "lucide-react";
 import ShareButton from "@/src/components/ShareButton";
+import PriceDisplay from "@/src/components/PriceDisplay";
 
 interface FavItem {
   id: string;
@@ -138,7 +139,12 @@ export default function FavouritesTab() {
                   </div>
                   <div className="p-2.5">
                     <p className="text-xs font-medium text-gray-900 truncate">{fav.item.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">R{fav.item.price?.toFixed(2)}/day</p>
+                    <div className="mt-0.5">
+                      <PriceDisplay
+                        price={fav.item.price}
+                        variant="inline"
+                      />
+                    </div>
                     <p className="text-[10px] text-gray-400 mt-0.5 truncate">{fav.item.owner.name}</p>
                   </div>
                 </Link>
