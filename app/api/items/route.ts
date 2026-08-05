@@ -250,12 +250,18 @@ export async function POST(req: NextRequest) {
       imageUrls.push(...body.images.filter((url: any) => typeof url === 'string'));
     }
 
+    // itemType handling — default to RENTING if not provided (matches form default)
+    const rawItemType = body.itemType ? String(body.itemType).toUpperCase() : '';
+    const validTypes: string[] = ['SELLING', 'RENTING', 'BOTH'];
+    const itemType: string = validTypes.includes(rawItemType) ? rawItemType : 'RENTING';
+
     const itemData: any = {
       title,
       description: body.description || null,
       category,
       condition,
       price: Number(price),
+      itemType,
       quantity: Number.isFinite(Number(body.quantity)) ? Number(body.quantity) : 1,
       lat: body.lat !== undefined ? Number(body.lat) : null,
       lng: body.lng !== undefined ? Number(body.lng) : null,
@@ -265,6 +271,14 @@ export async function POST(req: NextRequest) {
       deliveryFee: Number.isFinite(Number(body.deliveryFee)) ? Number(body.deliveryFee) : 0,
       userId: session.userId,
     };
+
+    // rentalPrice — only meaningful for BOTH (separate daily rate) and RENTING
+    if (body.rentalPrice !== undefined && body.rentalPrice !== null && body.rentalPrice !== '') {
+      const rp = Number(body.rentalPrice);
+      if (Number.isFinite(rp) && rp > 0) {
+        itemData.rentalPrice = rp;
+      }
+    }
 
     if (imageUrls.length > 0) {
       itemData.images = {

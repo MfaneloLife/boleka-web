@@ -91,6 +91,24 @@ export async function PATCH(
       await prisma.itemImage.deleteMany({ where: { itemId: id } });
     }
 
+    // itemType handling
+    const rawItemType = body.itemType ? String(body.itemType).toUpperCase() : '';
+    const validTypes: string[] = ['SELLING', 'RENTING', 'BOTH'];
+    const itemType = validTypes.includes(rawItemType) ? rawItemType : undefined;
+
+    // rentalPrice handling
+    let rentalPrice: number | null | undefined = undefined;
+    if (body.rentalPrice !== undefined) {
+      if (body.rentalPrice === null || body.rentalPrice === '') {
+        rentalPrice = null; // explicit clear
+      } else {
+        const rp = Number(body.rentalPrice);
+        if (Number.isFinite(rp)) {
+          rentalPrice = rp;
+        }
+      }
+    }
+
     const updatedItem = await prisma.item.update({
       where: { id },
       data: {
@@ -99,6 +117,8 @@ export async function PATCH(
         category: body.category ?? item.category,
         condition: body.condition ?? item.condition,
         price: body.price !== undefined ? Number(body.price) : item.price,
+        itemType: itemType !== undefined ? (itemType as any) : item.itemType,
+        rentalPrice: rentalPrice !== undefined ? rentalPrice : item.rentalPrice,
         quantity: body.quantity !== undefined ? Number(body.quantity) : item.quantity,
         lat: body.lat !== undefined ? Number(body.lat) : item.lat,
         lng: body.lng !== undefined ? Number(body.lng) : item.lng,
