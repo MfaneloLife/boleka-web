@@ -141,14 +141,10 @@ export default function WeeklyPicks() {
               {item.itemType && (
                 <div
                   className={`absolute top-2 left-2 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    item.itemType === "SELLING"
-                      ? "bg-green-600"
-                      : item.itemType === "RENTING"
-                        ? "bg-blue-600"
-                        : "bg-orange-500"
+                    item.itemType === "SELLING" ? "bg-green-600" : "bg-blue-600"
                   }`}
                 >
-                  {item.itemType === "SELLING" ? "Buy" : item.itemType === "RENTING" ? "Rent" : "Rent + Buy"}
+                  {item.itemType === "SELLING" ? "Buy" : "Rent"}
                 </div>
               )}
             </div>
