@@ -421,7 +421,7 @@ export default function AppShell({ children, variant = "public", onTabChange }: 
       <div className="flex-1 flex flex-col min-h-screen lg:pl-72 w-full max-w-full overflow-x-hidden">
         {/* Sticky top bar */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100/80">
-          <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
+          <div className="flex items-center justify-between px-4 py-2 max-w-7xl mx-auto">
             {/* Hamburger — mobile only */}
             <button
               onClick={() => setSidebarOpen(true)}

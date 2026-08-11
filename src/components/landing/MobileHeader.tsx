@@ -92,7 +92,7 @@ export default function MobileHeader({ onTabChange }: MobileHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100/80">
-      <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between px-4 py-2 max-w-7xl mx-auto">
         {/* Hamburger */}
         <button
           onClick={() => setMenuOpen(true)}

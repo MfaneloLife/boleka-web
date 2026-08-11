@@ -17,7 +17,7 @@ export default function TabNav({ activeTab, onTabChange }: TabNavProps) {
   ];
 
   return (
-    <nav className="sticky top-[57px] z-40 bg-white border-b border-gray-200">
+    <nav className="sticky top-[49px] z-40 bg-white border-b border-gray-200">
       <div className="flex max-w-7xl mx-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
