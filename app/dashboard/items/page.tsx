@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
@@ -67,6 +67,10 @@ export default function MyShopPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const nextCursorRef = useRef<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -114,19 +118,56 @@ export default function MyShopPage() {
       .catch(() => {});
   }, []);
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async (cursor?: string | null) => {
     try {
-      setLoading(true);
-      const res = await fetch('/api/items?ownerId=me');
+      if (!cursor) {
+        setLoading(true);
+        setItems([]);
+        nextCursorRef.current = null;
+        setHasMore(true);
+      }
+      const params = new URLSearchParams({ ownerId: 'me', limit: '24' });
+      if (cursor) params.set('cursor', cursor);
+      const res = await fetch(`/api/items?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      setItems(data.items || []);
+      if (cursor) {
+        setItems(prev => [...prev, ...(data.items || [])]);
+      } else {
+        setItems(data.items || []);
+      }
+      nextCursorRef.current = data.nextCursor ?? null;
+      setHasMore(!!data.nextCursor);
     } catch (err) {
-      setError('Failed to load items');
+      if (!cursor) setError('Failed to load items');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, []);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!hasMore || loading) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && !loadingMore && hasMore) {
+          const cursor = nextCursorRef.current;
+          if (!cursor) return;
+          setLoadingMore(true);
+          fetchItems(cursor);
+        }
+      },
+      { rootMargin: '200px' },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, fetchItems]);
 
   const uploadToR2 = async (files: File[]): Promise<string[]> => {
     setUploadError(null);
@@ -477,7 +518,7 @@ export default function MyShopPage() {
       ) : error ? (
         <div className="text-center py-16">
           <p className="text-red-500 text-sm">{error}</p>
-          <button onClick={fetchItems} className="mt-4 text-sm font-medium text-orange-600 hover:text-orange-700">Try again</button>
+          <button onClick={() => fetchItems()} className="mt-4 text-sm font-medium text-orange-600 hover:text-orange-700">Try again</button>
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-16">
@@ -534,6 +575,12 @@ export default function MyShopPage() {
               </div>
             </div>
           ))}
+          {/* Infinite scroll sentinel & loading indicator */}
+          {hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-8">
+              {loadingMore && <Loader2 className="w-6 h-6 animate-spin text-orange-500" />}
+            </div>
+          )}
         </div>
       )}
     </div>
