@@ -17,6 +17,8 @@ interface Shop {
     id: string;
     title: string;
     price: number;
+    rentalPrice: number | null;
+    itemType: string | null;
     imageUrl: string | null;
     category: string;
   }[];
@@ -133,6 +135,8 @@ export default function ShopsTab() {
                           <div className="mt-0.5">
                             <PriceDisplay
                               price={item.price}
+                              rentalPrice={item.rentalPrice}
+                              itemType={item.itemType}
                               variant="inline"
                             />
                           </div>

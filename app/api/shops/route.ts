@@ -48,6 +48,8 @@ export async function GET() {
           id: item.id,
           title: item.title,
           price: item.price,
+          rentalPrice: item.rentalPrice ?? null,
+          itemType: item.itemType ?? null,
           imageUrl: item.images[0]?.url || null,
           category: item.category,
         })),

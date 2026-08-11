@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { Plus, Package, Edit, Eye, Trash2, Upload, ImageIcon, X, Loader2, Truck, Hand } from 'lucide-react';
+import PriceDisplay from '@/src/components/PriceDisplay';
 
 /** Compress an image to max 1920px and ~1MB before upload */
 async function compressImage(file: File): Promise<File> {
@@ -506,7 +507,15 @@ export default function MyShopPage() {
               </div>
               <div className="p-3">
                 <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">R{item.price.toFixed(2)}/day &middot; {item.category}</p>
+                <div className="mt-0.5">
+                  <PriceDisplay
+                    price={item.price}
+                    rentalPrice={(item as any).rentalPrice}
+                    itemType={(item as any).itemType}
+                    variant="inline"
+                  />
+                  <span className="text-xs text-gray-400"> · {item.category}</span>
+                </div>
                 <div className="flex items-center gap-1.5 mt-2">
                   <Link href={`/items/${item.id}`} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 py-1.5 rounded-lg transition">
                     <Eye className="w-3.5 h-3.5" /> View
