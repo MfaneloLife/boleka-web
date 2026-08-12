@@ -7,6 +7,7 @@ import { Star } from "lucide-react";
 import ItemPageClient from "./ItemPageClient";
 import ItemImageGallery from "@/src/components/ItemImageGallery";
 import AppShellClient from "@/src/components/layout/AppShellClient";
+import PriceDisplay from "@/src/components/PriceDisplay";
 
 // Force dynamic so every request gets fresh data
 export const dynamic = "force-dynamic";
@@ -39,7 +40,8 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
       : null;
 
   const location = [item.user?.city, item.user?.region].filter(Boolean).join(", ");
-  const title = `${item.title} – R${item.price}/day | BOLEKA`;
+  const itemTypeLabel = (item as any).itemType === "SELLING" ? "Buy" : (item as any).itemType === "BOTH" ? "Rent or Buy" : "Rent";
+  const title = `${item.title} – ${itemTypeLabel} | BOLEKA`;
   const description = item.description
     ? item.description.slice(0, 160)
     : `Rent or buy "${item.title}" in ${location || "South Africa"} on BOLEKA.`;
@@ -55,7 +57,7 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
       type: "website",
       locale: "en_ZA",
       siteName: "BOLEKA",
-      url: `https://boleka.com/items/${itemId}`,
+      url: `https://eboleka.co.za/items/${itemId}`,
       images: firstImage
         ? [{ url: firstImage, width: 1200, height: 630, alt: item.title }]
         : [{ url: "/icons/icon-512x512.png", width: 512, height: 512, alt: "BOLEKA" }],
@@ -67,7 +69,7 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
       images: firstImage ? [firstImage] : ["/icons/icon-512x512.png"],
     },
     alternates: {
-      canonical: `https://boleka.com/items/${itemId}`,
+      canonical: `https://eboleka.co.za/items/${itemId}`,
     },
     robots: {
       index: true,
@@ -243,7 +245,12 @@ export default async function ItemPage({ params }: ItemPageProps) {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-2xl font-bold text-orange-600">R{item.price}<span className="text-sm font-normal text-gray-500">/day</span></p>
+                    <PriceDisplay
+                      price={item.price}
+                      rentalPrice={(item as any).rentalPrice}
+                      itemType={(item as any).itemType}
+                      variant="inline"
+                    />
                   </div>
                 </div>
 

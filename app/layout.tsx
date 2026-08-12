@@ -1,8 +1,4 @@
 import type { Metadata, Viewport } from "next";
-
-// Force dynamic rendering to prevent Clerk from failing during static generation
-// when NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY isn't available at build time
-export const dynamic = 'force-dynamic';
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/src/components/Providers";
@@ -21,6 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://eboleka.co.za"),
   title: "Boleka - Peer-to-Peer Sharing Platform",
   description: "A platform for sharing and requesting items with dual profiles for clients and businesses",
   applicationName: "Boleka",

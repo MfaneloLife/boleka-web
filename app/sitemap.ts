@@ -35,19 +35,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  // Category pages — get distinct categories from items
-  const categories = await prisma.item.findMany({
-    where: { isActive: true, quantity: { gt: 0 } },
-    select: { category: true },
-    distinct: ["category"],
-  });
-
-  const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
-    url: `${baseUrl}/categories/${cat.category.toLowerCase().replace(/\s+/g, "-")}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
-  }));
-
-  return [...staticPages, ...itemPages, ...categoryPages];
+  return [...staticPages, ...itemPages];
 }
