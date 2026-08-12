@@ -2,8 +2,47 @@ import type { Metadata } from "next";
 import AppShellClient from "@/src/components/layout/AppShellClient";
 
 export const metadata: Metadata = {
-  title: "Help & Support - Boleka",
-  description: "Get help with Boleka, the peer-to-peer sharing platform.",
+  title: "Help & Support — BOLEKA",
+  description:
+    "Get help with BOLEKA, South Africa's peer-to-peer rental and selling platform. Find answers to common questions about listing, renting, payments, returns, and contacting support.",
+  keywords: [
+    "boleka help",
+    "boleka support",
+    "rental marketplace help South Africa",
+    "how to rent items SA",
+    "boleka FAQ",
+  ],
+  openGraph: {
+    title: "Help & Support — BOLEKA",
+    description:
+      "Get help with BOLEKA, South Africa's peer-to-peer rental and selling platform. Find answers about listing, renting, payments, and returns.",
+    type: "website",
+    locale: "en_ZA",
+    siteName: "BOLEKA",
+    url: "https://eboleka.co.za/support",
+    images: [
+      {
+        url: "/logo.png",
+        width: 512,
+        height: 512,
+        alt: "BOLEKA Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Help & Support — BOLEKA",
+    description:
+      "Get help with BOLEKA, South Africa's peer-to-peer rental and selling platform.",
+    images: ["/logo.png"],
+  },
+  alternates: {
+    canonical: "https://eboleka.co.za/support",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 const faqs = [

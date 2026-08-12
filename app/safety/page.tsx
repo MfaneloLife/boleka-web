@@ -2,8 +2,47 @@ import type { Metadata } from "next";
 import AppShellClient from "@/src/components/layout/AppShellClient";
 
 export const metadata: Metadata = {
-  title: "Safety Tips - Boleka",
-  description: "Stay safe when renting and sharing items on Boleka.",
+  title: "Safety Tips — BOLEKA | Rent & Share Safely",
+  description:
+    "Stay safe when renting and sharing items on BOLEKA. Tips for safe meetups, verifying items before paying, using in-app messaging, and protecting your personal information.",
+  keywords: [
+    "boleka safety",
+    "peer to peer rental safety",
+    "safe item rental South Africa",
+    "rent safely SA",
+    "marketing safety tips",
+  ],
+  openGraph: {
+    title: "Safety Tips — BOLEKA",
+    description:
+      "Stay safe when renting and sharing items on BOLEKA. Tips for safe meetups, verifying items, and protecting your personal information.",
+    type: "website",
+    locale: "en_ZA",
+    siteName: "BOLEKA",
+    url: "https://eboleka.co.za/safety",
+    images: [
+      {
+        url: "/logo.png",
+        width: 512,
+        height: 512,
+        alt: "BOLEKA Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Safety Tips — BOLEKA",
+    description:
+      "Stay safe when renting and sharing items on BOLEKA with these essential safety tips.",
+    images: ["/logo.png"],
+  },
+  alternates: {
+    canonical: "https://eboleka.co.za/safety",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 const tips = [

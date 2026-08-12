@@ -36,11 +36,20 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
       locale: "en_ZA",
       siteName: "BOLEKA",
       url: `https://eboleka.co.za/categories/${slug}`,
+      images: [
+        {
+          url: "/logo.png",
+          width: 512,
+          height: 512,
+          alt: "BOLEKA Logo",
+        },
+      ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
+      images: ["/logo.png"],
     },
     alternates: {
       canonical: `https://eboleka.co.za/categories/${slug}`,
