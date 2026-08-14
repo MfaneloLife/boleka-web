@@ -18,6 +18,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/upload(.*)',
   '/api/reviews/stats(.*)',
   '/api/discounts/validate(.*)',
+  '/api/meta-capi(.*)',
   '/_next(.*)',
   '/favicon.ico',
   '/manifest.json',

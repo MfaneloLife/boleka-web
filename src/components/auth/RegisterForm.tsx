@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSignUp, useClerk } from '@clerk/nextjs';
+import { trackCompleteRegistration } from '@/src/lib/meta-pixel';
 
 interface RegisterFormProps {
   callbackUrl?: string;
@@ -48,6 +49,7 @@ export default function RegisterForm({ callbackUrl = '/dashboard/client' }: Regi
 
       if (result.status === 'complete' && setActive) {
         await setActive({ session: result.createdSessionId });
+        void trackCompleteRegistration(data.email);
         router.push(callbackUrl);
       } else if (result.status === 'missing_requirements') {
         // Send email verification

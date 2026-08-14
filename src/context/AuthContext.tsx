@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser, useClerk, useSignIn, useSignUp } from '@clerk/nextjs';
+import { trackCompleteRegistration } from '@/src/lib/meta-pixel';
 
 interface AuthContextType {
   currentUser: { id?: string; name?: string | null; email?: string | null; image?: string | null } | null;
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (result.status === 'complete' && setSignUpActive) {
         await setSignUpActive({ session: result.createdSessionId });
+        void trackCompleteRegistration(email);
       } else if (result.status === 'missing_requirements') {
         await clerkSignUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       }

@@ -1,13 +1,27 @@
 "use client";
 
-import { SignUp } from "@clerk/nextjs";
+import { SignUp, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { trackCompleteRegistration } from "@/src/lib/meta-pixel";
 
 function SignupContent() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect_url") ?? "/";
+  const { isSignedIn, user } = useUser();
+  const wasSignedIn = useRef(isSignedIn);
+
+  useEffect(() => {
+    // Fire once when a new user completes sign-up via the Clerk <SignUp> card.
+    if (!wasSignedIn.current && isSignedIn) {
+      const email = user?.primaryEmailAddress?.emailAddress;
+      if (email) {
+        void trackCompleteRegistration(email);
+      }
+    }
+    wasSignedIn.current = isSignedIn;
+  }, [isSignedIn, user]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
