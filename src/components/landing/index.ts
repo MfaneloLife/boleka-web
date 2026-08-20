@@ -6,5 +6,6 @@ export { default as HeroBanner } from "./HeroBanner";
 export { default as BrandsSection } from "./BrandsSection";
 export { default as ShopsTab } from "./ShopsTab";
 export { default as FavouritesTab } from "./FavouritesTab";
+export { default as FaqSection } from "./FaqSection";
 export { default as FloatingCTA } from "./FloatingCTA";
 export { default as ImageUploader } from "./ImageUploader";

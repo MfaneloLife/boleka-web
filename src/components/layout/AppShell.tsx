@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Download,
   Share2,
+  FileText,
 } from "lucide-react";
 import { usePWAInstall } from "@/src/context/PWAInstallContext";
 
@@ -53,6 +54,7 @@ const moreItems = [
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
   { name: "Get the App", href: "/install", icon: Download },
   { name: "Help & Support", href: "/support", icon: HelpCircle },
+  { name: "FAQ", href: "/faq", icon: FileText },
   { name: "Safety Tips", href: "/safety", icon: Shield },
 ];
 
