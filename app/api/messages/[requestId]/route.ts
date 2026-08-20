@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
+import { sendNewMessageEmail } from '@/lib/email';
 
 function getR2Client() {
   return new S3Client({
@@ -135,6 +136,9 @@ export async function POST(
 
   const requestRecord = await prisma.request.findUnique({
     where: { id: params.requestId },
+    include: {
+      item: { select: { title: true } },
+    },
   });
 
   if (!requestRecord) {
@@ -199,6 +203,33 @@ export async function POST(
   } catch (notifErr) {
     console.error('Failed to create notification:', notifErr);
     // Don't fail the message send if notification creation fails
+  }
+
+  // Send transactional email to the receiving party
+  try {
+    const [recipient, sender] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: recipientId },
+        select: { email: true, name: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      }),
+    ]);
+
+    if (recipient?.email) {
+      await sendNewMessageEmail({
+        recipientEmail: recipient.email,
+        recipientName: recipient.name,
+        senderName: sender?.name,
+        messagePreview: content?.trim() || '[Image]',
+        itemTitle: requestRecord.item.title,
+        requestId: params.requestId,
+      });
+    }
+  } catch (emailErr) {
+    console.error('Failed to send new message email:', emailErr);
   }
 
   return NextResponse.json({

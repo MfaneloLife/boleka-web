@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { sendRentalRequestEmail } from '@/lib/email';
 
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
@@ -136,6 +137,33 @@ export async function POST(request: NextRequest) {
     });
   } catch (notifErr) {
     console.error('Failed to create notification:', notifErr);
+  }
+
+  // Send transactional email to the item owner
+  try {
+    const [owner, requester] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: item.userId },
+        select: { email: true, name: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      }),
+    ]);
+
+    if (owner?.email) {
+      await sendRentalRequestEmail({
+        ownerEmail: owner.email,
+        ownerName: owner.name,
+        requesterName: requester?.name,
+        itemTitle: item.title,
+        requestId: newRequest.id,
+        message,
+      });
+    }
+  } catch (emailErr) {
+    console.error('Failed to send rental request email:', emailErr);
   }
 
   return NextResponse.json({ id: newRequest.id }, { status: 201 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { slugToLabel } from '@/lib/search-filters';
+import { buildNewItemBroadcastMessages, sendBatchBroadcast } from '@/lib/email';
 
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-0bf9994c37384a93b6f02dc5dc60ec44.r2.dev';
 
@@ -304,6 +305,32 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    // Broadcast the new item to every user in the database
+    try {
+      const users = await prisma.user.findMany({
+        where: { email: { not: null } },
+        select: { email: true },
+      });
+
+      const emails = users
+        .map((user) => user.email)
+        .filter((email): email is string => Boolean(email));
+
+      if (emails.length > 0) {
+        const messages = buildNewItemBroadcastMessages(emails, {
+          itemTitle: item.title,
+          itemDescription: item.description,
+          price: item.price,
+          category: item.category,
+          ownerName: item.user.name,
+        });
+
+        await sendBatchBroadcast(messages);
+      }
+    } catch (emailErr) {
+      console.error('Failed to send new item broadcast:', emailErr);
+    }
 
     return NextResponse.json(normalizeItem(item), { status: 201 });
   } catch (error) {
