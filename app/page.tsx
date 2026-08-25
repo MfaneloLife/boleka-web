@@ -1,6 +1,11 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import HomeClient from "./HomeClient";
+import AllListings from "./AllListings";
+import { getPublicListings } from "@/lib/listings";
+
+// Always fetch fresh listings at request time (never statically baked in).
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "BOLEKA — Rent & Sell Items in South Africa | Peer-to-Peer Marketplace",
@@ -53,10 +58,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
+export default async function Home() {
+  const items = await getPublicListings();
+
   return (
-    <Suspense fallback={<div className="min-h-screen" />}>
-      <HomeClient />
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="min-h-screen" />}>
+        <HomeClient />
+      </Suspense>
+      <AllListings items={items} />
+    </>
   );
 }
