@@ -30,14 +30,22 @@ interface Item {
   createdAt: string;
 }
 
-export default function ItemsGrid() {
+interface ItemsGridProps {
+  initialItems?: Item[];
+}
+
+export default function ItemsGrid({ initialItems = [] }: ItemsGridProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoaded: authLoaded } = useUser();
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // When the server provides the first page (SSR), render it immediately and
+  // skip the redundant client refetch so there is a single, styled list.
+  const hasInitialItems = initialItems.length > 0;
+  const [items, setItems] = useState<Item[]>(initialItems);
+  const [loading, setLoading] = useState(!hasInitialItems);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(!hasInitialItems);
   const nextCursorRef = useRef<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -71,6 +79,12 @@ export default function ItemsGrid() {
 
   /* ---------- initial load + reset when filters change ---------- */
   useEffect(() => {
+    // If the server already rendered the first page for the unfiltered
+    // homepage, keep it and skip the duplicate client fetch.
+    if (hasInitialItems && !category && !searchQuery) {
+      return;
+    }
+
     setItems([]);
     nextCursorRef.current = null;
     setHasMore(true);
@@ -97,7 +111,7 @@ export default function ItemsGrid() {
       }
     };
     loadInitial();
-  }, [fetchItems, updateCache, getCachedFallback]);
+  }, [fetchItems, updateCache, getCachedFallback, hasInitialItems, category, searchQuery]);
 
   /* ---------- infinite scroll observer ---------- */
   useEffect(() => {

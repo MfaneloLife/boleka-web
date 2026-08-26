@@ -19,17 +19,25 @@ export function normalizeImageUrl(url: string | null | undefined): string | null
   return `${R2_PUBLIC_URL}/${trimmed}`;
 }
 
-export interface PublicListing {
+export interface ListingItem {
   id: string;
   title: string;
   description: string | null;
-  category: string;
-  condition: string;
   price: number;
   rentalPrice: number | null;
   itemType: string | null;
+  category: string;
+  condition: string;
+  quantity: number;
   imageUrl: string | null;
-  location: string;
+  imageUrls: string[];
+  location: string | null;
+  user: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+  createdAt: string;
 }
 
 interface LocationSource {
@@ -80,28 +88,55 @@ export function getListingPrice(item: {
   return { value: displayValue, isRental };
 }
 
-/** Fetch all active, in-stock public listings from Neon. */
-export async function getPublicListings(limit = 200): Promise<PublicListing[]> {
+/**
+ * Fetch all active, in-stock public listings from Neon.
+ * Returns the shape consumed by the client-side `ItemsGrid` so the data can be
+ * passed straight through as initial props for a single, SSR-friendly list.
+ */
+export async function getPublicListings(limit = 200): Promise<ListingItem[]> {
   const items = await prisma.item.findMany({
     where: { isActive: true, quantity: { gt: 0 } },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
-      user: { select: { city: true, region: true, suburb: true } },
-      images: { orderBy: { order: "asc" }, take: 1 },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          city: true,
+          region: true,
+          suburb: true,
+        },
+      },
+      images: { orderBy: { order: "asc" } },
     },
   });
 
-  return items.map((item) => ({
-    id: item.id,
-    title: item.title,
-    description: item.description,
-    category: item.category,
-    condition: item.condition,
-    price: item.price,
-    rentalPrice: item.rentalPrice ?? null,
-    itemType: item.itemType ?? null,
-    imageUrl: normalizeImageUrl(item.images[0]?.url),
-    location: getListingLocation(item.address, item.user),
-  }));
+  return items.map((item) => {
+    const imageUrls = item.images
+      .map((image) => normalizeImageUrl(image.url))
+      .filter((url): url is string => url !== null);
+
+    return {
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      price: item.price,
+      rentalPrice: item.rentalPrice ?? null,
+      itemType: item.itemType ?? null,
+      category: item.category,
+      condition: item.condition,
+      quantity: item.quantity,
+      imageUrl: imageUrls[0] ?? null,
+      imageUrls,
+      location: getListingLocation(item.address, item.user),
+      user: {
+        id: item.user.id,
+        name: item.user.name ?? "Unknown",
+        image: item.user.image ?? null,
+      },
+      createdAt: item.createdAt.toISOString(),
+    };
+  });
 }

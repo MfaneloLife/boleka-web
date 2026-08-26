@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import HomeClient from "./HomeClient";
-import AllListings from "./AllListings";
+import HomeJsonLd from "./HomeJsonLd";
 import { getPublicListings } from "@/lib/listings";
 
 // Always fetch fresh listings at request time (never statically baked in).
@@ -63,10 +63,10 @@ export default async function Home() {
 
   return (
     <>
+      <HomeJsonLd items={items} />
       <Suspense fallback={<div className="min-h-screen" />}>
-        <HomeClient />
+        <HomeClient initialItems={items} />
       </Suspense>
-      <AllListings items={items} />
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ListingItem } from "@/lib/listings";
 import AppShell from "@/src/components/layout/AppShell";
 import SearchBar from "@/src/components/landing/SearchBar";
 import TabNav from "@/src/components/landing/TabNav";
@@ -16,7 +17,11 @@ import FloatingCTA from "@/src/components/landing/FloatingCTA";
 
 type Tab = "discover" | "shops" | "favourites";
 
-export default function HomeClient() {
+interface HomeClientProps {
+  initialItems?: ListingItem[];
+}
+
+export default function HomeClient({ initialItems = [] }: HomeClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>("discover");
 
   const handleTabChange = (tab: string) => {
@@ -37,7 +42,7 @@ export default function HomeClient() {
           <WeeklyPicks />
           <CategoryGrid />
           <BrandsSection />
-          <ItemsGrid />
+          <ItemsGrid initialItems={initialItems} />
         </>
       )}
 
