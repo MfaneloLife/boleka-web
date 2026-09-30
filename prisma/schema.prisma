@@ -112,6 +112,7 @@ model Item {
   images      ItemImage[]
   requests    Request[]
   favourites  Favourite[]
+  weeklyPicks WeeklyPick[]
 
   @@index([userId])
 }
@@ -444,4 +445,25 @@ model Payout {
   @@index([walletId])
   @@index([userId])
   @@index([status])
+}
+
+// ============================================================================
+// WEEKLY PICKS — Auto-refreshing curated items for homepage showcase
+// ============================================================================
+
+/// WeeklyPick represents one of 6 featured items for a given week
+/// Auto-refreshed every Monday 00:00 SAST with random high-quality rentals
+model WeeklyPick {
+  id        String   @id @default(cuid())
+  itemId    String
+  weekStart DateTime // Monday 00:00 of the week (SAST)
+  position  Int      // 0-5 for order in carousel
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([weekStart, position])
+  @@index([weekStart])
+  @@index([itemId])
 }

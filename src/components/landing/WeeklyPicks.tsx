@@ -27,13 +27,17 @@ interface Item {
   createdAt: string;
 }
 
-/** Compute ISO week seed e.g. "2026-31" */
-function getWeekSeed(): string {
+/**
+ * Get Monday 00:00 SAST of the current week
+ */
+function getWeekStart(): Date {
   const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
-  const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-  return `${now.getFullYear()}-${weekNum}`;
+  const sastTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const day = sastTime.getDay();
+  const diff = sastTime.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(sastTime.getFullYear(), sastTime.getMonth(), diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
 }
 
 export default function WeeklyPicks() {
@@ -43,14 +47,13 @@ export default function WeeklyPicks() {
   const { isOffline, showingCached, updateCache, getCachedFallback } = useOfflineItems<Item>();
 
   useEffect(() => {
-    const seed = getWeekSeed();
     const fetchPicks = async () => {
       try {
         setLoading(true);
-        const url = new URL("/api/items", window.location.origin);
-        url.searchParams.set("weekly", "true");
-        url.searchParams.set("seed", seed);
-        url.searchParams.set("limit", "8");
+        const weekStart = getWeekStart();
+        const url = new URL("/api/items/weekly", window.location.origin);
+        url.searchParams.set("weekStart", weekStart.toISOString());
+        
         const res = await fetch(url.toString());
         if (res.ok) {
           const data = await res.json();
@@ -60,10 +63,11 @@ export default function WeeklyPicks() {
         } else {
           throw new Error("Failed to fetch weekly picks");
         }
-      } catch {
+      } catch (error) {
+        console.error("WeeklyPicks fetch error:", error);
         const cached = getCachedFallback();
         if (cached.length > 0) {
-          setItems(cached.slice(0, 8));
+          setItems(cached.slice(0, 6));
         }
       } finally {
         setLoading(false);
@@ -80,7 +84,7 @@ export default function WeeklyPicks() {
             <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
             <h2 className="text-lg font-semibold text-gray-900">Weekly Picks</h2>
           </div>
-          <p className="text-sm text-gray-500 mt-0.5">Curated items for you this week</p>
+          <p className="text-sm text-gray-500 mt-0.5">6 best items to rent this week</p>
         </div>
         <div className="flex justify-center py-10">
           <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
@@ -106,16 +110,16 @@ export default function WeeklyPicks() {
           <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
           <h2 className="text-lg font-semibold text-gray-900">Weekly Picks</h2>
         </div>
-        <p className="text-sm text-gray-500 mt-0.5">Curated items for you this week</p>
+        <p className="text-sm text-gray-500 mt-0.5">6 best items to rent this week</p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-7xl mx-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 max-w-7xl mx-auto">
         {items.map((item) => (
           <Link
             key={item.id}
             href={`/items/${item.id}`}
             className="group bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all hover:-translate-y-0.5"
           >
-            {/* Image — taller portrait aspect ratio (Yaga style) */}
+            {/* Image — taller portrait aspect ratio */}
             <div className="aspect-[4/5] bg-gray-100 relative overflow-hidden rounded-t-xl">
               {item.imageUrl || item.imageUrls?.[0] ? (
                 <img
