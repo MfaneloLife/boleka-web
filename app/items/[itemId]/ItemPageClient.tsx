@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
-import { Loader2, Share2, Check } from "lucide-react";
+import { Loader2, Share2, Check, CalendarRange } from "lucide-react";
 
 interface ItemPageClientProps {
   itemId: string;
@@ -16,6 +16,10 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const todayISO = new Date().toLocaleDateString("en-CA");
 
   const isOwner = isLoaded && user && user.id === ownerId;
 
@@ -27,13 +31,32 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
       return;
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T00:00:00`) : null;
+
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      setError("Please choose the dates you'll need this item (from and to).");
+      return;
+    }
+    if (start < today) {
+      setError("The start date can't be in the past.");
+      return;
+    }
+    if (end < start) {
+      setError("The end date must be on or after the start date.");
+      return;
+    }
+
     setIsRequesting(true);
     setError(null);
     try {
       const res = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId }),
+        body: JSON.stringify({ itemId, startDate, endDate }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -66,6 +89,36 @@ export default function ItemPageClient({ itemId, ownerId }: ItemPageClientProps)
           >
             Dismiss
           </button>
+        </div>
+      )}
+      {!isOwner && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <CalendarRange className="w-4 h-4 text-orange-600" />
+            When do you need it?
+          </p>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600">From</span>
+              <input
+                type="date"
+                value={startDate}
+                min={todayISO}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:ring-orange-500"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600">To</span>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || todayISO}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:ring-orange-500"
+              />
+            </label>
+          </div>
         </div>
       )}
       <div className="flex flex-col sm:flex-row gap-3">

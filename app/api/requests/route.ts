@@ -34,6 +34,9 @@ export async function GET(request: NextRequest) {
     requests.map((request) => ({
       id: request.id,
       status: request.status,
+      totalPrice: request.totalPrice,
+      startDate: request.startDate?.toISOString() ?? null,
+      endDate: request.endDate?.toISOString() ?? null,
       item: {
         id: request.item.id,
         title: request.item.title,
@@ -72,9 +75,38 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { itemId, message } = body as { itemId?: string; message?: string };
+  const { itemId, message, startDate, endDate } = body as {
+    itemId?: string;
+    message?: string;
+    startDate?: string;
+    endDate?: string;
+  };
   if (!itemId) {
     return NextResponse.json({ error: 'itemId is required' }, { status: 400 });
+  }
+  if (!startDate || !endDate) {
+    return NextResponse.json(
+      { error: 'startDate and endDate are required' },
+      { status: 400 }
+    );
+  }
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (start < today) {
+    return NextResponse.json({ error: 'Start date cannot be in the past' }, { status: 400 });
+  }
+  if (end < start) {
+    return NextResponse.json(
+      { error: 'End date must be on or after start date' },
+      { status: 400 }
+    );
   }
 
   const item = await prisma.item.findUnique({
@@ -113,6 +145,8 @@ export async function POST(request: NextRequest) {
       ownerId: item.userId,
       status: 'PENDING',
       totalPrice: item.price,
+      startDate: start,
+      endDate: end,
       messages: message
         ? {
             create: {
@@ -160,6 +194,8 @@ export async function POST(request: NextRequest) {
         itemTitle: item.title,
         requestId: newRequest.id,
         message,
+        startDate,
+        endDate,
       });
     }
   } catch (emailErr) {

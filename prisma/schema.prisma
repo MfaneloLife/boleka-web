@@ -102,6 +102,10 @@ model Item {
   isActive    Boolean  @default(true)
   userId      String
 
+  // Social marketing (external Python bot)
+  is_posted_to_social Boolean @default(false)
+  social_post_url    String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

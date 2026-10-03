@@ -235,6 +235,8 @@ export interface RentalRequestEmailInput {
   itemTitle: string;
   requestId: string;
   message?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 /**
@@ -247,6 +249,9 @@ export function sendRentalRequestEmail(
   const preview = input.message?.trim()
     ? `They included a message: “${input.message.trim().slice(0, 200)}”`
     : '';
+  const rentalPeriod = input.startDate
+    ? `They need it from ${input.startDate}${input.endDate ? ` to ${input.endDate}` : ''}.`
+    : '';
 
   const bodyHtml = `
     <p style="margin:0 0 16px;color:#18181b;font-size:16px;">
@@ -256,6 +261,7 @@ export function sendRentalRequestEmail(
       Good news — <strong>${input.requesterName || 'Someone'}</strong> requested to rent
       <strong>${title}</strong>.
     </p>
+    ${rentalPeriod ? `<p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;"><strong>Rental period:</strong> ${rentalPeriod}</p>` : ''}
     ${preview ? `<p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;font-style:italic;">${preview}</p>` : ''}
     <p style="margin:0 0 24px;">
       <a href="${BASE_URL}/dashboard/requests/${input.requestId}" style="display:inline-block;background-color:#16a34a;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">View request</a>
