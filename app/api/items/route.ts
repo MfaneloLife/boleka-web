@@ -35,7 +35,7 @@ function normalizeItem(item: any) {
 
 /**
  * Convert a weekly seed string (e.g. "2026-15") to a float in [0, 1).
- * Uses djb2 to produce a deterministic float for PostgreSQL SETSEED.
+ * Uses djb2 to produce a deterministic float for the weekly-pick shuffle.
  */
 function hashToFloat(seed: string): number {
   let h = 5381;
@@ -44,6 +44,26 @@ function hashToFloat(seed: string): number {
   }
   return (Math.abs(h) % 1_000_000) / 1_000_000;
 }
+function mulberry32(seed: number): () => number {
+  let state = seed | 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleIds<T>(input: T[], seed: number): T[] {
+  const random = mulberry32(seed);
+  const result = [...input];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -105,21 +125,36 @@ export async function GET(req: NextRequest) {
     if (weeklyMode && seedParam) {
       const seedNumber = hashToFloat(seedParam);
 
-      // Seed PostgreSQL's RANDOM() so ORDER BY RANDOM() is deterministic for the week
-      await prisma.$executeRawUnsafe(`SELECT setseed(${seedNumber})`);
+      // Fetch the ids of every item matching the active filters, then shuffle
+      // them deterministically. The same week seed always returns the same 6
+      // picks, but the selection is genuinely random across the whole catalog.
+      const candidates = await prisma.item.findMany({
+        where,
+        select: { id: true },
+      });
+
+      const shuffledIds = shuffleIds(
+        candidates.map((candidate) => candidate.id),
+        Math.floor(seedNumber * 1_000_000)
+      );
+      const pickIds = shuffledIds.slice(0, 6);
 
       const picks = await prisma.item.findMany({
-        where,
-        take: 8,
+        where: { id: { in: pickIds } },
         include: {
           user: { select: { id: true, name: true, image: true } },
           images: { orderBy: { order: 'asc' } },
         },
-        orderBy: { id: 'asc' },
       });
 
+      // Preserve the shuffled order for the client.
+      const pickById = new Map(picks.map((pick) => [pick.id, pick]));
+      const orderedPicks = pickIds
+        .map((id) => pickById.get(id))
+        .filter((pick): pick is NonNullable<typeof pick> => Boolean(pick));
+
       return NextResponse.json({
-        items: picks.map(normalizeItem),
+        items: orderedPicks.map(normalizeItem),
         nextCursor: null,
       });
     }

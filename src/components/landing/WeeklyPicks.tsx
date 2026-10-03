@@ -27,17 +27,13 @@ interface Item {
   createdAt: string;
 }
 
-/**
- * Get Monday 00:00 SAST of the current week
- */
-function getWeekStart(): Date {
+/** Compute ISO week seed e.g. "2026-31" */
+function getWeekSeed(): string {
   const now = new Date();
-  const sastTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const day = sastTime.getDay();
-  const diff = sastTime.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(sastTime.getFullYear(), sastTime.getMonth(), diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
+  const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+  return `${now.getFullYear()}-${weekNum}`;
 }
 
 export default function WeeklyPicks() {
@@ -47,13 +43,14 @@ export default function WeeklyPicks() {
   const { isOffline, showingCached, updateCache, getCachedFallback } = useOfflineItems<Item>();
 
   useEffect(() => {
+    const seed = getWeekSeed();
     const fetchPicks = async () => {
       try {
         setLoading(true);
-        const weekStart = getWeekStart();
-        const url = new URL("/api/items/weekly", window.location.origin);
-        url.searchParams.set("weekStart", weekStart.toISOString());
-        
+        const url = new URL("/api/items", window.location.origin);
+        url.searchParams.set("weekly", "true");
+        url.searchParams.set("seed", seed);
+        url.searchParams.set("limit", "6");
         const res = await fetch(url.toString());
         if (res.ok) {
           const data = await res.json();
@@ -63,8 +60,7 @@ export default function WeeklyPicks() {
         } else {
           throw new Error("Failed to fetch weekly picks");
         }
-      } catch (error) {
-        console.error("WeeklyPicks fetch error:", error);
+      } catch {
         const cached = getCachedFallback();
         if (cached.length > 0) {
           setItems(cached.slice(0, 6));
