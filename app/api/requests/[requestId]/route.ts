@@ -48,15 +48,16 @@ function isValidStatusTransition(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const { requestId } = await params;
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const requestRecord = await prisma.request.findUnique({
-    where: { id: params.requestId },
+    where: { id: requestId },
     include: {
       item: { include: { images: { orderBy: { order: 'asc' } } } },
       requester: { select: { id: true, name: true, image: true, email: true } },
@@ -110,8 +111,9 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const { requestId } = await params;
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -119,7 +121,7 @@ export async function PATCH(
 
   const body = await request.json();
   const requestRecord = await prisma.request.findUnique({
-    where: { id: params.requestId },
+    where: { id: requestId },
   });
 
   if (!requestRecord) {
@@ -141,7 +143,7 @@ export async function PATCH(
   if (body.totalPrice !== undefined) updateData.totalPrice = Number(body.totalPrice);
 
   const updatedRequest = await prisma.request.update({
-    where: { id: params.requestId },
+    where: { id: requestId },
     data: updateData,
   });
 

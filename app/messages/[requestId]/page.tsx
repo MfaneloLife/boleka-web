@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -101,7 +101,8 @@ function statusBadgeClass(status: string): string {
 /* ================================================================== */
 /*  MAIN PAGE COMPONENT                                                */
 /* ================================================================== */
-export default function ConversationPage({ params }: { params: { requestId: string } }) {
+export default function ConversationPage({ params }: { params: Promise<{ requestId: string }> }) {
+  const { requestId } = use(params);
   const router = useRouter();
   const { user, isLoaded, isSignedIn } = useUser();
 
@@ -149,7 +150,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
         setIsInitialLoading(true);
       }
       setError(null);
-      const response = await fetch(`/api/messages/${params.requestId}`);
+      const response = await fetch(`/api/messages/${requestId}`);
       if (!response.ok) {
         if (response.status === 401) throw new Error('Please log in to view this conversation.');
         if (response.status === 403) throw new Error('You do not have access to this conversation.');
@@ -183,7 +184,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
       }
       if (isPolling) pollingRef.current = false;
     }
-  }, [params.requestId]);
+  }, [requestId]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -198,7 +199,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
       return;
     }
     fetchConversation(false);
-  }, [isLoaded, isSignedIn, params.requestId, fetchConversation]);
+  }, [isLoaded, isSignedIn, requestId, fetchConversation]);
 
   /* ---- polling for real-time-ish updates ---- */
   useEffect(() => {
@@ -257,7 +258,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
         const compressedBase64 = await compressToBase64(file);
         payload.imageBase64 = compressedBase64;
       }
-      const response = await fetch(`/api/messages/${params.requestId}`, {
+      const response = await fetch(`/api/messages/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -301,7 +302,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
     setPriceUpdating(true);
     setPriceError(null);
     try {
-      const res = await fetch(`/api/requests/${params.requestId}/update-price`, {
+      const res = await fetch(`/api/requests/${requestId}/update-price`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ finalValue: val }),
@@ -324,7 +325,7 @@ export default function ConversationPage({ params }: { params: { requestId: stri
   const handleSettle = async (method: 'CASH' | 'EFT') => {
     setSettling(true);
     try {
-      const res = await fetch(`/api/requests/${params.requestId}/settle`, {
+      const res = await fetch(`/api/requests/${requestId}/settle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentMethod: method }),

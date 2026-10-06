@@ -1,0 +1,20 @@
+# E-BOLEKA Agent-Native Architecture & Safety Rules
+
+## Rule 1: The conventional path requires fewer decisions than a shortcut.
+- Colocate components, server actions, hooks, and types inside isolated folders: `src/features/<feature-name>/`.
+- Do not branch into shared roots unless a module is actively used by 3+ features.
+
+## Rule 2: Forbidden dependencies fail mechanically.
+- NEVER hardcode secrets, API keys, or database connections.
+- Client files (`'use client'`) are strictly forbidden from importing `serverEnv` (or any server keys) from `@/src/lib/env`.
+- If a client component needs server data, use a Server Action (`'use server'`).
+
+## Rule 3: Every durable value has one obvious writer.
+- Database mutations must go through dedicated Server Actions in `src/features/<feature>/actions/`. Client components only read state or trigger actions.
+
+## Rule 4: New product work adds isolated files rather than branches in shared roots.
+- Build new UI and logic inside `src/features/` rather than cluttering global shared folders.
+
+## Rule 5: Exceptions are narrow, explicit, and reviewed as architecture changes.
+- Do not bypass Zod validation or ESLint checks.
+- After modifying code, run `npm run check` to mechanically verify safety.

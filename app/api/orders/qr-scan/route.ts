@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { OrderService } from '@/src/lib/order-service';
+import { confirmCashPaymentWithQR, completeReturnWithQR, completeOrderWithQR } from '@/src/features/orders/actions';
 
 /**
  * POST /api/orders/qr-scan
@@ -33,13 +33,12 @@ export async function POST(request: NextRequest) {
       if (!qrData.requestId) {
         return NextResponse.json({ error: 'Invalid QR code: missing requestId' }, { status: 400 });
       }
-      const result = await OrderService.confirmCashPaymentWithQR(qrCode, userId);
+      const result = await confirmCashPaymentWithQR(qrCode, userId);
 
       return NextResponse.json({
         success: true,
-        message: 'Cash payment confirmed. Booking created and item quantity decremented.',
+        message: 'Cash payment confirmed. Payment recorded and item quantity decremented.',
         requestId: result.requestId,
-        bookingId: result.bookingId,
         paymentId: result.paymentId,
         action: 'cash_payment_confirm'
       });
@@ -52,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Check if this is a return QR code
     if (qrData.action === 'return') {
       // Buyer scans vendor's return QR to mark item as returned
-      await OrderService.completeReturnWithQR(qrCode, userId);
+      await completeReturnWithQR(qrCode, userId);
 
       return NextResponse.json({
         success: true,
@@ -63,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Default: vendor scans renter's QR to complete the order
-    await OrderService.completeOrderWithQR(qrCode, userId);
+    await completeOrderWithQR(qrCode, userId);
 
     return NextResponse.json({
       success: true,

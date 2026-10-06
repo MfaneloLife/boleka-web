@@ -4,15 +4,16 @@ import { RentalAgreementService } from '@/src/lib/rental-agreement-service';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { agreementId: string } }
+  { params }: { params: Promise<{ agreementId: string }> }
 ) {
   try {
+    const { agreementId } = await params;
     const session = await auth();
     if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const agreement = await RentalAgreementService.getAgreement(params.agreementId);
+    const agreement = await RentalAgreementService.getAgreement(agreementId);
     
     if (!agreement) {
       return NextResponse.json({ error: 'Agreement not found' }, { status: 404 });
@@ -35,9 +36,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { agreementId: string } }
+  { params }: { params: Promise<{ agreementId: string }> }
 ) {
   try {
+    const { agreementId } = await params;
     const session = await auth();
     if (!session?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -46,7 +48,7 @@ export async function PATCH(
     const body = await request.json();
     
     // Get existing agreement to check permissions
-    const agreement = await RentalAgreementService.getAgreement(params.agreementId);
+    const agreement = await RentalAgreementService.getAgreement(agreementId);
     
     if (!agreement) {
       return NextResponse.json({ error: 'Agreement not found' }, { status: 404 });
@@ -57,7 +59,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Cannot modify this agreement' }, { status: 403 });
     }
 
-    await RentalAgreementService.updateAgreement(params.agreementId, body);
+    await RentalAgreementService.updateAgreement(agreementId, body);
 
     return NextResponse.json({ 
       success: true,

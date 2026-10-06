@@ -44,15 +44,16 @@ async function deleteR2Image(imageUrl: string): Promise<void> {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const { requestId } = await params;
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const requestRecord = await prisma.request.findUnique({
-    where: { id: params.requestId },
+    where: { id: requestId },
     include: {
       item: { include: { images: { orderBy: { order: 'asc' } } } },
       requester: { select: { id: true, name: true, image: true } },
@@ -69,7 +70,7 @@ export async function GET(
   }
 
   const messages = await prisma.message.findMany({
-    where: { requestId: params.requestId },
+    where: { requestId: requestId },
     orderBy: { createdAt: 'asc' },
     include: {
       sender: { select: { id: true, name: true, image: true } },
@@ -120,8 +121,9 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const { requestId } = await params;
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -135,7 +137,7 @@ export async function POST(
   }
 
   const requestRecord = await prisma.request.findUnique({
-    where: { id: params.requestId },
+    where: { id: requestId },
     include: {
       item: { select: { title: true } },
     },
@@ -156,7 +158,7 @@ export async function POST(
       const r2 = getR2Client();
       const buffer = Buffer.from(imageBase64, 'base64');
       const ext = 'jpg'; // Default to jpg for compressed images
-      const key = `messages/${params.requestId}/${crypto.randomUUID()}.${ext}`;
+      const key = `messages/${requestId}/${crypto.randomUUID()}.${ext}`;
       
       const command = new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME || 'bolekaweb',
@@ -175,7 +177,7 @@ export async function POST(
 
   const newMessage = await prisma.message.create({
     data: {
-      requestId: params.requestId,
+      requestId: requestId,
       senderId: userId,
       content: content ?? '[Image]',
       imageUrl: imageUrl,
@@ -197,7 +199,7 @@ export async function POST(
         type: 'MESSAGE_RECEIVED',
         title: 'New message received',
         message: content?.substring(0, 100) ?? 'Image sent',
-        relatedId: params.requestId,
+        relatedId: requestId,
       },
     });
   } catch (notifErr) {
@@ -225,7 +227,7 @@ export async function POST(
         senderName: sender?.name,
         messagePreview: content?.trim() || '[Image]',
         itemTitle: requestRecord.item.title,
-        requestId: params.requestId,
+        requestId: requestId,
       });
     }
   } catch (emailErr) {
@@ -247,7 +249,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) {

@@ -5,8 +5,9 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const { requestId } = await params;
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,7 +15,7 @@ export async function POST(
 
   const { amount, itemName } = await req.json();
   const requestRecord = await prisma.request.findUnique({
-    where: { id: params.requestId },
+    where: { id: requestId },
     include: { item: true },
   });
 

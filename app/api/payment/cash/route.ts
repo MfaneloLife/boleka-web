@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { OrderService } from '@/src/lib/order-service';
+import { initiateCashPayment } from '@/src/features/orders/actions';
 
 /**
  * POST /api/payment/cash
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valid amount is required' }, { status: 400 });
     }
 
-    const result = await OrderService.initiateCashPayment(requestId, userId, Number(amount));
+    const result = await initiateCashPayment(requestId, userId, Number(amount));
 
     return NextResponse.json({
       success: true,

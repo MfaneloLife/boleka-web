@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { resolveCategoryFromSlug } from '@/app/api/categories/route';
+import { resolveCategoryFromSlug } from '@/src/lib/categories';
 
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-0bf9994c37384a93b6f02dc5dc60ec44.r2.dev';
 
@@ -14,7 +14,7 @@ function normalizeImageUrl(url: string | null | undefined): string | null {
 
 function normalizeItem(item: any) {
   const imageUrls = Array.isArray(item.images)
-    ? item.images.map((image: any) => normalizeImageUrl(image.url)).filter((url): url is string => url !== null)
+    ? item.images.map((image: any) => normalizeImageUrl(image.url)).filter((url: string | null): url is string => url !== null)
     : [];
 
   return {

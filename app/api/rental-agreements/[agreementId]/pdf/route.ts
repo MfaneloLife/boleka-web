@@ -5,7 +5,7 @@ import { PDFGenerator } from '@/src/lib/pdf-generator';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { agreementId: string } }
+  { params }: { params: Promise<{ agreementId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -17,7 +17,7 @@ export async function GET(
       );
     }
 
-    const agreementId = params.agreementId;
+    const { agreementId } = await params;
 
     // Get the agreement
     const agreement = await RentalAgreementService.getAgreement(agreementId);
@@ -96,7 +96,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { agreementId: string } }
+  { params }: { params: Promise<{ agreementId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -108,7 +108,7 @@ export async function POST(
       );
     }
 
-    const agreementId = params.agreementId;
+    const { agreementId } = await params;
     const body = await request.json();
 
     // Get the agreement

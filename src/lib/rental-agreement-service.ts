@@ -23,7 +23,7 @@ export const RentalAgreementService = {
     return null;
   },
 
-  async getUserAgreements(userId: string): Promise<Agreement[]> {
+  async getUserAgreements(userId: string, role?: 'owner' | 'renter' | 'both'): Promise<Agreement[]> {
     // TODO: Implement actual agreement fetching via Prisma
     console.warn('[RentalAgreementService] getUserAgreements not fully implemented', userId);
     return [];
@@ -51,7 +51,7 @@ export const RentalAgreementService = {
     console.warn('[RentalAgreementService] signAgreement not fully implemented');
   },
 
-  async canModifyAgreement(agreementId: string, userId: string): Promise<boolean> {
+  async canModifyAgreement(agreement: Agreement, userId: string): Promise<boolean> {
     // TODO: Implement actual permission check via Prisma
     console.warn('[RentalAgreementService] canModifyAgreement not fully implemented');
     return false;

@@ -38,7 +38,7 @@ import CryptoJS from 'crypto-js';
 // ---------------------------------------------------------------------------
 const checkoutSchema = z.object({
   requestId: z
-    .string({ required_error: 'requestId is required' })
+    .string({ error: 'requestId is required' })
     .min(1, 'requestId cannot be empty'),
 });
 

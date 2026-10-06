@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import PaymentForm from '@/src/components/PaymentForm';
 import TermsAndConditions from '@/src/components/TermsAndConditions';
 import Loading from '@/src/components/Loading';
 
-export default function PaymentPage({ params }: { params: { requestId: string } }) {
-  const { requestId } = params;
+export default function PaymentPage({ params }: { params: Promise<{ requestId: string }> }) {
+  const { requestId } = use(params);
   const router = useRouter();
   const { user, isLoaded, isSignedIn } = useUser();
 
