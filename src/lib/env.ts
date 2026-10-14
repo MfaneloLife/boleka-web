@@ -6,7 +6,7 @@ const serverSchema = z.object({
 });
 
 const clientSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  NEXT_PUBLIC_APP_URL: z.string().url().default("https://eboleka.co.za"),
 });
 
 const _serverEnv = serverSchema.safeParse(process.env);
